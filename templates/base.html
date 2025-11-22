@@ -11,17 +11,16 @@
     <style>
         :root {
             --bg-color: #051714;
-            /* Deepest Green/Black */
             --card-bg: rgba(10, 51, 34, 0.7);
-            /* Primary Green 1000 */
             --text-primary: #F3EDE7;
-            /* Primary Brown 300 (Sand) */
             --text-secondary: #A39A93;
-            /* Primary Brown 600 */
             --accent: #50E8A8;
-            /* Primary Green 400 (Vibrant) */
             --accent-glow: rgba(80, 232, 168, 0.3);
             --glass-border: rgba(243, 237, 231, 0.1);
+        }
+
+        * {
+            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
         }
 
         body {
@@ -33,9 +32,7 @@
             min-height: 100vh;
             background-image:
                 radial-gradient(circle at 10% 20%, rgba(26, 134, 114, 0.2) 0%, transparent 20%),
-                /* Primary Green 700 */
                 radial-gradient(circle at 90% 80%, rgba(29, 95, 154, 0.2) 0%, transparent 20%);
-            /* Ocean Blue */
         }
 
         .container {
@@ -57,10 +54,15 @@
             font-size: 2.5rem;
             font-weight: 700;
             background: linear-gradient(to right, #50E8A8, #1D5F9A);
-            /* Green to Blue */
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
             margin: 0;
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 1rem;
         }
 
         nav a {
@@ -82,29 +84,40 @@
             border-radius: 1rem;
             padding: 2rem;
             margin-bottom: 2rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            box-shadow:
+                0 4px 6px -1px rgba(0, 0, 0, 0.2),
+                0 2px 4px -1px rgba(0, 0, 0, 0.1),
+                0 0 0 1px rgba(80, 232, 168, 0.05);
             transition: transform 0.3s, box-shadow 0.3s;
         }
 
         .card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            box-shadow:
+                0 20px 25px -5px rgba(0, 0, 0, 0.3),
+                0 10px 10px -5px rgba(0, 0, 0, 0.2),
+                0 0 0 1px rgba(80, 232, 168, 0.15);
             border-color: var(--accent-glow);
         }
 
-        input[type="text"] {
+        input[type="text"],
+        select {
             background: rgba(10, 51, 34, 0.5);
             border: 1px solid var(--glass-border);
             color: var(--text-primary);
             padding: 0.75rem 1rem;
             border-radius: 0.5rem;
-            width: 100%;
-            max-width: 400px;
             font-family: inherit;
             font-size: 1rem;
         }
 
-        input[type="text"]:focus {
+        input[type="text"] {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        input[type="text"]:focus,
+        select:focus {
             outline: none;
             border-color: var(--accent);
             box-shadow: 0 0 0 2px var(--accent-glow);
@@ -153,7 +166,7 @@
         .stat-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 2rem;
+            gap: 1.5rem;
             margin-bottom: 3rem;
         }
 
@@ -171,6 +184,32 @@
         .stat-label {
             color: var(--text-secondary);
             font-size: 1rem;
+        }
+
+        /* Loading Spinner */
+        .map-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            text-align: center;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(80, 232, 168, 0.2);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         @media (max-width: 768px) {
@@ -203,6 +242,11 @@
             .table-container {
                 overflow-x: auto;
                 -webkit-overflow-scrolling: touch;
+            }
+
+            /* Responsive map height */
+            #map {
+                height: 350px !important;
             }
         }
     </style>
