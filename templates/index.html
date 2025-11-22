@@ -116,7 +116,11 @@
                 {% for loc in top_locs %}
                 <tr>
                     <td>#{{ loop.index }}</td>
-                    <td style="font-weight: 600; color: var(--text-primary);">{{ loc.name }}</td>
+                    <td style="font-weight: 600; color: var(--text-primary);">
+                        <a href="/location/{{ loc.name }}" style="color: var(--accent); text-decoration: none;">
+                            {{ loc.name }}
+                        </a>
+                    </td>
                     <td>{{ loc.count }}</td>
                     <td>
                         <div

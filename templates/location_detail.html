@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    .location-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .location-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .back-link {
+        color: var(--text-secondary);
+        text-decoration: none;
+        display: inline-block;
+        margin-bottom: 1.5rem;
+    }
+
+    .back-link:hover {
+        color: var(--accent);
+    }
+
+    .location-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .location-stat {
+        background: rgba(80, 232, 168, 0.1);
+        padding: 1rem;
+        border-radius: 0.5rem;
+        text-align: center;
+        border: 1px solid var(--accent-glow);
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--accent);
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-top: 0.25rem;
+    }
+
+    /* Photo Gallery */
+    .photo-gallery {
+        margin-bottom: 3rem;
+    }
+
+    .gallery-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .gallery-item {
+        position: relative;
+        aspect-ratio: 1;
+        overflow: hidden;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        border: 1px solid var(--glass-border);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .gallery-item:hover {
+        transform: scale(1.05);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        border-color: var(--accent);
+    }
+
+    .gallery-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .gallery-item-info {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+        padding: 0.75rem;
+        color: white;
+        font-size: 0.85rem;
+    }
+
+    /* Lightbox */
+    .lightbox {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .lightbox.active {
+        display: flex;
+    }
+
+    .lightbox-content {
+        max-width: 90%;
+        max-height: 90%;
+        position: relative;
+    }
+
+    .lightbox img {
+        max-width: 100%;
+        max-height: 90vh;
+        object-fit: contain;
+    }
+
+    .lightbox-close {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        font-size: 2rem;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        cursor: pointer;
+        line-height: 1;
+    }
+
+    .lightbox-close:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    .lightbox-nav {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        font-size: 2rem;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        cursor: pointer;
+    }
+
+    .lightbox-prev {
+        left: 1rem;
+    }
+
+    .lightbox-next {
+        right: 1rem;
+    }
+
+    .no-images {
+        text-align: center;
+        padding: 3rem;
+        color: var(--text-secondary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="/" class="back-link">← Back to Dashboard</a>
+
+<div class="location-header">
+    <h1>📍 {{ location_name }}</h1>
+    {% if coords %}
+    <p style="color: var(--text-secondary);">
+        <a href="https://maps.google.com/?q={{ coords.lat }},{{ coords.lon }}" target="_blank"
+            style="color: var(--accent); text-decoration: none;">
+            View on Map →
+        </a>
+    </p>
+    {% endif %}
+</div>
+
+<div class="location-stats">
+    <div class="location-stat">
+        <div class="stat-number">{{ total_finds }}</div>
+        <div class="stat-label">Total Finds</div>
+    </div>
+    <div class="location-stat">
+        <div class="stat-number">{{ peak_year[0] if peak_year[0] else 'N/A' }}</div>
+        <div class="stat-label">Peak Year ({{ peak_year[1] }} finds)</div>
+    </div>
+    <div class="location-stat">
+        <div class="stat-number">{{ top_finder[0][:15] if top_finder[0] else 'N/A' }}</div>
+        <div class="stat-label">Top Finder ({{ top_finder[1] }} finds)</div>
+    </div>
+</div>
+
+<div class="card photo-gallery">
+    <h2>🖼️ Photo Gallery ({{ images|length }})</h2>
+
+    {% if images %}
+    <div class="gallery-grid">
+        {% for image in images %}
+        <div class="gallery-item" onclick="openLightbox({{ loop.index0 }})">
+            <img src="{{ image.url }}" alt="Float #{{ image.float_number }}" loading="lazy">
+            <div class="gallery-item-info">
+                <div>#{{ image.float_number }} - {{ image.year }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="no-images">
+        <p>No images available for this location yet.</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>📋 All Finds ({{ total_finds }})</h2>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Year</th>
+                    <th>Date</th>
+                    <th>Float #</th>
+                    <th>Finder</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for find in finds %}
+                <tr>
+                    <td style="font-weight: 600;">{{ find.year }}</td>
+                    <td>{{ find.date_found if find.date_found else '—' }}</td>
+                    <td>#{{ find.float_number }}</td>
+                    <td>{{ find.finder }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+    <button class="lightbox-close" onclick="closeLightbox(event)">×</button>
+    <button class="lightbox-nav lightbox-prev" onclick="navigateLightbox(-1, event)">‹</button>
+    <button class="lightbox-nav lightbox-next" onclick="navigateLightbox(1, event)">›</button>
+    <div class="lightbox-content">
+        <img id="lightbox-img" src="" alt="">
+    </div>
+</div>
+
+<script>
+    const images = {{ images| tojson }};
+    let currentIndex = 0;
+
+    function openLightbox(index) {
+        currentIndex = index;
+        const lightbox = document.getElementById('lightbox');
+        const img = document.getElementById('lightbox-img');
+        img.src = images[index].url;
+        lightbox.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox(event) {
+        if (event.target.id === 'lightbox' || event.target.classList.contains('lightbox-close')) {
+            const lightbox = document.getElementById('lightbox');
+            lightbox.classList.remove('active');
+            document.body.style.overflow = 'auto';
+        }
+    }
+
+    function navigateLightbox(direction, event) {
+        event.stopPropagation();
+        currentIndex = (currentIndex + direction + images.length) % images.length;
+        document.getElementById('lightbox-img').src = images[currentIndex].url;
+    }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+        const lightbox = document.getElementById('lightbox');
+        if (lightbox.classList.contains('active')) {
+            if (e.key === 'Escape') closeLightbox({ target: lightbox });
+            if (e.key === 'ArrowLeft') navigateLightbox(-1, e);
+            if (e.key === 'ArrowRight') navigateLightbox(1, e);
+        }
+    });
+</script>
+{% endblock %}

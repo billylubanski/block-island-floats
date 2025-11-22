@@ -171,5 +171,70 @@ def field_mode():
                           hunting_spots=hunting_spots,
                           last_updated=last_updated)
 
+@app.route('/location/<location_name>')
+def location_detail(location_name):
+    """Detail page for a specific location showing all finds and photos"""
+    conn = get_db_connection()
+    
+    # Get all finds at this location
+    finds = conn.execute(
+        'SELECT * FROM finds WHERE location_normalized = ? ORDER BY year DESC, date_found DESC',
+        (location_name,)
+    ).fetchall()
+    
+    if not finds:
+        conn.close()
+        return "Location not found", 404
+    
+    # Calculate stats
+    total_finds = len(finds)
+    years = {}
+    finders = {}
+    images = []
+    
+    for find in finds:
+        # Year distribution
+        year = find['year']
+        years[year] = years.get(year, 0) + 1
+        
+        # Top finders
+        finder = find['finder']
+        if finder:
+            finders[finder] = finders.get(finder, 0) + 1
+        
+        # Collect images
+        if find['image_url']:
+            # Filter out generic Block Island logo/placeholder images
+            image_url = find['image_url']
+            is_placeholder = 'default_image' in image_url
+            
+            if not is_placeholder:
+                images.append({
+                    'url': find['image_url'],
+                    'finder': finder,
+                    'year': year,
+                    'float_number': find['float_number'],
+                    'date': find['date_found']
+                })
+    
+    # Get coordinates
+    coords = LOCATIONS.get(location_name, None)
+    
+    # Top stats
+    peak_year = max(years.items(), key=lambda x: x[1]) if years else (None, 0)
+    top_finder = max(finders.items(), key=lambda x: x[1]) if finders else (None, 0)
+    
+    conn.close()
+    
+    return render_template('location_detail.html',
+                          location_name=location_name,
+                          total_finds=total_finds,
+                          finds=finds,
+                          images=images,
+                          coords=coords,
+                          peak_year=peak_year,
+                          top_finder=top_finder,
+                          years=sorted(years.items(), reverse=True))
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
