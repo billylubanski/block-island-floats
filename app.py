@@ -140,5 +140,36 @@ def search():
 def about():
     return render_template('about.html')
 
+@app.route('/field')
+def field_mode():
+    """Mobile-optimized field mode for on-island hunting"""
+    conn = get_db_connection()
+    
+    # Get all locations with coordinates and their find counts
+    all_locs = conn.execute('SELECT location_raw FROM finds').fetchall()
+    normalized_locs = [normalize_location(row['location_raw']) for row in all_locs]
+    loc_counts = Counter(normalized_locs)
+    
+    # Build location list with coordinates
+    hunting_spots = []
+    for loc, count in loc_counts.most_common():
+        coords = LOCATIONS.get(loc, None)
+        if coords:  # Only include locations we can navigate to
+            hunting_spots.append({
+                'name': loc,
+                'count': count,
+                'lat': coords['lat'],
+                'lon': coords['lon']
+            })
+    
+    conn.close()
+    
+    # Get last updated
+    last_updated = get_last_updated()
+    
+    return render_template('field.html',
+                          hunting_spots=hunting_spots,
+                          last_updated=last_updated)
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    /* Field Mode Mobile-First Styles */
+    body {
+        padding: 0;
+        margin: 0;
+    }
+
+    .field-header {
+        background: var(--card-bg);
+        padding: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .field-header h1 {
+        margin: 0;
+        font-size: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .back-btn {
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+
+    .geolocate-section {
+        padding: 1rem;
+        text-align: center;
+        background: linear-gradient(135deg, rgba(26, 134, 114, 0.2), rgba(29, 95, 154, 0.2));
+    }
+
+    .geolocate-btn {
+        background: var(--accent);
+        color: var(--bg-color);
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 0.5rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .geolocate-btn:active {
+        transform: scale(0.98);
+    }
+
+    .geolocate-status {
+        margin-top: 0.75rem;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .spots-section {
+        padding: 1rem;
+    }
+
+    .spots-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .spots-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+
+    .spot-count {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .spot-card {
+        background: var(--card-bg);
+        border-radius: 0.75rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .spot-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
+    }
+
+    .spot-name {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .spot-distance {
+        color: var(--accent);
+        font-weight: 600;
+        font-size: 0.9rem;
+        white-space: nowrap;
+    }
+
+    .spot-stats {
+        display: flex;
+        gap: 1.5rem;
+        margin-bottom: 1rem;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .spot-stat {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .nav-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .nav-btn {
+        flex: 1;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        text-align: center;
+        font-weight: 600;
+        font-size: 0.9rem;
+        border: 1px solid var(--accent);
+        color: var(--accent);
+        background: rgba(26, 134, 114, 0.1);
+    }
+
+    .nav-btn:active {
+        background: var(--accent);
+        color: var(--bg-color);
+    }
+
+    .loading {
+        display: none;
+        text-align: center;
+        padding: 2rem;
+        color: var(--text-secondary);
+    }
+
+    .loading.active {
+        display: block;
+    }
+
+    /* Compact map */
+    #field-map {
+        height: 250px;
+        border-radius: 0.5rem;
+        margin: 1rem;
+    }
+</style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="field-header">
+    <h1>🎯 Field Mode</h1>
+    <a href="/" class="back-btn">← Dashboard</a>
+</div>
+
+<div class="geolocate-section">
+    <button class="geolocate-btn" onclick="getUserLocation()">
+        📍 Find My Location
+    </button>
+    <div class="geolocate-status" id="status">Tap to see nearby hunting spots</div>
+</div>
+
+<div id="field-map"></div>
+
+<div class="spots-section">
+    <div class="spots-header">
+        <h2>Hunting Spots</h2>
+        <span class="spot-count" id="spot-count">{{ hunting_spots|length }} locations</span>
+    </div>
+
+    <div class="loading" id="loading">
+        Calculating distances...
+    </div>
+
+    <div id="spots-list">
+        {% for spot in hunting_spots %}
+        <div class="spot-card" data-lat="{{ spot.lat }}" data-lon="{{ spot.lon }}">
+            <div class="spot-header">
+                <h3 class="spot-name">{{ spot.name }}</h3>
+                <span class="spot-distance">--</span>
+            </div>
+            <div class="spot-stats">
+                <div class="spot-stat">
+                    <span>🏆</span>
+                    <span>{{ spot.count }} finds</span>
+                </div>
+            </div>
+            <div class="nav-buttons">
+                <a href="https://maps.google.com/?q={{ spot.lat }},{{ spot.lon }}" class="nav-btn" target="_blank">
+                    Google Maps
+                </a>
+                <a href="maps://?q={{ spot.lat }},{{ spot.lon }}" class="nav-btn">
+                    Apple Maps
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    let userLat = null;
+    let userLon = null;
+    let map = null;
+    let userMarker = null;
+
+    // Initialize map
+    map = L.map('field-map').setView([41.17, -71.58], 12);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap contributors © CARTO',
+        maxZoom: 19
+    }).addTo(map);
+
+    // Add markers for all spots
+    {% for spot in hunting_spots %}
+    L.marker([{{ spot.lat }}, {{ spot.lon }}])
+        .addTo(map)
+        .bindPopup("<b>{{ spot.name }}</b><br>{{ spot.count }} finds");
+    {% endfor %}
+
+    function getUserLocation() {
+        const statusEl = document.getElementById('status');
+        const loadingEl = document.getElementById('loading');
+
+        if (!navigator.geolocation) {
+            statusEl.textContent = '❌ Geolocation not supported';
+            return;
+        }
+
+        statusEl.textContent = '📡 Getting your location...';
+        loadingEl.classList.add('active');
+
+        navigator.geolocation.getCurrentPosition(
+            function (position) {
+                userLat = position.coords.latitude;
+                userLon = position.coords.longitude;
+
+                statusEl.textContent = `✅ Location found! Showing ${document.querySelectorAll('.spot-card').length} nearby spots`;
+
+                // Add user marker to map
+                if (userMarker) {
+                    map.removeLayer(userMarker);
+                }
+                userMarker = L.marker([userLat, userLon], {
+                    icon: L.icon({
+                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41]
+                    })
+                }).addTo(map).bindPopup("📍 You are here").openPopup();
+
+                map.setView([userLat, userLon], 13);
+
+                // Calculate and update distances
+                updateDistances();
+                sortByDistance();
+
+                loadingEl.classList.remove('active');
+            },
+            function (error) {
+                statusEl.textContent = '❌ Could not get location';
+                loadingEl.classList.remove('active');
+                console.error('Geolocation error:', error);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000
+            }
+        );
+    }
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 3959; // Earth radius in miles
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    function updateDistances() {
+        if (!userLat || !userLon) return;
+
+        const cards = document.querySelectorAll('.spot-card');
+        cards.forEach(card => {
+            const spotLat = parseFloat(card.dataset.lat);
+            const spotLon = parseFloat(card.dataset.lon);
+            const distance = calculateDistance(userLat, userLon, spotLat, spotLon);
+
+            card.dataset.distance = distance;
+            const distanceEl = card.querySelector('.spot-distance');
+            distanceEl.textContent = distance < 0.1 ?
+                Math.round(distance * 5280) + ' ft' :
+                distance.toFixed(1) + ' mi';
+        });
+    }
+
+    function sortByDistance() {
+        const list = document.getElementById('spots-list');
+        const cards = Array.from(document.querySelectorAll('.spot-card'));
+
+        cards.sort((a, b) => {
+            const distA = parseFloat(a.dataset.distance) || 999;
+            const distB = parseFloat(b.dataset.distance) || 999;
+            return distA - distB;
+        });
+
+        cards.forEach(card => list.appendChild(card));
+
+        // Update count to show sorted
+        document.getElementById('spot-count').textContent =
+            `${cards.length} locations (sorted by distance)`;
+    }
+</script>
+
+<p style="text-align: center; color: var(--text-secondary); font-size: 0.875rem; padding: 1rem;">
+    Last updated: {{ last_updated }}
+</p>
+{% endblock %}
