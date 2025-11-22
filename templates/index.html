@@ -18,6 +18,26 @@
         <div class="stat-value">{{ years|length }}</div>
         <div class="stat-label">Years Tracked</div>
     </div>
+    <div class="card stat-card">
+        <div class="stat-value">{{ top_locs[0].name if top_locs else "N/A" }}</div>
+        <div class="stat-label">Most Popular Spot</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Float Map</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 1rem;">Heatmap showing concentration of finds across the
+        island.</p>
+    <div id="map" style="height: 500px; width: 100%; border-radius: 0.5rem; z-index: 1;"></div>
+    <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 1rem; text-align: center;">
+        Last updated: {{ last_updated }}
+    </p>
+</div>
+
+<div class="card">
+    <h2>Top Hunting Grounds</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Based on historical data, these are the best trails
+        to check.</p>
 
     <div class="table-container">
         <table>
