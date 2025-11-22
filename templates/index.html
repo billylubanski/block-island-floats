@@ -178,23 +178,21 @@
                 </tr>
             </thead>
             <tbody>
-                {% set max_count = years[0]['count'] if years else 1 %}
-                {% for row in years %}
-                {% if row['count'] > max_count %}
-                {% set max_count = row['count'] %}
-                {% endif %}
-                {% endfor %}
-
                 {% for row in years %}
                 <tr>
                     <td style="font-weight: 600; color: var(--text-primary);">{{ row['year'] }}</td>
                     <td>{{ row['count'] }}</td>
                     <td>
-                        <div
-                            style="background: rgba(255,255,255,0.1); height: 10px; border-radius: 5px; width: 100%; display: flex; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
                             <div
-                                style="background: linear-gradient(to right, var(--accent), #1A8672); height: 100%; border-radius: 5px; width: {{ (row['count'] / max_count * 100) if max_count > 0 else 0 }}%; transition: width 0.3s ease;">
+                                style="background: rgba(255,255,255,0.1); height: 10px; border-radius: 5px; flex: 1; display: flex; align-items: center;">
+                                <div
+                                    style="background: linear-gradient(to right, var(--accent), #1A8672); height: 100%; border-radius: 5px; width: {{ (row['count'] / max_year_count * 100) if max_year_count > 0 else 0 }}%; transition: width 0.3s ease;">
+                                </div>
                             </div>
+                            <span style="color: var(--text-secondary); font-size: 0.875rem; min-width: 3rem; text-align: right;">
+                                {{ (row['count'] / max_year_count * 100) | round(0) | int }}%
+                            </span>
                         </div>
                     </td>
                 </tr>

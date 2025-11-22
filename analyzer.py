@@ -340,6 +340,46 @@ def analyze_dates(filter_year=None):
         "total_dates_analyzed": len(months)
     }
 
+def analyze_unreported_floats(filter_year=None):
+    """
+    Calculate how many floats are unreported based on float numbers.
+    filter_year: optional year (int/str) to scope results.
+    Returns dict with total_hidden, total_found, unreported count.
+    """
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    params = []
+    query = "SELECT float_number FROM finds WHERE float_number IS NOT NULL AND float_number != ''"
+    if filter_year:
+        query += " AND year = ?"
+        params.append(str(filter_year))
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
+
+    # Extract numeric float numbers from various formats
+    float_numbers = set()
+    for row in rows:
+        match = re.search(r'(\d+)', str(row['float_number']))
+        if match:
+            float_numbers.add(int(match.group(1)))
+    
+    if not float_numbers:
+        return {
+            "total_hidden": 0,
+            "total_found": 0,
+            "unreported": 0
+        }
+    
+    total_hidden = max(float_numbers)
+    total_found = len(float_numbers)
+    unreported = total_hidden - total_found
+    
+    return {
+        "total_hidden": total_hidden,
+        "total_found": total_found,
+        "unreported": unreported
+    }
+
 if __name__ == "__main__":
     print("\n--- Date Analysis ---")
     stats = analyze_dates()

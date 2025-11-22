@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request
 import sqlite3
 from collections import Counter
-from analyzer import normalize_location, analyze_dates
+from analyzer import normalize_location, analyze_dates, analyze_unreported_floats
 from locations import LOCATIONS
 from utils import get_last_updated
 
@@ -37,10 +37,20 @@ def index():
     # Get finds by year (always show all years for context)
     years_data = conn.execute('SELECT year, count(*) as count FROM finds GROUP BY year ORDER BY year DESC').fetchall()
     
+    # Calculate max year count for percentage calculations
+    max_year_count = max([row['count'] for row in years_data], default=1) if years_data else 1
+    
     # Get date analysis stats (filtered)
     date_stats = analyze_dates(year_param)
     best_months = date_stats['best_months']
     total_dates_analyzed = date_stats['total_dates_analyzed']
+    
+    # Get unreported float stats (only for specific years, not "all")
+    # Float numbers are reused each year, so aggregation across years doesn't make sense
+    if year_param:
+        unreported_stats = analyze_unreported_floats(year_param)
+    else:
+        unreported_stats = None
     
     # Get top locations (filtered)
     if year_param:
@@ -90,11 +100,13 @@ def index():
     
     return render_template('index.html', 
                            total_finds=total_finds, 
-                           years=years_data, 
+                           years=years_data,
+                           max_year_count=max_year_count,
                            top_locs=top_locs,
                            map_markers=map_markers,
                            best_months=best_months,
                            total_dates_analyzed=total_dates_analyzed,
+                           unreported_stats=unreported_stats,
                            last_updated=last_updated,
                            selected_year=selected_year)
 
