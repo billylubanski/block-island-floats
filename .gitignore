@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.db-journal
+debug_*.html
+debug_*.txt
+output.txt
+unknowns.txt
+result_count.txt
+requirejs_config.js
+shared_header.js
+venv/
+.env
+*.log
+.DS_Store

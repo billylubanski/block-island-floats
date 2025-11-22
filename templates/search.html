@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>Search Finds</h2>
+    <form action="/search" method="get" style="display: flex; gap: 1rem; margin-top: 1rem;">
+        <input type="text" name="q" placeholder="Search by finder, location, or float number..." value="{{ query }}">
+        <button type="submit">Search</button>
+    </form>
+</div>
+
+{% if query %}
+<div class="card">
+    <h3>Results for "{{ query }}"</h3>
+    {% if results %}
+    <table>
+        <thead>
+            <tr>
+                <th>Year</th>
+                <th>Float #</th>
+                <th>Finder</th>
+                <th>Location</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in results %}
+            <tr>
+                <td>{{ row['year'] }}</td>
+                <td>{{ row['float_number'] }}</td>
+                <td>{{ row['finder'] }}</td>
+                <td>{{ row['location_raw'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="margin-top: 1rem; color: var(--text-secondary);">No results found.</p>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

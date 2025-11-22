@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="stat-grid">
+    <div class="card stat-card">
+        <div class="stat-value">{{ total_finds }}</div>
+        <div class="stat-label">Total Floats Found</div>
+    </div>
+    <div class="card stat-card">
+        <div class="stat-value">{{ years|length }}</div>
+        <div class="stat-label">Years Tracked</div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Location</th>
+                    <th>Total Finds</th>
+                    <th>Probability</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for loc in top_locs %}
+                <tr>
+                    <td>#{{ loop.index }}</td>
+                    <td style="font-weight: 600; color: var(--text-primary);">{{ loc.name }}</td>
+                    <td>{{ loc.count }}</td>
+                    <td>
+                        <div
+                            style="background: rgba(255,255,255,0.1); height: 6px; border-radius: 3px; width: 100px; display: inline-block; vertical-align: middle; margin-right: 10px;">
+                            <div
+                                style="background: var(--accent); height: 100%; border-radius: 3px; width: {{ [loc.count / total_finds * 100 * 5, 100] | min }}%;">
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Best Times to Hunt</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+        Based on {{ total_dates_analyzed }} dated finds, these are the most productive months.
+    </p>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Finds</th>
+                    <th>Activity Level</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for month, count in best_months %}
+                <tr>
+                    <td style="font-weight: 600; color: var(--text-primary);">{{ month }}</td>
+                    <td>{{ count }}</td>
+                    <td>
+                        <div
+                            style="background: rgba(255,255,255,0.1); height: 6px; border-radius: 3px; width: 100px; display: inline-block; vertical-align: middle;">
+                            <div
+                                style="background: var(--accent); height: 100%; border-radius: 3px; width: {{ (count / best_months[0][1] * 100) if best_months else 0 }}%;">
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Finds by Year</h2>
+    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Historical trend showing float discoveries over
+        time.</p>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Year</th>
+                    <th>Finds</th>
+                    <th style="width: 50%;">Trend</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set max_count = years[0]['count'] if years else 1 %}
+                {% for row in years %}
+                {% if row['count'] > max_count %}
+                {% set max_count = row['count'] %}
+                {% endif %}
+                {% endfor %}
+
+                {% for row in years %}
+                <tr>
+                    <td style="font-weight: 600; color: var(--text-primary);">{{ row['year'] }}</td>
+                    <td>{{ row['count'] }}</td>
+                    <td>
+                        <div
+                            style="background: rgba(255,255,255,0.1); height: 10px; border-radius: 5px; width: 100%; display: flex; align-items: center;">
+                            <div
+                                style="background: linear-gradient(to right, var(--accent), #1A8672); height: 100%; border-radius: 5px; width: {{ (row['count'] / max_count * 100) if max_count > 0 else 0 }}%; transition: width 0.3s ease;">
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    var map = L.map('map').setView([41.17, -71.58], 13);
+
+    // Dark mode tiles
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 19
+    }).addTo(map);
+
+    // Prepare heatmap data
+    var heatData = [
+        {% for loc in top_locs %}
+    {% if loc.lat and loc.lon %}
+    [{{ loc.lat }}, {{ loc.lon }}, {{ loc.count / 10 }}],
+        {% endif %}
+    {% endfor %}
+    ];
+
+    // Add heatmap layer
+    L.heatLayer(heatData, {
+        radius: 25,
+        blur: 35,
+        maxZoom: 13,
+        max: 50,
+        gradient: {
+            0.0: '#1A8672',
+            0.5: '#50E8A8',
+            1.0: '#1D5F9A'
+        }
+    }).addTo(map);
+
+    // Also add top 30 markers for reference
+    {% for loc in map_markers %}
+    L.marker([{{ loc.lat }}, {{ loc.lon }}]).addTo(map)
+        .bindPopup("<b>{{ loc.name }}</b><br>{{ loc.count }} finds");
+    {% endfor %}
+</script>
+{% endblock %}
