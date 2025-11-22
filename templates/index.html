@@ -9,6 +9,26 @@
 {% endblock %}
 
 {% block content %}
+<div class="control-bar">
+    <form action="/" method="get" style="display: flex; align-items: center; gap: 1rem; flex-grow: 1;">
+        <label for="year" style="color: var(--text-secondary); font-weight: 600; white-space: nowrap;">Filter by
+            Year:</label>
+        <select id="year" name="year" onchange="this.form.submit()" style="min-width: 150px;">
+            <option value="all" {% if selected_year=='all' %}selected{% endif %}>All Years</option>
+            {% for row in years %}
+            <option value="{{ row['year'] }}" {% if selected_year==row['year']|string %}selected{% endif %}>
+                {{ row['year'] }}
+            </option>
+            {% endfor %}
+        </select>
+        <noscript><button type="submit">Apply</button></noscript>
+    </form>
+    <div style="color: var(--text-secondary); font-size: 0.9rem;">
+        Showing <strong>{{ total_finds }}</strong> floats {% if selected_year != 'all' %}found in <span
+            style="color: var(--accent);">{{ selected_year }}</span>{% else %}across all years{% endif %}
+    </div>
+</div>
+
 <div class="stat-grid">
     <div class="card stat-card">
         <div class="stat-value">{{ total_finds }}</div>
@@ -28,7 +48,13 @@
     <h2>Float Map</h2>
     <p style="color: var(--text-secondary); margin-bottom: 1rem;">Heatmap showing concentration of finds across the
         island.</p>
-    <div id="map" style="height: 500px; width: 100%; border-radius: 0.5rem; z-index: 1;"></div>
+    <div style="position: relative; height: 500px; width: 100%;">
+        <div id="map" style="height: 100%; width: 100%; border-radius: 0.5rem; z-index: 1;"></div>
+        <div id="map-loading" class="map-loading">
+            <div class="spinner"></div>
+            <div style="color: var(--text-secondary); font-weight: 600;">Loading Map...</div>
+        </div>
+    </div>
     <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 1rem; text-align: center;">
         Last updated: {{ last_updated }}
     </p>
@@ -36,7 +62,8 @@
 
 <div class="card">
     <h2>Top Hunting Grounds</h2>
-    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Based on historical data, these are the best trails
+    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Based on historical data, these are the best
+        trails
         to check.</p>
 
     <div class="table-container">
@@ -149,11 +176,24 @@
     var map = L.map('map').setView([41.17, -71.58], 13);
 
     // Dark mode tiles
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    var tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 19
-    }).addTo(map);
+    });
+
+    tiles.on('load', function () {
+        var spinner = document.getElementById('map-loading');
+        if (spinner) spinner.style.display = 'none';
+    });
+
+    // Fallback: Hide spinner after 3 seconds anyway
+    setTimeout(function () {
+        var spinner = document.getElementById('map-loading');
+        if (spinner) spinner.style.display = 'none';
+    }, 3000);
+
+    tiles.addTo(map);
 
     // Prepare heatmap data
     var heatData = [

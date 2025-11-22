@@ -1,10 +1,13 @@
+import calendar
 import sqlite3
 from collections import Counter
+from datetime import datetime
 import re
 
 DB_NAME = 'floats.db'
 
 def get_all_finds():
+    """Return raw location strings for all finds."""
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute('SELECT location_raw FROM finds')
@@ -275,55 +278,69 @@ def normalize_location(loc):
             
     return "Other/Unknown"
 
-def analyze():
+_MONTH_LOOKUP = {name.lower(): idx for idx, name in enumerate(calendar.month_name) if name}
+_MONTH_LOOKUP.update({name.lower(): idx for idx, name in enumerate(calendar.month_abbr) if name})
+_DATE_FORMATS = [
+    "%Y-%m-%d",      # 2025-10-14
+    "%m/%d/%Y",      # 10/14/2025
+    "%m/%d/%y",      # 10/14/25
+    "%B %d, %Y",     # October 14, 2025
+    "%b %d, %Y",     # Oct 14, 2025
+    "%B %Y",         # October 2025
+    "%b %Y",         # Oct 2025
+]
+
+def _month_from_string(date_str: str):
+    """Parse a date string and return month number (1-12) or None."""
+    if not date_str:
+        return None
+    cleaned = date_str.strip()
+    # Drop ordinal suffixes
+    cleaned = re.sub(r'(\d{1,2})(st|nd|rd|th)', r'\1', cleaned, flags=re.IGNORECASE)
+    for fmt in _DATE_FORMATS:
+        try:
+            return datetime.strptime(cleaned, fmt).month
+        except ValueError:
+            continue
+    # Fallback: look for any month name token
+    match = re.search(r'(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*', cleaned, re.IGNORECASE)
+    if match:
+        token = match.group(0).lower()[:3]  # normalize abbr
+        for key, idx in _MONTH_LOOKUP.items():
+            if key.startswith(token):
+                return idx
+    return None
+
+def analyze_dates(filter_year=None):
+    """
+    Analyze dated finds and return month counts.
+    filter_year: optional year (int/str) to scope results.
+    """
     conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    # This is slow doing it one by one, but fine for 3000 rows
-    # Actually, we need the ID to update.
-    # Let's just print for now.
+    conn.row_factory = sqlite3.Row
+    params = []
+    query = "SELECT year, date_found FROM finds WHERE date_found IS NOT NULL AND date_found != ''"
+    if filter_year:
+        query += " AND year = ?"
+        params.append(str(filter_year))
+    rows = conn.execute(query, params).fetchall()
     conn.close()
 
-def analyze_dates():
-    """
-    Analyzes the 'date_found' column in the database and returns monthly statistics.
-    Returns:
-        dict: A dictionary containing 'best_months' (list of (month_name, count)) 
-              and 'total_dates_analyzed' (int).
-    """
-    conn = sqlite3.connect('floats.db')
-    cursor = conn.cursor()
-    
-    cursor.execute("SELECT date_found FROM finds WHERE date_found IS NOT NULL")
-    dates = [row[0] for row in cursor.fetchall()]
-    conn.close()
-    
-    from datetime import datetime
-    from collections import Counter
-    
     months = []
-    for date_str in dates:
-        # Try parsing with different formats
-        # Try parsing with different formats
-        for fmt in ("%Y-%m-%d", "%m/%d/%y", "%m/%d/%Y", "%B %d, %Y", "%B %Y"):
-            try:
-                dt = datetime.strptime(date_str, fmt)
-                months.append(dt.strftime("%B")) # Full month name
-                break
-            except ValueError:
-                continue
-                
+    for row in rows:
+        month_num = _month_from_string(row["date_found"])
+        if month_num:
+            months.append(month_num)
+
     month_counts = Counter(months)
-    
-    # Sort by count (descending)
-    sorted_months = month_counts.most_common()
-    
+    best_months = [(calendar.month_name[m], count) for m, count in month_counts.most_common()]
+
     return {
-        "best_months": sorted_months,
+        "best_months": best_months,
         "total_dates_analyzed": len(months)
     }
 
 if __name__ == "__main__":
-    # analyze() # Original call to analyze()
     print("\n--- Date Analysis ---")
     stats = analyze_dates()
     print(f"Based on {stats['total_dates_analyzed']} dates extracted:")

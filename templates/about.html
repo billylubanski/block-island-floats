@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>About the Project</h2>
+    <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.5rem;">
+        The Block Island Glass Float Tracker is a community-driven tool designed to help float hunters analyze
+        historical data and improve their chances of finding a glass float.
+    </p>
+
+    <h3 style="color: var(--accent); margin-top: 2rem;">What are Glass Floats?</h3>
+    <p style="color: var(--text-secondary); line-height: 1.6;">
+        Every year, glass artist Eben Horton hides hundreds of numbered glass floats (orbs) along the trails and beaches
+        of Block Island. They are dated and numbered. If you find one, it's yours to keep!
+    </p>
+
+    <h3 style="color: var(--accent); margin-top: 2rem;">How This Works</h3>
+    <p style="color: var(--text-secondary); line-height: 1.6;">
+        This application scrapes the official registry of found floats to build a database of discovery locations and
+        dates. We use this data to:
+    </p>
+    <ul style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 2rem;">
+        <li>Identify "hot spots" where floats are frequently found.</li>
+        <li>Analyze seasonal trends to determine the best months to hunt.</li>
+        <li>Visualize the distribution of finds across the island.</li>
+    </ul>
+
+    <div
+        style="background: rgba(80, 232, 168, 0.05); border: 1px solid var(--accent-glow); padding: 1.5rem; border-radius: 0.5rem; margin-top: 2rem;">
+        <h4 style="margin-top: 0; color: var(--text-primary);">Data Disclaimer</h4>
+        <p style="margin-bottom: 0; font-size: 0.9rem; color: var(--text-secondary);">
+            All data is sourced from public reports. Locations are approximate based on finder descriptions. This tool
+            is for recreational use and does not guarantee finding a float. Please respect the island, stay on trails,
+            and follow all local regulations.
+        </p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Credits</h2>
+    <ul style="list-style: none; padding: 0; color: var(--text-secondary);">
+        <li style="margin-bottom: 1rem;">
+            <strong style="color: var(--text-primary);">Data Source:</strong>
+            <a href="https://www.blockislandinfo.com/glass-float-project/" target="_blank"
+                style="color: var(--accent); text-decoration: none;">Block Island Glass Float Project</a>
+        </li>
+        <li style="margin-bottom: 1rem;">
+            <strong style="color: var(--text-primary);">Map Data:</strong>
+            OpenStreetMap & CartoDB
+        </li>
+        <li>
+            <strong style="color: var(--text-primary);">Created By:</strong>
+            A dedicated float hunter & AI Assistant
+        </li>
+    </ul>
+</div>
+{% endblock %}

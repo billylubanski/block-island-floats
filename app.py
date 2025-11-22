@@ -17,20 +17,37 @@ def get_db_connection():
 def index():
     conn = get_db_connection()
     
-    # Get total finds
-    total_finds = conn.execute('SELECT count(*) FROM finds').fetchone()[0]
+    # Get year filter from query parameter
+    selected_year = request.args.get('year', 'all')
     
-    # Get finds by year
+    # Build WHERE clause for year filtering
+    if selected_year != 'all':
+        year_filter = f"WHERE year = {selected_year}"
+        year_param = int(selected_year)
+    else:
+        year_filter = ""
+        year_param = None
+    
+    # Get total finds (filtered)
+    if year_param:
+        total_finds = conn.execute('SELECT count(*) FROM finds WHERE year = ?', (year_param,)).fetchone()[0]
+    else:
+        total_finds = conn.execute('SELECT count(*) FROM finds').fetchone()[0]
+    
+    # Get finds by year (always show all years for context)
     years_data = conn.execute('SELECT year, count(*) as count FROM finds GROUP BY year ORDER BY year DESC').fetchall()
     
-    # Get date analysis stats
-    date_stats = analyze_dates()
+    # Get date analysis stats (filtered)
+    date_stats = analyze_dates(year_param)
     best_months = date_stats['best_months']
     total_dates_analyzed = date_stats['total_dates_analyzed']
     
-    # Get top locations
-    # We need to fetch all and normalize in python because normalization is complex
-    all_locs = conn.execute('SELECT location_raw FROM finds').fetchall()
+    # Get top locations (filtered)
+    if year_param:
+        all_locs = conn.execute('SELECT location_raw FROM finds WHERE year = ?', (year_param,)).fetchall()
+    else:
+        all_locs = conn.execute('SELECT location_raw FROM finds').fetchall()
+    
     normalized_locs = [normalize_location(row['location_raw']) for row in all_locs]
     loc_counts = Counter(normalized_locs)
     
@@ -42,7 +59,7 @@ def index():
     for loc, count in loc_counts.most_common(100):
         coords = LOCATIONS.get(loc, None)
         
-        # Data for table (Top 100)
+        # Data for table (Top 20)
         if coords or count > 5: 
             top_locs.append({
                 'name': loc,
@@ -50,6 +67,8 @@ def index():
                 'lat': coords['lat'] if coords else None,
                 'lon': coords['lon'] if coords else None
             })
+            if len(top_locs) >= 20:
+                break
             
     # Data for map (Top 30 with coordinates)
     for loc, count in loc_counts.most_common():
@@ -76,7 +95,8 @@ def index():
                            map_markers=map_markers,
                            best_months=best_months,
                            total_dates_analyzed=total_dates_analyzed,
-                           last_updated=last_updated)
+                           last_updated=last_updated,
+                           selected_year=selected_year)
 
 @app.route('/search')
 def search():
@@ -89,6 +109,10 @@ def search():
         results = []
     conn.close()
     return render_template('search.html', results=results, query=query)
+
+@app.route('/about')
+def about():
+    return render_template('about.html')
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
