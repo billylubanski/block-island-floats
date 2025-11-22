@@ -5,6 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Block Island Glass Floats</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#051714">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Float Tracker">
+    <link rel="manifest" href="/static/manifest.json">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -280,6 +288,77 @@
             #map {
                 height: 350px !important;
             }
+        }
+
+        /* About Page Styles */
+        .about-text {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .about-section-title {
+            color: var(--accent);
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .about-list {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 2rem;
+            padding-left: 1.5rem;
+        }
+
+        .about-list li {
+            margin-bottom: 0.5rem;
+        }
+
+        .disclaimer-box {
+            background: rgba(80, 232, 168, 0.05);
+            border: 1px solid var(--accent-glow);
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin-top: 2rem;
+        }
+
+        .disclaimer-title {
+            margin-top: 0;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .disclaimer-text {
+            margin-bottom: 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .credits-list {
+            list-style: none;
+            padding: 0;
+            color: var(--text-secondary);
+        }
+
+        .credits-item {
+            margin-bottom: 1rem;
+        }
+
+        .credits-label {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .credits-link {
+            color: var(--accent);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .credits-link:hover {
+            text-decoration: underline;
+            color: var(--accent-glow);
         }
     </style>
     {% block head %}{% endblock %}

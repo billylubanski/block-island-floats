@@ -6,6 +6,31 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<style>
+    .geo-btn {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        background: var(--card-bg);
+        border: 1px solid var(--accent);
+        color: var(--accent);
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        font-weight: 600;
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .geo-btn:hover {
+        background: var(--accent);
+        color: var(--bg-color);
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -54,6 +79,13 @@
             <div class="spinner"></div>
             <div style="color: var(--text-secondary); font-weight: 600;">Loading Map...</div>
         </div>
+        <button class="geo-btn" onclick="locateUser()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+            </svg>
+            Geolocate Me
+        </button>
     </div>
     <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 1rem; text-align: center;">
         Last updated: {{ last_updated }}
@@ -222,5 +254,27 @@
     L.marker([{{ loc.lat }}, {{ loc.lon }}]).addTo(map)
         .bindPopup("<b>{{ loc.name }}</b><br>{{ loc.count }} finds");
     {% endfor %}
+
+    // Geolocation function
+    function locateUser() {
+        if (!navigator.geolocation) {
+            alert("Geolocation is not supported by your browser");
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(function (position) {
+            var lat = position.coords.latitude;
+            var lon = position.coords.longitude;
+
+            // Add marker for user
+            L.marker([lat, lon]).addTo(map)
+                .bindPopup("You are here").openPopup();
+
+            // Fly to user
+            map.flyTo([lat, lon], 15);
+        }, function () {
+            alert("Unable to retrieve your location");
+        });
+    }
 </script>
 {% endblock %}
