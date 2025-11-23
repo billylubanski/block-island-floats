@@ -180,6 +180,23 @@
     <a href="/" class="back-btn">← Dashboard</a>
 </div>
 
+{% if weather %}
+<div class="weather-widget">
+    <div class="weather-main">
+        <div class="weather-icon">{{ weather.emoji }}</div>
+        <div class="weather-temp">{{ weather.temp }}°</div>
+    </div>
+    <div class="weather-details">
+        <div class="weather-condition">{{ weather.condition }}</div>
+        <div class="weather-meta">
+            <span>💨 {{ weather.wind }} mph</span>
+            <span>•</span>
+            <span>Updated {{ weather.timestamp }}</span>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="geolocate-section">
     <button class="geolocate-btn" onclick="getUserLocation()">
         📍 Find My Location

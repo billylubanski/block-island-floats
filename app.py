@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request
+import requests
+import datetime
 import sqlite3
 import re
 from collections import Counter
@@ -13,6 +15,91 @@ def get_db_connection():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     return conn
+
+# Simple in-memory cache for weather data
+weather_cache = {
+    'data': None,
+    'timestamp': None
+}
+
+def get_weather_data():
+    """
+    Fetch current weather for Block Island (Station KBID) from NOAA API.
+    Caches data for 15 minutes to avoid rate limiting.
+    """
+    global weather_cache
+    
+    # Check cache (15 minute expiration)
+    now = datetime.datetime.now()
+    if (weather_cache['data'] and weather_cache['timestamp'] and 
+        (now - weather_cache['timestamp']).total_seconds() < 900):
+        return weather_cache['data']
+        
+    try:
+        # NOAA API requires a User-Agent
+        headers = {
+            'User-Agent': '(glassfloattracker.com, contact@glassfloattracker.com)',
+            'Accept': 'application/geo+json'
+        }
+        
+        # Station KBID is Block Island State Airport
+        url = "https://api.weather.gov/stations/KBID/observations/latest"
+        
+        response = requests.get(url, headers=headers, timeout=5)
+        
+        if response.status_code == 200:
+            data = response.json()
+            props = data.get('properties', {})
+            
+            # Extract relevant data
+            temp_c = props.get('temperature', {}).get('value')
+            wind_speed_kmh = props.get('windSpeed', {}).get('value')
+            text_desc = props.get('textDescription', 'Unknown')
+            icon_url = props.get('icon', '')
+            
+            # Convert units
+            temp_f = round((temp_c * 9/5) + 32) if temp_c is not None else None
+            wind_mph = round(wind_speed_kmh * 0.621371) if wind_speed_kmh is not None else None
+            
+            # Map text description to emoji
+            desc_lower = text_desc.lower()
+            if 'sunny' in desc_lower or 'clear' in desc_lower:
+                emoji = '☀️'
+            elif 'partly cloudy' in desc_lower:
+                emoji = 'u26c5'
+            elif 'cloudy' in desc_lower or 'overcast' in desc_lower:
+                emoji = '☁️'
+            elif 'rain' in desc_lower or 'drizzle' in desc_lower or 'shower' in desc_lower:
+                emoji = 'u2614'
+            elif 'thunder' in desc_lower:
+                emoji = 'u26c8'
+            elif 'snow' in desc_lower:
+                emoji = 'u2744'
+            elif 'fog' in desc_lower or 'mist' in desc_lower:
+                emoji = 'u1f32b'
+            elif 'wind' in desc_lower:
+                emoji = 'u1f4a8'
+            else:
+                emoji = 'u1f321' # Thermometer as default
+                
+            weather_data = {
+                'temp': temp_f,
+                'condition': text_desc,
+                'wind': wind_mph,
+                'emoji': emoji,
+                'timestamp': now.strftime("%I:%M %p")
+            }
+            
+            # Update cache
+            weather_cache['data'] = weather_data
+            weather_cache['timestamp'] = now
+            
+            return weather_data
+            
+    except Exception as e:
+        print(f"Error fetching weather: {e}")
+        
+    return None
 
 @app.route('/')
 def index():
@@ -154,9 +241,13 @@ def field_mode():
     # Get last updated
     last_updated = get_last_updated()
     
+    # Get current weather
+    weather = get_weather_data()
+    
     return render_template('field.html',
                           hunting_spots=hunting_spots,
-                          last_updated=last_updated)
+                          last_updated=last_updated,
+                          weather=weather)
 
 @app.route('/location/<path:location_name>')
 def location_detail(location_name):
