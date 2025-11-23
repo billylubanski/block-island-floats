@@ -317,5 +317,21 @@ def location_detail(location_name):
                           top_finder=top_finder,
                           years=sorted(years.items(), reverse=True))
 
+from ml_predictor import predict_today, get_seasonality_score
+
+@app.route('/forecast')
+def forecast():
+    """Show float forecast for today"""
+    predictions = predict_today()
+    seasonality = get_seasonality_score()
+    
+    # Get weather for context
+    weather = get_weather_data()
+    
+    return render_template('forecast.html', 
+                          predictions=predictions,
+                          seasonality=seasonality,
+                          weather=weather)
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
