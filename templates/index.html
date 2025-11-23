@@ -59,8 +59,10 @@
         <div class="stat-value">{{ total_finds }}</div>
         <div class="stat-label">Total Floats Found</div>
         <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid rgba(255,255,255,0.1);">
-            <div style="font-size: 1.25rem; font-weight: 600; color: var(--text-secondary);">{{ total_hidden_all_years }}</div>
-            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Total Floats Hidden</div>
+            <div style="font-size: 1.25rem; font-weight: 600; color: var(--text-secondary);">{{ total_hidden_all_years
+                }}</div>
+            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Total Floats Hidden
+            </div>
         </div>
     </div>
     <div class="card stat-card">
@@ -198,7 +200,8 @@
                                     style="background: linear-gradient(to right, var(--accent), #1A8672); height: 100%; border-radius: 5px; width: {{ (row['count'] / max_year_count * 100) if max_year_count > 0 else 0 }}%; transition: width 0.3s ease;">
                                 </div>
                             </div>
-                            <span style="color: var(--text-secondary); font-size: 0.875rem; min-width: 3rem; text-align: right;">
+                            <span
+                                style="color: var(--text-secondary); font-size: 0.875rem; min-width: 3rem; text-align: right;">
                                 {{ (row['count'] / max_year_count * 100) | round(0) | int }}%
                             </span>
                         </div>

@@ -171,16 +171,19 @@ def field_mode():
                           hunting_spots=hunting_spots,
                           last_updated=last_updated)
 
-@app.route('/location/<location_name>')
+@app.route('/location/<path:location_name>')
 def location_detail(location_name):
     """Detail page for a specific location showing all finds and photos"""
     conn = get_db_connection()
     
-    # Get all finds at this location
-    finds = conn.execute(
-        'SELECT * FROM finds WHERE location_normalized = ? ORDER BY year DESC, date_found DESC',
-        (location_name,)
+    # Get all finds and filter by normalizing location_raw
+    # (location_normalized column is not populated in DB, normalization happens on the fly)
+    all_finds = conn.execute(
+        'SELECT * FROM finds ORDER BY year DESC, date_found DESC'
     ).fetchall()
+    
+    # Filter finds by normalizing the location_raw
+    finds = [f for f in all_finds if normalize_location(f['location_raw']) == location_name]
     
     if not finds:
         conn.close()
