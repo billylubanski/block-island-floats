@@ -20,6 +20,26 @@ def test_forecast_route():
                 
             if "Top Predicted Locations" in content:
                 print("✅ Predictions section found")
+                
+                # Extract links and test them
+                import re
+                import html
+                from urllib.parse import unquote
+                
+                links = re.findall(r'href="/location/([^"]+)"', content)
+                print(f"Found {len(links)} location links to test.")
+                for link in links:
+                    # Decode HTML entities (browser behavior)
+                    link_decoded = html.unescape(link)
+                    # Decode URL (for printing)
+                    loc_name = unquote(link_decoded)
+                    
+                    print(f"Testing link for: {loc_name} (URL: /location/{link_decoded})")
+                    resp = client.get(f'/location/{link_decoded}')
+                    if resp.status_code == 200:
+                        print(f"  ✅ Link working for {loc_name}")
+                    else:
+                        print(f"  ❌ Link BROKEN for {loc_name} (Status: {resp.status_code})")
             else:
                 print("❌ Predictions section NOT found")
         else:

@@ -8,15 +8,27 @@ import os
 from datetime import datetime
 import math
 
+from analyzer import normalize_location
+
 DB_NAME = 'floats.db'
 MODEL_FILE = 'float_model.pkl'
 
 def get_data():
     """Fetch and prepare data from the database."""
     conn = sqlite3.connect(DB_NAME)
-    query = "SELECT date_found, location_normalized FROM finds WHERE date_found IS NOT NULL AND date_found != ''"
+    query = "SELECT date_found, location_raw FROM finds WHERE date_found IS NOT NULL AND date_found != ''"
     df = pd.read_sql_query(query, conn)
     conn.close()
+    
+    # Normalize locations
+    df['location_normalized'] = df['location_raw'].apply(normalize_location)
+    # Filter out "Other/Unknown" if desired, or keep them. 
+    # For prediction, maybe we want to exclude them? 
+    # Let's keep them for now but maybe the user doesn't want to go to "Other/Unknown" page.
+    # Actually, "Other/Unknown" might be a valid bucket, but the link /location/Other/Unknown might be weird.
+    # Let's filter out 'Other/Unknown' for better predictions of actual places.
+    df = df[df['location_normalized'] != 'Other/Unknown']
+    
     return df
 
 def parse_date(date_str):
