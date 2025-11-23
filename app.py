@@ -2,7 +2,7 @@ from flask import Flask, render_template, request
 import sqlite3
 import re
 from collections import Counter
-from analyzer import normalize_location, analyze_dates, analyze_unreported_floats
+from analyzer import normalize_location, analyze_dates, analyze_unreported_floats, get_year_recovery_stats
 from locations import LOCATIONS
 from utils import get_last_updated
 
@@ -35,23 +35,11 @@ def index():
     else:
         total_finds = conn.execute('SELECT count(*) FROM finds').fetchone()[0]
     
-    # Get finds by year (always show all years for context)
-    years_data = conn.execute('SELECT year, count(*) as count FROM finds GROUP BY year ORDER BY year DESC').fetchall()
-    
-    # Calculate max year count for percentage calculations
-    max_year_count = max([row['count'] for row in years_data], default=1) if years_data else 1
+    # Get year recovery statistics (hidden, found, recovery rate for each year)
+    year_recovery_stats = get_year_recovery_stats()
     
     # Calculate total floats hidden across all years
-    total_hidden_all_years = 0
-    for year_row in years_data:
-        year = year_row['year']
-        float_nums = []
-        for row in conn.execute('SELECT float_number FROM finds WHERE year = ? AND float_number IS NOT NULL AND float_number != ""', (year,)):
-            match = re.search(r'(\d+)', str(row['float_number']))
-            if match:
-                float_nums.append(int(match.group(1)))
-        if float_nums:
-            total_hidden_all_years += max(float_nums)
+    total_hidden_all_years = sum(year['hidden'] for year in year_recovery_stats)
     
     # Get date analysis stats (filtered)
     date_stats = analyze_dates(year_param)
@@ -114,8 +102,7 @@ def index():
     return render_template('index.html', 
                            total_finds=total_finds,
                            total_hidden_all_years=total_hidden_all_years,
-                           years=years_data,
-                           max_year_count=max_year_count,
+                           years=year_recovery_stats,
                            top_locs=top_locs,
                            map_markers=map_markers,
                            best_months=best_months,

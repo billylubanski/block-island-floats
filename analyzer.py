@@ -380,6 +380,56 @@ def analyze_unreported_floats(filter_year=None):
         "unreported": unreported
     }
 
+def get_year_recovery_stats():
+    """
+    Calculate recovery statistics for all years.
+    Returns list of dicts with year, hidden, found, recovery_rate.
+    """
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    
+    # Get all years
+    years_data = conn.execute(
+        'SELECT year, count(*) as report_count FROM finds GROUP BY year ORDER BY year DESC'
+    ).fetchall()
+    
+    stats = []
+    for year_row in years_data:
+        year = year_row['year']
+        
+        # Get float numbers for this year
+        rows = conn.execute(
+            'SELECT float_number FROM finds WHERE year = ? AND float_number IS NOT NULL AND float_number != ""',
+            (year,)
+        ).fetchall()
+        
+        # Extract numeric float numbers
+        float_numbers = set()
+        for row in rows:
+            match = re.search(r'(\d+)', str(row['float_number']))
+            if match:
+                float_numbers.add(int(match.group(1)))
+        
+        if float_numbers:
+            total_hidden = max(float_numbers)
+            total_found = len(float_numbers)
+            recovery_rate = (total_found / total_hidden * 100) if total_hidden > 0 else 0
+        else:
+            total_hidden = 0
+            total_found = 0
+            recovery_rate = 0
+        
+        stats.append({
+            'year': year,
+            'hidden': total_hidden,
+            'found': total_found,
+            'recovery_rate': recovery_rate,
+            'report_count': year_row['report_count']  # Total database records (includes duplicates)
+        })
+    
+    conn.close()
+    return stats
+
 if __name__ == "__main__":
     print("\n--- Date Analysis ---")
     stats = analyze_dates()

@@ -1,0 +1,6 @@
+2020: Max=575, Found=393, Missing=183 (31.8%)
+2021: Max=550, Found=336, Missing=214 (38.9%)
+2022: Max=562, Found=156, Missing=406 (72.2%)
+2023: Max=556, Found=344, Missing=212 (38.1%)
+2024: Max=559, Found=311, Missing=248 (44.4%)
+2025: Max=558, Found=243, Missing=315 (56.5%)
