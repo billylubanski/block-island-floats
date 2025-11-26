@@ -333,5 +333,12 @@ def forecast():
                           seasonality=seasonality,
                           weather=weather)
 
+@app.route('/sw.js')
+def service_worker():
+    from flask import send_from_directory
+    response = send_from_directory('static', 'sw.js')
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
