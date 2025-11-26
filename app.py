@@ -66,21 +66,21 @@ def get_weather_data():
             if 'sunny' in desc_lower or 'clear' in desc_lower:
                 emoji = '☀️'
             elif 'partly cloudy' in desc_lower:
-                emoji = 'u26c5'
+                emoji = '⛅'
             elif 'cloudy' in desc_lower or 'overcast' in desc_lower:
                 emoji = '☁️'
             elif 'rain' in desc_lower or 'drizzle' in desc_lower or 'shower' in desc_lower:
-                emoji = 'u2614'
+                emoji = '☔'
             elif 'thunder' in desc_lower:
-                emoji = 'u26c8'
+                emoji = '⛈️'
             elif 'snow' in desc_lower:
-                emoji = 'u2744'
+                emoji = '❄️'
             elif 'fog' in desc_lower or 'mist' in desc_lower:
-                emoji = 'u1f32b'
+                emoji = '🌫️'
             elif 'wind' in desc_lower:
-                emoji = 'u1f4a8'
+                emoji = '💨'
             else:
-                emoji = 'u1f321' # Thermometer as default
+                emoji = '🌡️' # Thermometer as default
                 
             weather_data = {
                 'temp': temp_f,

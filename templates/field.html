@@ -34,6 +34,24 @@
         font-size: 0.9rem;
     }
 
+    .report-btn {
+        background: var(--accent);
+        color: var(--bg-color);
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        border: 1px solid var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .report-btn:active {
+        transform: scale(0.98);
+    }
+
     .geolocate-section {
         padding: 1rem;
         text-align: center;
@@ -177,7 +195,12 @@
 {% block content %}
 <div class="field-header">
     <h1>🎯 Field Mode</h1>
-    <a href="/" class="back-btn">← Dashboard</a>
+    <div style="display: flex; gap: 1rem; align-items: center;">
+        <a href="https://www.blockislandinfo.com/glass-float-project/" target="_blank" class="report-btn">
+            <span>📝</span> Report Find
+        </a>
+        <a href="/" class="back-btn">Dashboard</a>
+    </div>
 </div>
 
 {% if weather %}
