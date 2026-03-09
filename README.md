@@ -62,6 +62,20 @@ python app.py
 # Visit http://localhost:5000
 ```
 
+## Data Refresh
+
+```bash
+# Scrape the source site and rebuild generated artifacts
+python scripts/refresh_data.py refresh
+
+# Validate JSON, snapshots, manifest, and SQLite outputs
+python scripts/refresh_data.py validate
+```
+
+- `all_floats_final.json` is the canonical dataset.
+- `floats.db`, `float_model.pkl`, and `scraped_data/floats_*.json` are generated from that canonical data.
+- GitHub Actions runs the refresh weekly and opens or updates an automated PR only when source data changes.
+
 ## Data Sources
 
 All data is scraped from the official [Block Island Glass Float Project](https://www.blockislandinfo.com/glass-float-project/) website.

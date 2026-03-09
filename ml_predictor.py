@@ -6,16 +6,15 @@ from sklearn.preprocessing import LabelEncoder
 import pickle
 import os
 from datetime import datetime
-import math
 
 from analyzer import normalize_location
 
 DB_NAME = 'floats.db'
 MODEL_FILE = 'float_model.pkl'
 
-def get_data():
+def get_data(db_name=DB_NAME):
     """Fetch and prepare data from the database."""
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(db_name)
     query = "SELECT date_found, location_raw FROM finds WHERE date_found IS NOT NULL AND date_found != ''"
     df = pd.read_sql_query(query, conn)
     conn.close()
@@ -59,10 +58,10 @@ def prepare_features(df):
     
     return df
 
-def train_model():
+def train_model(db_name=DB_NAME, model_file=MODEL_FILE):
     """Train the model and save it."""
     print("Fetching data...")
-    df = get_data()
+    df = get_data(db_name=db_name)
     
     if len(df) < 10:
         print("Not enough data to train model.")
@@ -82,7 +81,7 @@ def train_model():
     clf.fit(X, y)
     
     # Save model and encoder
-    with open(MODEL_FILE, 'wb') as f:
+    with open(model_file, 'wb') as f:
         pickle.dump({'model': clf, 'encoder': le}, f)
         
     print("Model trained and saved.")

@@ -9,6 +9,8 @@ result_count.txt
 requirejs_config.js
 shared_header.js
 venv/
+.venv/
 .env
 *.log
 .DS_Store
+.pytest_cache/

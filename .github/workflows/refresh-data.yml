@@ -1,0 +1,78 @@
+name: Refresh Float Data
+
+on:
+  schedule:
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Install Chromium
+        run: python -m playwright install chromium
+
+      - name: Refresh data artifacts
+        run: python scripts/refresh_data.py refresh
+
+      - name: Run tests
+        run: pytest -q
+
+      - name: Validate generated data
+        run: python scripts/refresh_data.py validate
+
+      - name: Publish refresh summary
+        if: always()
+        run: |
+          if [ -f generated/refresh_summary.md ]; then
+            cat generated/refresh_summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Detect repository changes
+        id: changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No source data changes detected." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Open refresh pull request
+        if: steps.changes.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/refresh-float-data
+          delete-branch: true
+          commit-message: Refresh float data artifacts
+          title: Refresh Block Island float data
+          body-path: generated/refresh_summary.md
+          labels: |
+            automated
+            data-refresh
+          add-paths: |
+            all_floats_final.json
+            float_model.pkl
+            floats.db
+            scraped_data/floats_*.json
+            generated/refresh_manifest.json
+            generated/refresh_summary.md
+            generated/legacy_row_audit.json
