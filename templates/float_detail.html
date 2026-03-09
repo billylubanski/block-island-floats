@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+<a href="{{ url_for('search', valid_only=1) if valid_only else url_for('search') }}"
+    style="color: var(--text-secondary); text-decoration: none; display: inline-block; margin-bottom: 1rem;">
+    ← Back to Search
+</a>
+
+<div class="card">
+    <h2>Float #{{ float_number }} ({{ year }})</h2>
+    <p style="color: var(--text-secondary); margin-top: 0.5rem;">
+        {{ total_finds }} row{{ 's' if total_finds != 1 else '' }} match this float number for {{ year }}.
+    </p>
+    {% if top_locations %}
+    <p style="color: var(--text-secondary); margin-top: 0.5rem;">
+        Top location:
+        <a href="{{ url_for('location_detail', location_name=top_locations[0][0], valid_only=1) if valid_only else url_for('location_detail', location_name=top_locations[0][0]) }}"
+            style="color: var(--accent); text-decoration: none;">
+            {{ top_locations[0][0] }}
+        </a>
+        ({{ top_locations[0][1] }} row{{ 's' if top_locations[0][1] != 1 else '' }})
+    </p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3>Matching Rows</h3>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Finder</th>
+                    <th>Location</th>
+                    <th>Image</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for find in finds %}
+                <tr>
+                    <td>{{ find['date_found'] if find['date_found'] else '—' }}</td>
+                    <td>{{ find['finder'] if find['finder'] else '—' }}</td>
+                    <td>
+                        <a
+                            href="{{ url_for('location_detail', location_name=find['location_normalized'], valid_only=1) if valid_only else url_for('location_detail', location_name=find['location_normalized']) }}"
+                            style="color: var(--accent); text-decoration: none;">
+                            {{ find['location_normalized'] }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if find['has_image'] %}
+                        <a href="{{ find['image_url'] }}" target="_blank" rel="noopener noreferrer"
+                            style="color: var(--accent); text-decoration: none;">
+                            View image
+                        </a>
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

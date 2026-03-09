@@ -1,50 +1,262 @@
 {% extends "base.html" %}
 
+{% block head %}
+<style>
+    .search-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .search-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+    }
+
+    .search-field label {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        font-weight: 600;
+    }
+
+    .search-actions {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .search-summary {
+        color: var(--text-secondary);
+        margin: 0.5rem 0 0;
+    }
+
+    .result-links a {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .result-links a:hover {
+        text-decoration: underline;
+    }
+
+    .pagination {
+        margin-top: 1rem;
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .pagination a,
+    .pagination span {
+        padding: 0.35rem 0.65rem;
+        border: 1px solid var(--glass-border);
+        border-radius: 0.45rem;
+        text-decoration: none;
+        color: var(--text-secondary);
+    }
+
+    .pagination a.active {
+        color: var(--accent);
+        border-color: var(--accent);
+        font-weight: 700;
+    }
+
+    .muted-link {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="card">
     <h2>Search Finds</h2>
-    <form action="/search" method="get" style="display: flex; gap: 1rem; margin-top: 1rem;">
+    <form action="{{ url_for('search') }}" method="get">
         {% if valid_only %}
         <input type="hidden" name="valid_only" value="1">
         {% endif %}
-        <input type="text" name="q" placeholder="Search by finder, location, or float number..." value="{{ query }}">
-        <button type="submit">Search</button>
+
+        <div class="search-grid">
+            <div class="search-field" style="grid-column: span 2;">
+                <label for="q">Text Query</label>
+                <input id="q" type="text" name="q" placeholder="Finder, location, or float number" value="{{ filters.q }}">
+            </div>
+            <div class="search-field">
+                <label for="year">Year</label>
+                <select id="year" name="year">
+                    <option value="">All years</option>
+                    {% for year in year_options %}
+                    <option value="{{ year }}" {% if filters.year == year %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="search-field">
+                <label for="location">Location</label>
+                <select id="location" name="location">
+                    <option value="">All locations</option>
+                    {% for location in location_options %}
+                    <option value="{{ location }}" {% if filters.location == location %}selected{% endif %}>{{ location }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="search-field">
+                <label for="finder">Finder</label>
+                <input id="finder" type="text" name="finder" value="{{ filters.finder }}" placeholder="Finder name">
+            </div>
+            <div class="search-field">
+                <label for="float_exact">Float # Exact</label>
+                <input id="float_exact" type="text" name="float_exact" value="{{ filters.float_exact }}" placeholder="e.g. 245">
+            </div>
+            <div class="search-field">
+                <label for="float_min">Float # Min</label>
+                <input id="float_min" type="number" min="0" step="1" name="float_min" value="{{ filters.float_min if filters.float_min is not none else '' }}">
+            </div>
+            <div class="search-field">
+                <label for="float_max">Float # Max</label>
+                <input id="float_max" type="number" min="0" step="1" name="float_max" value="{{ filters.float_max if filters.float_max is not none else '' }}">
+            </div>
+            <div class="search-field">
+                <label for="has_image">Image</label>
+                <select id="has_image" name="has_image">
+                    <option value="any" {% if filters.has_image == 'any' %}selected{% endif %}>Any</option>
+                    <option value="yes" {% if filters.has_image == 'yes' %}selected{% endif %}>Has image</option>
+                    <option value="no" {% if filters.has_image == 'no' %}selected{% endif %}>No image</option>
+                </select>
+            </div>
+            <div class="search-field">
+                <label for="has_date">Date</label>
+                <select id="has_date" name="has_date">
+                    <option value="any" {% if filters.has_date == 'any' %}selected{% endif %}>Any</option>
+                    <option value="yes" {% if filters.has_date == 'yes' %}selected{% endif %}>Has date</option>
+                    <option value="no" {% if filters.has_date == 'no' %}selected{% endif %}>No date</option>
+                </select>
+            </div>
+            <div class="search-field">
+                <label for="sort">Sort</label>
+                <select id="sort" name="sort">
+                    {% for key, label in sort_options %}
+                    <option value="{{ key }}" {% if sort_key == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="search-field">
+                <label for="page_size">Page Size</label>
+                <select id="page_size" name="page_size">
+                    {% for option in page_size_options %}
+                    <option value="{{ option }}" {% if page_size == option %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="search-field">
+                <label for="dedupe">Rows Mode</label>
+                <select id="dedupe" name="dedupe">
+                    <option value="dedupe" {% if dedupe_mode == 'dedupe' %}selected{% endif %}>Hide likely duplicates</option>
+                    <option value="raw" {% if dedupe_mode == 'raw' %}selected{% endif %}>Show all raw rows</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="search-actions">
+            <button type="submit">Apply Filters</button>
+            <a href="{{ url_for('search', valid_only=1) if valid_only else url_for('search') }}" class="muted-link">Reset</a>
+        </div>
     </form>
     <p style="margin-top: 0.75rem;">
-        <a href="{{ url_for('search', q=query, valid_only=1) if not valid_only else url_for('search', q=query) }}"
-            style="color: var(--accent); text-decoration: none; font-weight: 600; font-size: 0.9rem;">
-            {{ 'Show all rows' if valid_only else 'Use validated rows only' }}
+        <a href="{{ valid_toggle_url }}" class="muted-link">
+            {{ 'Show all rows (including flagged rows)' if valid_only else 'Use validated rows only' }}
         </a>
     </p>
 </div>
 
-{% if query %}
 <div class="card">
-    <h3>Results for "{{ query }}"</h3>
-    {% if results %}
-    <table>
-        <thead>
-            <tr>
-                <th>Year</th>
-                <th>Float #</th>
-                <th>Finder</th>
-                <th>Location</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in results %}
-            <tr>
-                <td>{{ row['year'] }}</td>
-                <td>{{ row['float_number'] }}</td>
-                <td>{{ row['finder'] }}</td>
-                <td>{{ row['location_raw'] }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <h3>Results</h3>
+    <p class="search-summary">
+        Showing {{ showing_from }}-{{ showing_to }} of {{ total_results }} rows
+        {% if dedupe_mode == 'dedupe' and duplicate_count > 0 %}
+        ({{ duplicate_count }} duplicate{{ 's' if duplicate_count != 1 else '' }} suppressed)
+        {% endif %}
+    </p>
+    {% if dedupe_mode == 'dedupe' %}
+    <p style="margin-top: 0.5rem;">
+        <a href="{{ dedupe_toggle_url }}" class="muted-link">Show all raw rows</a>
+    </p>
     {% else %}
-    <p style="margin-top: 1rem; color: var(--text-secondary);">No results found.</p>
+    <p style="margin-top: 0.5rem;">
+        <a href="{{ dedupe_toggle_url }}" class="muted-link">Hide likely duplicates</a>
+    </p>
+    {% endif %}
+
+    {% if results %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Year</th>
+                    <th>Date</th>
+                    <th>Float #</th>
+                    <th>Finder</th>
+                    <th>Location</th>
+                    <th>Image</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in results %}
+                <tr>
+                    <td>{{ row['year'] }}</td>
+                    <td>{{ row['date_found'] if row['date_found'] else '—' }}</td>
+                    <td class="result-links">
+                        {% if row['float_number_clean'] and row['year'] is not none %}
+                        <a
+                            href="{{ url_for('float_detail', year=row['year'], float_number=row['float_number_clean'], valid_only=1) if valid_only else url_for('float_detail', year=row['year'], float_number=row['float_number_clean']) }}">
+                            {{ row['float_number'] if row['float_number'] else row['float_number_clean'] }}
+                        </a>
+                        {% else %}
+                        —
+                        {% endif %}
+                    </td>
+                    <td>{{ row['finder'] if row['finder'] else '—' }}</td>
+                    <td class="result-links">
+                        <a
+                            href="{{ url_for('location_detail', location_name=row['location_normalized'], valid_only=1) if valid_only else url_for('location_detail', location_name=row['location_normalized']) }}">
+                            {{ row['location_normalized'] }}
+                        </a>
+                    </td>
+                    <td>{{ 'Yes' if row['has_image'] else 'No' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="margin-top: 1rem; color: var(--text-secondary);">No results found for the selected filters.</p>
+    {% endif %}
+
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        {% if prev_url %}
+        <a href="{{ prev_url }}">← Prev</a>
+        {% else %}
+        <span>← Prev</span>
+        {% endif %}
+
+        {% for page_link in page_links %}
+        <a href="{{ page_link.url }}" class="{{ 'active' if page_link.active else '' }}">{{ page_link.number }}</a>
+        {% endfor %}
+
+        {% if next_url %}
+        <a href="{{ next_url }}">Next →</a>
+        {% else %}
+        <span>Next →</span>
+        {% endif %}
+    </div>
     {% endif %}
 </div>
-{% endif %}
 {% endblock %}
