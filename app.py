@@ -15,11 +15,40 @@ TRUTHY_VALUES = {'1', 'true', 'yes', 'on'}
 DEFAULT_VALID_ONLY = os.getenv('IGNORE_INVALID_ROWS', '').strip().lower() in TRUTHY_VALUES
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 FIELD_ETIQUETTE_PATH = os.path.join(APP_ROOT, 'data', 'field_etiquette.json')
+DEFAULT_FIELD_ETIQUETTE = {
+    'title': 'Field Etiquette',
+    'intro': 'Official float-hunting guidance for use while you are out on the trail.',
+    'rules_heading': 'Hunt respectfully',
+    'rules': [
+        'Stay on established trails.',
+        'Search near trails or between the bluffs and the high tide line.',
+        'Do not dismantle stone walls.',
+        'Do not whack vegetation.',
+        'Stay off dunes.',
+        'Keep pets on a leash.',
+        'Look up. Floats may be hidden in trees.',
+        'One float per person per year.',
+    ],
+    'restricted_heading': 'Floats are NOT hidden on',
+    'restricted_locations': [
+        'Dunes or up bluffs',
+        '"The Maze"',
+        'School grounds',
+        'Island cemeteries',
+        'Private homes',
+        'Flowerbeds',
+        'The Statue of Rebecca',
+    ],
+}
 
 
 def load_field_etiquette():
-    with open(FIELD_ETIQUETTE_PATH, encoding='utf-8') as etiquette_file:
-        return json.load(etiquette_file)
+    try:
+        with open(FIELD_ETIQUETTE_PATH, encoding='utf-8') as etiquette_file:
+            return json.load(etiquette_file)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Warning: using fallback field etiquette content: {exc}")
+        return DEFAULT_FIELD_ETIQUETTE.copy()
 
 
 FIELD_ETIQUETTE = load_field_etiquette()
