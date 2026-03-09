@@ -1,0 +1,389 @@
+.field-mode-page {
+    padding-bottom: 6rem;
+}
+
+.field-mode-page .field-header {
+    background: rgba(10, 51, 34, 0.92);
+    backdrop-filter: blur(12px);
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.field-mode-page .field-header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    -webkit-text-fill-color: initial;
+    color: var(--text-primary);
+}
+
+.field-header-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.back-btn {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.report-btn {
+    background: var(--accent);
+    color: var(--bg-color);
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: 1px solid var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.report-btn:active {
+    transform: scale(0.98);
+}
+
+.weather-widget {
+    margin: 1rem;
+}
+
+.geolocate-section {
+    padding: 1rem;
+    text-align: center;
+    background: linear-gradient(135deg, rgba(26, 134, 114, 0.2), rgba(29, 95, 154, 0.2));
+}
+
+.geolocate-btn {
+    background: var(--accent);
+    color: var(--bg-color);
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.geolocate-btn:active {
+    transform: scale(0.98);
+}
+
+.geolocate-status {
+    margin-top: 0.75rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.spots-section {
+    padding: 1rem;
+}
+
+.spots-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    gap: 0.75rem;
+}
+
+.spots-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.spot-count {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.spot-card {
+    background: var(--card-bg);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.spot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+    gap: 0.75rem;
+}
+
+.spot-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.spot-distance {
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.spot-stats {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.spot-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.nav-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.nav-btn {
+    flex: 1;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    background: rgba(26, 134, 114, 0.1);
+}
+
+.nav-btn:active {
+    background: var(--accent);
+    color: var(--bg-color);
+}
+
+.loading {
+    display: none;
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+}
+
+.loading.active {
+    display: block;
+}
+
+#field-map {
+    height: 250px;
+    border-radius: 0.75rem;
+    margin: 1rem;
+}
+
+.etiquette-trigger {
+    position: fixed;
+    right: 1rem;
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    z-index: 140;
+    background: linear-gradient(135deg, #50E8A8, #8CE7FF);
+    color: #051714;
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.35);
+}
+
+.etiquette-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 23, 20, 0.62);
+    backdrop-filter: blur(4px);
+    z-index: 149;
+}
+
+.etiquette-drawer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 150;
+    padding: 0.85rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    border-top-left-radius: 1.25rem;
+    border-top-right-radius: 1.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(4, 18, 15, 0.97);
+    box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.4);
+    transform: translateY(calc(100% + 2rem));
+    transition: transform 0.25s ease;
+    max-height: min(78vh, 42rem);
+    overflow-y: auto;
+}
+
+.etiquette-drawer.is-open {
+    transform: translateY(0);
+}
+
+.etiquette-handle {
+    width: 3rem;
+    height: 0.3rem;
+    border-radius: 999px;
+    background: rgba(243, 237, 231, 0.25);
+    margin: 0 auto 1rem;
+}
+
+.etiquette-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.etiquette-kicker {
+    margin: 0 0 0.35rem;
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.etiquette-header h2 {
+    margin: 0;
+    font-size: 1.35rem;
+}
+
+.etiquette-intro {
+    margin: 0.5rem 0 0;
+    color: var(--text-secondary);
+    max-width: 40rem;
+}
+
+.etiquette-close {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: none;
+    flex-shrink: 0;
+}
+
+.etiquette-accordion {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.etiquette-section {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.9rem;
+    overflow: hidden;
+}
+
+.etiquette-section summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 1rem 1.1rem;
+    font-weight: 700;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.etiquette-section summary::-webkit-details-marker {
+    display: none;
+}
+
+.etiquette-section summary::after {
+    content: "+";
+    color: var(--accent);
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+.etiquette-section[open] summary::after {
+    content: "−";
+}
+
+.etiquette-section ul {
+    margin: 0;
+    padding: 0 1.1rem 1.1rem 2.2rem;
+    color: var(--text-secondary);
+    display: grid;
+    gap: 0.7rem;
+}
+
+.field-last-updated {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    padding: 1rem;
+}
+
+body.field-drawer-open {
+    overflow: hidden;
+}
+
+@media (min-width: 900px) {
+    .etiquette-drawer {
+        left: auto;
+        right: 1rem;
+        bottom: 1rem;
+        width: min(28rem, calc(100vw - 2rem));
+        border-radius: 1.25rem;
+        transform: translateY(1rem);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .etiquette-drawer.is-open {
+        transform: translateY(0);
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .field-mode-page .field-header {
+        padding: 1rem;
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .field-header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .nav-buttons {
+        flex-direction: column;
+    }
+
+    .etiquette-header {
+        flex-direction: column;
+    }
+
+    .etiquette-close {
+        width: 100%;
+    }
+
+    .etiquette-trigger {
+        left: 1rem;
+        right: 1rem;
+    }
+}

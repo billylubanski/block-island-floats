@@ -1,9 +1,11 @@
-const CACHE_NAME = 'float-tracker-v1';
+const CACHE_NAME = 'float-tracker-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/field',
   '/about',
   '/search',
+  '/static/field-mode.css',
+  '/static/field-mode.js',
   '/static/manifest.json',
   '/static/icon-192.png',
   '/static/icon-512.png',
