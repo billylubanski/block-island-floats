@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request
 import requests
 import datetime
+import json
 import sqlite3
 import os
 from collections import Counter
@@ -12,6 +13,16 @@ app = Flask(__name__)
 DB_NAME = 'floats.db'
 TRUTHY_VALUES = {'1', 'true', 'yes', 'on'}
 DEFAULT_VALID_ONLY = os.getenv('IGNORE_INVALID_ROWS', '').strip().lower() in TRUTHY_VALUES
+APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+FIELD_ETIQUETTE_PATH = os.path.join(APP_ROOT, 'data', 'field_etiquette.json')
+
+
+def load_field_etiquette():
+    with open(FIELD_ETIQUETTE_PATH, encoding='utf-8') as etiquette_file:
+        return json.load(etiquette_file)
+
+
+FIELD_ETIQUETTE = load_field_etiquette()
 
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME)
@@ -298,7 +309,8 @@ def field_mode():
     return render_template('field.html',
                           hunting_spots=hunting_spots,
                           last_updated=last_updated,
-                          weather=weather)
+                          weather=weather,
+                          etiquette=FIELD_ETIQUETTE)
 
 @app.route('/location/<path:location_name>')
 def location_detail(location_name):
