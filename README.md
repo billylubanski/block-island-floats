@@ -70,11 +70,23 @@ python scripts/refresh_data.py refresh
 
 # Validate JSON, snapshots, manifest, and SQLite outputs
 python scripts/refresh_data.py validate
+
+# Run row-level staged validation on the current DB
+python scripts/refresh_data.py validate-records
 ```
 
 - `all_floats_final.json` is the canonical dataset.
 - `floats.db`, `float_model.pkl`, and `scraped_data/floats_*.json` are generated from that canonical data.
 - GitHub Actions runs the refresh weekly and opens or updates an automated PR only when source data changes.
+
+## Data Validation Pipeline
+
+- Validation runs in staged tables: `finds_raw` -> `finds_normalized` -> `validation_report`.
+- Each row now tracks `is_valid`, `validation_errors`, `confidence_score`, `source`, and `suspicious_flags`.
+- Flagged row exports are generated at:
+  - `generated/validation_report.json`
+  - `generated/validation_report.csv`
+- App routes support `?valid_only=1` to optionally ignore invalid rows in dashboard/search/forecast and related analytics.
 
 ## Data Sources
 

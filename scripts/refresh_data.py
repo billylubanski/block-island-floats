@@ -19,6 +19,11 @@ if str(REPO_ROOT) not in sys.path:
 
 from analyzer import normalize_location  # noqa: E402
 from ml_predictor import train_model  # noqa: E402
+from scripts.validation_pipeline import (  # noqa: E402
+    DEFAULT_REPORT_CSV as VALIDATION_REPORT_CSV,
+    DEFAULT_REPORT_JSON as VALIDATION_REPORT_JSON,
+    run_validation_pipeline,
+)
 
 BASE_URL = "https://www.blockislandinfo.com/glass-float-project/found-floats/"
 DEFAULT_HEADERS = {
@@ -516,11 +521,9 @@ def write_per_year_snapshots(records: list[dict[str, str]]) -> None:
 
 def rebuild_database(records: list[dict[str, str]], db_path: Path) -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    if db_path.exists():
-        db_path.unlink()
-
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
+    cursor.execute("DROP TABLE IF EXISTS finds")
     cursor.execute(
         """
         CREATE TABLE finds (
@@ -532,7 +535,12 @@ def rebuild_database(records: list[dict[str, str]], db_path: Path) -> None:
             location_normalized TEXT,
             date_found TEXT,
             url TEXT,
-            image_url TEXT
+            image_url TEXT,
+            is_valid INTEGER DEFAULT 1,
+            validation_errors TEXT DEFAULT '[]',
+            confidence_score REAL DEFAULT 1.0,
+            source TEXT DEFAULT '',
+            suspicious_flags TEXT DEFAULT '[]'
         )
         """
     )
@@ -551,6 +559,7 @@ def rebuild_database(records: list[dict[str, str]], db_path: Path) -> None:
                 record["date_found"],
                 record["url"],
                 record["image"],
+                "blockislandinfo.com",
             )
         )
 
@@ -565,9 +574,10 @@ def rebuild_database(records: list[dict[str, str]], db_path: Path) -> None:
             location_normalized,
             date_found,
             url,
-            image_url
+            image_url,
+            source
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         rows,
     )
@@ -588,11 +598,14 @@ def get_legacy_rows(db_path: Path, canonical_ids: set[str]) -> list[dict[str, An
     return legacy_rows
 
 
-def build_manifest(records: list[dict[str, str]]) -> dict[str, Any]:
+def build_manifest(
+    records: list[dict[str, str]],
+    validation_summary: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     counts_by_year = Counter(record["year"] for record in records)
     valid_dates = [record["date_found"] for record in records if record["date_found"]]
 
-    return {
+    manifest = {
         "refreshed_at": iso_now(),
         "total_records": len(records),
         "latest_source_date": max(valid_dates) if valid_dates else "",
@@ -601,6 +614,15 @@ def build_manifest(records: list[dict[str, str]]) -> dict[str, Any]:
         "missing_urls": sum(1 for record in records if not record["url"]),
         "missing_images": sum(1 for record in records if not record["image"]),
     }
+    if validation_summary:
+        manifest["validation"] = {
+            "run_id": validation_summary.get("run_id", ""),
+            "valid_rows": validation_summary.get("valid_rows", 0),
+            "invalid_rows": validation_summary.get("invalid_rows", 0),
+            "suspicious_rows": validation_summary.get("suspicious_rows", 0),
+            "flagged_rows": validation_summary.get("flagged_rows", 0),
+        }
+    return manifest
 
 
 def write_summary(manifest: dict[str, Any], legacy_rows: list[dict[str, Any]]) -> None:
@@ -621,6 +643,21 @@ def write_summary(manifest: dict[str, Any], legacy_rows: list[dict[str, Any]]) -
     ]
     for year, count in manifest["records_by_year"].items():
         lines.append(f"- {year}: {count}")
+    validation = manifest.get("validation")
+    if validation:
+        lines.extend(
+            [
+                "",
+                "## Validation Summary",
+                "",
+                f"- Valid rows: {validation['valid_rows']}",
+                f"- Invalid rows: {validation['invalid_rows']}",
+                f"- Suspicious rows: {validation['suspicious_rows']}",
+                f"- Flagged rows: {validation['flagged_rows']}",
+                f"- Validation report JSON: {VALIDATION_REPORT_JSON}",
+                f"- Validation report CSV: {VALIDATION_REPORT_CSV}",
+            ]
+        )
     SUMMARY_PATH.parent.mkdir(parents=True, exist_ok=True)
     SUMMARY_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -699,8 +736,14 @@ def refresh_data() -> int:
     write_json(CANONICAL_JSON_PATH, canonical_records)
     write_per_year_snapshots(canonical_records)
     rebuild_database(canonical_records, DB_PATH)
+    validation_summary = run_validation_pipeline(
+        db_path=DB_PATH,
+        report_json_path=VALIDATION_REPORT_JSON,
+        report_csv_path=VALIDATION_REPORT_CSV,
+        default_source="blockislandinfo.com",
+    )
 
-    manifest = build_manifest(canonical_records)
+    manifest = build_manifest(canonical_records, validation_summary=validation_summary)
     write_json(MANIFEST_PATH, manifest)
 
     audit_payload = {
@@ -721,7 +764,9 @@ def refresh_data() -> int:
 
     print(
         f"Refreshed {len(canonical_records)} records across {len(manifest['records_by_year'])} years. "
-        f"Latest source date: {manifest['latest_source_date'] or 'Unknown'}."
+        f"Latest source date: {manifest['latest_source_date'] or 'Unknown'}. "
+        f"Invalid rows: {validation_summary['invalid_rows']}, "
+        f"suspicious rows: {validation_summary['suspicious_rows']}."
     )
     return 0
 
@@ -745,11 +790,34 @@ def validate_data() -> int:
     return 0
 
 
+def validate_records() -> int:
+    if not DB_PATH.exists():
+        print(f"ERROR: Database file is missing: {DB_PATH}")
+        return 1
+
+    summary = run_validation_pipeline(
+        db_path=DB_PATH,
+        report_json_path=VALIDATION_REPORT_JSON,
+        report_csv_path=VALIDATION_REPORT_CSV,
+        default_source="legacy_db",
+    )
+    print(
+        f"Validated {summary['total_rows']} DB rows. "
+        f"Invalid: {summary['invalid_rows']}, suspicious: {summary['suspicious_rows']}. "
+        f"Report: {VALIDATION_REPORT_JSON}"
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Refresh and validate float tracker data artifacts.")
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("refresh", help="Scrape the source site and rebuild generated data artifacts.")
     subparsers.add_parser("validate", help="Validate canonical JSON, snapshots, manifest, and SQLite outputs.")
+    subparsers.add_parser(
+        "validate-records",
+        help="Run staged row validation against the current SQLite database.",
+    )
     return parser
 
 
@@ -761,6 +829,8 @@ def main() -> int:
         return refresh_data()
     if args.command == "validate":
         return validate_data()
+    if args.command == "validate-records":
+        return validate_records()
     parser.error(f"Unknown command: {args.command}")
     return 2
 

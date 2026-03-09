@@ -176,7 +176,7 @@
 {% endblock %}
 
 {% block content %}
-<a href="/" class="back-link">← Back to Dashboard</a>
+<a href="/{% if valid_only %}?valid_only=1{% endif %}" class="back-link">← Back to Dashboard</a>
 
 <div class="location-header">
     <h1>📍 {{ location_name }}</h1>

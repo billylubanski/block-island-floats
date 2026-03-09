@@ -6,6 +6,17 @@ import re
 
 DB_NAME = 'floats.db'
 
+
+def _finds_has_column(conn, column_name):
+    info = conn.execute("PRAGMA table_info(finds)").fetchall()
+    return any(col[1] == column_name for col in info)
+
+
+def _valid_only_clause(conn):
+    if _finds_has_column(conn, "is_valid"):
+        return " AND COALESCE(is_valid, 1) = 1"
+    return ""
+
 def get_all_finds():
     """Return raw location strings for all finds."""
     conn = sqlite3.connect(DB_NAME)
@@ -16,8 +27,13 @@ def get_all_finds():
     return [row[0] for row in data]
 
 def normalize_location(loc):
+    if loc is None:
+        return "Other/Unknown"
+
     # Lowercase and strip
-    loc = loc.lower().strip()
+    loc = str(loc).lower().strip()
+    if not loc:
+        return "Other/Unknown"
     
     # Common mappings
     mappings = {
@@ -311,7 +327,7 @@ def _month_from_string(date_str: str):
                 return idx
     return None
 
-def analyze_dates(filter_year=None):
+def analyze_dates(filter_year=None, valid_only=False):
     """
     Analyze dated finds and return month counts.
     filter_year: optional year (int/str) to scope results.
@@ -323,6 +339,8 @@ def analyze_dates(filter_year=None):
     if filter_year:
         query += " AND year = ?"
         params.append(str(filter_year))
+    if valid_only:
+        query += _valid_only_clause(conn)
     rows = conn.execute(query, params).fetchall()
     conn.close()
 
@@ -340,7 +358,7 @@ def analyze_dates(filter_year=None):
         "total_dates_analyzed": len(months)
     }
 
-def analyze_unreported_floats(filter_year=None):
+def analyze_unreported_floats(filter_year=None, valid_only=False):
     """
     Calculate how many floats are unreported based on float numbers.
     filter_year: optional year (int/str) to scope results.
@@ -353,6 +371,8 @@ def analyze_unreported_floats(filter_year=None):
     if filter_year:
         query += " AND year = ?"
         params.append(str(filter_year))
+    if valid_only:
+        query += _valid_only_clause(conn)
     rows = conn.execute(query, params).fetchall()
     conn.close()
 
@@ -380,7 +400,7 @@ def analyze_unreported_floats(filter_year=None):
         "unreported": unreported
     }
 
-def get_year_recovery_stats():
+def get_year_recovery_stats(valid_only=False):
     """
     Calculate recovery statistics for all years.
     Returns list of dicts with year, hidden, found, recovery_rate.
@@ -389,19 +409,24 @@ def get_year_recovery_stats():
     conn.row_factory = sqlite3.Row
     
     # Get all years
-    years_data = conn.execute(
-        'SELECT year, count(*) as report_count FROM finds GROUP BY year ORDER BY year DESC'
-    ).fetchall()
+    years_query = 'SELECT year, count(*) as report_count FROM finds'
+    if valid_only:
+        years_query += " WHERE COALESCE(is_valid, 1) = 1" if _finds_has_column(conn, "is_valid") else ""
+    years_query += " GROUP BY year ORDER BY year DESC"
+    years_data = conn.execute(years_query).fetchall()
     
     stats = []
     for year_row in years_data:
         year = year_row['year']
         
         # Get float numbers for this year
-        rows = conn.execute(
-            'SELECT float_number FROM finds WHERE year = ? AND float_number IS NOT NULL AND float_number != ""',
-            (year,)
-        ).fetchall()
+        float_query = (
+            'SELECT float_number FROM finds '
+            'WHERE year = ? AND float_number IS NOT NULL AND float_number != ""'
+        )
+        if valid_only:
+            float_query += _valid_only_clause(conn)
+        rows = conn.execute(float_query, (year,)).fetchall()
         
         # Extract numeric float numbers
         float_numbers = set()
