@@ -116,7 +116,7 @@ def test_run_validation_pipeline_creates_stages_and_reports(tmp_path: Path):
     assert row_two["is_valid"] == 0
     assert "invalid_float_number" in row_two["validation_errors"]
     assert "blank_float_with_hash_finder" in row_two["suspicious_flags"]
-    assert row_two["source"] == "test_source"
+    assert row_two["source"] == "example.com"
 
     raw_count = conn.execute("SELECT COUNT(*) FROM finds_raw WHERE run_id = 'test_run'").fetchone()[0]
     normalized_count = conn.execute(
