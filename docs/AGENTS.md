@@ -1,40 +1,38 @@
 # Repository Guidelines
 
-## Project Layout
+## Project Structure & Module Organization
+- `app.py` hosts the Flask app, routes, and DB access; `templates/` and `static/` contain the UI.
+- Core helpers live in `analyzer.py`, `ml_predictor.py`, `locations.py`, and `utils.py`.
+- The canonical refresh workflow lives in `scripts/refresh_data.py`; staged row validation lives in `scripts/validation_pipeline.py`.
+- Manual probes that may hit the live site, require Playwright, expect a local server, or inspect the committed production DB live in `scripts/manual_checks/`.
+- Generated artifacts include `all_floats_final.json`, `scraped_data/`, `generated/`, `floats.db`, and `float_model.pkl`.
+- Deterministic HTML fixtures for parser tests live in `tests/fixtures/`.
 
-- `app.py` hosts the Flask app, routes, and page rendering.
-- `analyzer.py`, `ml_predictor.py`, `locations.py`, and `utils.py` hold analytics, forecast logic, location metadata, and shared helpers.
-- `templates/` and `static/` contain the UI.
-- `scripts/refresh_data.py` orchestrates refreshes; `scripts/validation_pipeline.py` handles staged validation output.
-- `scripts/manual_checks/` contains opt-in smoke checks and data probes that may depend on the live site, a local server, Playwright, or the committed production DB.
+## Build, Test, and Development Commands
+- Create a venv and install deps: `python -m venv .venv && .venv\Scripts\activate && pip install -r requirements.txt pytest`.
+- Run the app locally: `python app.py` (serves http://localhost:5000).
+- Refresh the canonical dataset and rebuild derived artifacts: `python scripts/refresh_data.py refresh`.
+- Validate canonical JSON, snapshots, manifest, and SQLite outputs: `python scripts/refresh_data.py validate`.
+- Run staged record validation on the current database: `python scripts/refresh_data.py validate-records`.
+- Run the automated test suite once Python and pytest are available: `pytest -q`.
 
-## Development Commands
-
-- Create a virtual environment: `python -m venv .venv`
-- Activate it on Windows: `.venv\Scripts\activate`
-- Install runtime and test deps: `pip install -r requirements.txt pytest`
-- Run the app locally: `python app.py`
-- Run automated tests: `pytest -q`
-- Refresh tracked artifacts: `python scripts/refresh_data.py refresh`
-- Validate refresh outputs: `python scripts/refresh_data.py validate`
-- Run row-level validation against the current DB: `python scripts/refresh_data.py validate-records`
-
-## Testing Conventions
-
+## Testing Guidelines
 - `pytest.ini` constrains automated collection to `tests/`.
-- `tests/test_*.py` must stay deterministic, self-contained, and safe for CI.
-- Do not add live HTTP, real Playwright browsing, or committed-DB audit probes to `tests/`.
+- Keep `tests/test_*.py` deterministic and fixture-driven; do not rely on live HTTP or a manually started local server.
+- Prefer Flask test-client assertions and monkeypatched dependencies over background servers or print-only scripts.
 - Put opt-in checks under `scripts/manual_checks/`; examples include `scripts/manual_checks/verify_ids.py` and `scripts/manual_checks/verify_location.py`.
-- For route coverage, prefer Flask test-client assertions and monkeypatched dependencies over background servers or print-only scripts.
+- For UI changes, capture screenshots of `/` and `/search` and note any data filters used.
 
 ## Coding Notes
-
-- Follow PEP 8 with 4-space indentation.
-- Prefer small functions and explicit data-shaping helpers over inline route logic.
-- Keep shared styling centralized in `templates/base.html`.
+- Follow PEP 8; use 4-space indentation and descriptive snake_case names.
+- Favor small, pure helper functions over inline route logic.
+- Prefer explicit mappings/constants for normalization rules and keep shared UI styles in `templates/base.html`.
 - Treat tracked data artifacts as intentional repo contents unless a task explicitly changes that policy.
 
-## Docs Sources Of Truth
+## Commit & Pull Request Guidelines
+- Commits: short, imperative subject (<=72 chars), include the reason in the body if non-obvious.
+- PRs: summarize the change, note testing commands run, call out data impact, and include screenshots for UI updates when relevant.
 
+## Docs Sources Of Truth
 - Canonical current-state docs: `README.md`, this file, and `docs/IMPLEMENTATION_STATUS.md`.
-- Historical planning docs: `docs/FEATURE_AUDIT.md`, `docs/ROADMAP.md`, and `docs/archive/AUDIT_SUMMARY_2025-11-23.md`.
+- Historical reference docs: `docs/FEATURE_AUDIT.md`, `docs/ROADMAP.md`, and `docs/archive/AUDIT_SUMMARY_2025-11-23.md`.
