@@ -36,6 +36,9 @@
 {% block content %}
 <div class="control-bar">
     <form action="/" method="get" style="display: flex; align-items: center; gap: 1rem; flex-grow: 1;">
+        {% if valid_only %}
+        <input type="hidden" name="valid_only" value="1">
+        {% endif %}
         <label for="year" style="color: var(--text-secondary); font-weight: 600; white-space: nowrap;">Filter by
             Year:</label>
         <select id="year" name="year" onchange="this.form.submit()" style="min-width: 150px;">
@@ -48,6 +51,10 @@
         </select>
         <noscript><button type="submit">Apply</button></noscript>
     </form>
+    <a href="/?year={{ selected_year }}{% if not valid_only %}&valid_only=1{% endif %}"
+        style="color: var(--accent); text-decoration: none; font-weight: 600; font-size: 0.9rem;">
+        {{ 'Show all rows' if valid_only else 'Use validated rows only' }}
+    </a>
     <a href="https://www.blockislandinfo.com/glass-float-project/" target="_blank"
         style="background: var(--accent); color: var(--bg-color); padding: 0.5rem 0.75rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 0.25rem; margin-right: 1rem;">
         <span>📝</span> Report Find
@@ -121,7 +128,8 @@
                 <tr>
                     <td>#{{ loop.index }}</td>
                     <td style="font-weight: 600; color: var(--text-primary);">
-                        <a href="/location/{{ loc.name }}" style="color: var(--accent); text-decoration: none;">
+                        <a href="/location/{{ loc.name }}{% if valid_only %}?valid_only=1{% endif %}"
+                            style="color: var(--accent); text-decoration: none;">
                             {{ loc.name }}
                         </a>
                     </td>

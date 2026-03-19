@@ -1,8 +1,9 @@
 from flask import Flask, render_template, request
 import requests
 import datetime
+import json
 import sqlite3
-import re
+import os
 from collections import Counter
 from analyzer import normalize_location, analyze_dates, analyze_unreported_floats, get_year_recovery_stats
 from locations import LOCATIONS
@@ -10,6 +11,47 @@ from utils import get_last_updated
 
 app = Flask(__name__)
 DB_NAME = 'floats.db'
+TRUTHY_VALUES = {'1', 'true', 'yes', 'on'}
+DEFAULT_VALID_ONLY = os.getenv('IGNORE_INVALID_ROWS', '').strip().lower() in TRUTHY_VALUES
+APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+FIELD_ETIQUETTE_PATH = os.path.join(APP_ROOT, 'data', 'field_etiquette.json')
+DEFAULT_FIELD_ETIQUETTE = {
+    'title': 'Field Etiquette',
+    'intro': 'Official float-hunting guidance for use while you are out on the trail.',
+    'rules_heading': 'Hunt respectfully',
+    'rules': [
+        'Stay on established trails.',
+        'Search near trails or between the bluffs and the high tide line.',
+        'Do not dismantle stone walls.',
+        'Do not whack vegetation.',
+        'Stay off dunes.',
+        'Keep pets on a leash.',
+        'Look up. Floats may be hidden in trees.',
+        'One float per person per year.',
+    ],
+    'restricted_heading': 'Floats are NOT hidden on',
+    'restricted_locations': [
+        'Dunes or up bluffs',
+        '"The Maze"',
+        'School grounds',
+        'Island cemeteries',
+        'Private homes',
+        'Flowerbeds',
+        'The Statue of Rebecca',
+    ],
+}
+
+
+def load_field_etiquette():
+    try:
+        with open(FIELD_ETIQUETTE_PATH, encoding='utf-8') as etiquette_file:
+            return json.load(etiquette_file)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Warning: using fallback field etiquette content: {exc}")
+        return DEFAULT_FIELD_ETIQUETTE.copy()
+
+
+FIELD_ETIQUETTE = load_field_etiquette()
 
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME)
@@ -29,7 +71,33 @@ def parse_selected_year(raw_year):
 
     return str(year), year
 
+def finds_supports_validation(conn):
+    table_info = conn.execute("PRAGMA table_info(finds)").fetchall()
+    return any(col[1] == 'is_valid' for col in table_info)
 
+
+def valid_only_enabled():
+    value = request.args.get('valid_only')
+    if value is None:
+        return DEFAULT_VALID_ONLY
+    return value.strip().lower() in TRUTHY_VALUES
+
+
+def build_finds_where_clause(year_param=None, valid_only=False, supports_validation=False):
+    clauses = []
+    params = []
+    if year_param is not None:
+        clauses.append('year = ?')
+        params.append(year_param)
+    if valid_only and supports_validation:
+        clauses.append('COALESCE(is_valid, 1) = 1')
+    where = f"WHERE {' AND '.join(clauses)}" if clauses else ''
+    return where, params
+
+
+@app.context_processor
+def inject_filters():
+    return {'valid_only': valid_only_enabled()}
 # Simple in-memory cache for weather data
 weather_cache = {
     'data': None,
@@ -117,42 +185,49 @@ def get_weather_data():
 @app.route('/')
 def index():
     conn = get_db_connection()
-    
+
+    valid_only = valid_only_enabled()
+    supports_validation = finds_supports_validation(conn)
+
     # Get year filter from query parameter
     selected_year, year_param = parse_selected_year(request.args.get('year', 'all'))
-    
+    where_clause, where_params = build_finds_where_clause(
+        year_param=year_param,
+        valid_only=valid_only,
+        supports_validation=supports_validation,
+    )
     # Get total finds (filtered)
-    if year_param:
-        total_finds = conn.execute('SELECT count(*) FROM finds WHERE year = ?', (year_param,)).fetchone()[0]
-    else:
-        total_finds = conn.execute('SELECT count(*) FROM finds').fetchone()[0]
+    total_finds = conn.execute(
+        f'SELECT count(*) FROM finds {where_clause}',
+        where_params,
+    ).fetchone()[0]
     
     # Get year recovery statistics (hidden, found, recovery rate for each year)
-    year_recovery_stats = get_year_recovery_stats()
+    year_recovery_stats = get_year_recovery_stats(valid_only=valid_only)
     
     # Calculate total floats hidden across all years
     total_hidden_all_years = sum(year['hidden'] for year in year_recovery_stats)
     total_found_all_years = sum(year['found'] for year in year_recovery_stats)
     
     # Get date analysis stats (filtered)
-    date_stats = analyze_dates(year_param)
+    date_stats = analyze_dates(year_param, valid_only=valid_only)
     best_months = date_stats['best_months']
     total_dates_analyzed = date_stats['total_dates_analyzed']
     
     # Get unreported float stats (only for specific years, not "all")
     # Float numbers are reused each year, so aggregation across years doesn't make sense
-    if year_param:
-        unreported_stats = analyze_unreported_floats(year_param)
+    if year_param is not None:
+        unreported_stats = analyze_unreported_floats(year_param, valid_only=valid_only)
         still_out_there = unreported_stats['unreported']
     else:
         unreported_stats = None
         still_out_there = max(total_hidden_all_years - total_found_all_years, 0)
     
     # Get top locations (filtered)
-    if year_param:
-        all_locs = conn.execute('SELECT location_raw FROM finds WHERE year = ?', (year_param,)).fetchall()
-    else:
-        all_locs = conn.execute('SELECT location_raw FROM finds').fetchall()
+    all_locs = conn.execute(
+        f'SELECT location_raw FROM finds {where_clause}',
+        where_params,
+    ).fetchall()
     
     normalized_locs = [normalize_location(row['location_raw']) for row in all_locs]
     loc_counts = Counter(normalized_locs)
@@ -208,11 +283,19 @@ def index():
 
 @app.route('/search')
 def search():
+    valid_only = valid_only_enabled()
     query = request.args.get('q', '')
     conn = get_db_connection()
+    supports_validation = finds_supports_validation(conn)
     if query:
-        results = conn.execute('SELECT * FROM finds WHERE finder LIKE ? OR location_raw LIKE ? OR float_number LIKE ? LIMIT 50', 
-                               (f'%{query}%', f'%{query}%', f'%{query}%')).fetchall()
+        params = [f'%{query}%', f'%{query}%', f'%{query}%']
+        conditions = ['(finder LIKE ? OR location_raw LIKE ? OR float_number LIKE ?)']
+        if valid_only and supports_validation:
+            conditions.append('COALESCE(is_valid, 1) = 1')
+        results = conn.execute(
+            f"SELECT * FROM finds WHERE {' AND '.join(conditions)} LIMIT 50",
+            params,
+        ).fetchall()
     else:
         results = []
     conn.close()
@@ -226,9 +309,14 @@ def about():
 def field_mode():
     """Mobile-optimized field mode for on-island hunting"""
     conn = get_db_connection()
-    
+    valid_only = valid_only_enabled()
+    supports_validation = finds_supports_validation(conn)
+
     # Get all locations with coordinates and their find counts
-    all_locs = conn.execute('SELECT location_raw FROM finds').fetchall()
+    query = 'SELECT location_raw FROM finds'
+    if valid_only and supports_validation:
+        query += ' WHERE COALESCE(is_valid, 1) = 1'
+    all_locs = conn.execute(query).fetchall()
     normalized_locs = [normalize_location(row['location_raw']) for row in all_locs]
     loc_counts = Counter(normalized_locs)
     
@@ -255,17 +343,24 @@ def field_mode():
     return render_template('field.html',
                           hunting_spots=hunting_spots,
                           last_updated=last_updated,
-                          weather=weather)
+                          weather=weather,
+                          etiquette=FIELD_ETIQUETTE)
 
 @app.route('/location/<path:location_name>')
 def location_detail(location_name):
     """Detail page for a specific location showing all finds and photos"""
     conn = get_db_connection()
-    
+    valid_only = valid_only_enabled()
+    supports_validation = finds_supports_validation(conn)
+
     # Get all finds and filter by normalizing location_raw
     # (location_normalized column is not populated in DB, normalization happens on the fly)
+    finds_query = 'SELECT * FROM finds'
+    if valid_only and supports_validation:
+        finds_query += ' WHERE COALESCE(is_valid, 1) = 1'
+    finds_query += ' ORDER BY year DESC, date_found DESC'
     all_finds = conn.execute(
-        'SELECT * FROM finds ORDER BY year DESC, date_found DESC'
+        finds_query
     ).fetchall()
     
     # Filter finds by normalizing the location_raw
@@ -332,8 +427,9 @@ from ml_predictor import predict_today, get_seasonality_score
 @app.route('/forecast')
 def forecast():
     """Show float forecast for today"""
-    predictions = predict_today()
-    seasonality = get_seasonality_score()
+    valid_only = valid_only_enabled()
+    predictions = predict_today(valid_only=valid_only)
+    seasonality = get_seasonality_score(valid_only=valid_only)
     
     # Get weather for context
     weather = get_weather_data()

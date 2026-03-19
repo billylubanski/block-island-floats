@@ -175,6 +175,12 @@
 <div class="forecast-header">
     <h1 class="forecast-title">Float Forecast</h1>
     <p class="forecast-subtitle">AI-powered predictions for today's best hunting grounds.</p>
+    <p style="margin-top: 0.75rem;">
+        <a href="{{ url_for('forecast', valid_only=1) if not valid_only else url_for('forecast') }}"
+            style="color: var(--accent); text-decoration: none; font-weight: 600; font-size: 0.9rem;">
+            {{ 'Show all rows' if valid_only else 'Use validated rows only' }}
+        </a>
+    </p>
 </div>
 
 <!-- Seasonality Card -->
@@ -209,7 +215,8 @@
                 <span class="rank-badge">#{{ loop.index }}</span>
                 <span class="probability">{{ pred.probability }}%</span>
             </div>
-            <a href="{{ url_for('location_detail', location_name=pred.location) }}" class="location-link">
+            <a href="{{ url_for('location_detail', location_name=pred.location, valid_only=1) if valid_only else url_for('location_detail', location_name=pred.location) }}"
+                class="location-link">
                 {{ pred.location }}
             </a>
             <p class="prediction-desc">Probability based on historical patterns for this time of year.</p>

@@ -1,5 +1,7 @@
 flask
 requests
-scikit-learn
+beautifulsoup4
 pandas
+playwright
+scikit-learn==1.7.2
 gunicorn

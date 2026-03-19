@@ -487,11 +487,17 @@
         <header>
             <h1>Glass Float Tracker</h1>
             <nav>
-                <a href="/">Dashboard</a>
-                <a href="/field">🎯 Field Mode</a>
-                <a href="/search">Search</a>
-                <a href="{{ url_for('forecast') }}">Forecast</a>
-                <a href="/about">About</a>
+                <a href="/{% if valid_only %}?valid_only=1{% endif %}">Dashboard</a>
+                <a href="/field{% if valid_only %}?valid_only=1{% endif %}">🎯 Field Mode</a>
+                <a href="/search{% if valid_only %}?valid_only=1{% endif %}">Search</a>
+                <a href="{{ url_for('forecast', valid_only=1) if valid_only else url_for('forecast') }}">Forecast</a>
+                <a href="/about{% if valid_only %}?valid_only=1{% endif %}">About</a>
+                {% if valid_only %}
+                <span
+                    style="display: inline-block; margin-left: 1rem; color: var(--accent); font-size: 0.8rem; font-weight: 700;">
+                    Valid rows only
+                </span>
+                {% endif %}
             </nav>
         </header>
 
