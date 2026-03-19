@@ -130,3 +130,65 @@ def test_run_validation_pipeline_creates_stages_and_reports(tmp_path: Path):
     assert raw_count == 4
     assert normalized_count == 4
     assert report_count == 4
+
+
+def test_run_validation_pipeline_flags_extreme_float_number_outlier(tmp_path: Path):
+    db_path = tmp_path / "floats.db"
+    report_json = tmp_path / "generated" / "validation_report.json"
+    report_csv = tmp_path / "generated" / "validation_report.csv"
+
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        CREATE TABLE finds (
+            id INTEGER PRIMARY KEY,
+            year INTEGER,
+            float_number TEXT,
+            finder TEXT,
+            location_raw TEXT,
+            location_normalized TEXT,
+            date_found TEXT,
+            url TEXT,
+            image_url TEXT
+        )
+        """
+    )
+    conn.executemany(
+        """
+        INSERT INTO finds (
+            id, year, float_number, finder, location_raw, location_normalized, date_found, url, image_url
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            (1, 2025, "546", "A", "Rodman's Hollow", "Rodman's Hollow", "2025-10-20", "https://example.com/1", "https://cdn.example.com/1.jpg"),
+            (2, 2025, "550", "B", "Old Mill", "Old Mill Road", "2025-10-09", "https://example.com/2", "https://cdn.example.com/2.jpg"),
+            (3, 2025, "551", "C", "Plover Hill", "Other/Unknown", "2025-10-11", "https://example.com/3", "https://cdn.example.com/3.jpg"),
+            (4, 2025, "552", "D", "Rodman's Hollow", "Rodman's Hollow", "2025-10-09", "https://example.com/4", "https://cdn.example.com/4.jpg"),
+            (5, 2025, "553", "E", "Beach Ave Trail", "Beach Avenue Trail", "2025-10-08", "https://example.com/5", "https://cdn.example.com/5.jpg"),
+            (6, 2025, "558", "F", "Martin Lots", "Other/Unknown", "2025-10-09", "https://example.com/6", "https://cdn.example.com/6.jpg"),
+            (7, 2025, "2044", "Susan Farnham", "Lameshur Bay Trail", "Trail (General)", "2026-01-15", "https://example.com/7", "https://cdn.example.com/7.jpg"),
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+    summary = run_validation_pipeline(
+        db_path=db_path,
+        report_json_path=report_json,
+        report_csv_path=report_csv,
+        default_source="test_source",
+        run_id="outlier_run",
+    )
+
+    assert summary["invalid_rows"] >= 1
+
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    outlier_row = conn.execute(
+        "SELECT is_valid, validation_errors FROM finds WHERE id = 7"
+    ).fetchone()
+    conn.close()
+
+    assert outlier_row["is_valid"] == 0
+    assert "extreme_float_number_outlier" in outlier_row["validation_errors"]

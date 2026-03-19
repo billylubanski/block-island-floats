@@ -17,7 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from analyzer import normalize_location  # noqa: E402
+from analyzer import normalize_location, split_extreme_float_numbers  # noqa: E402
 from ml_predictor import train_model  # noqa: E402
 from scripts.validation_pipeline import (  # noqa: E402
     DEFAULT_REPORT_CSV as VALIDATION_REPORT_CSV,
@@ -276,6 +276,32 @@ def group_records_by_year(records: list[dict[str, str]]) -> dict[str, list[dict[
     for record in records:
         grouped.setdefault(record["year"], []).append(record)
     return grouped
+
+
+def exclude_extreme_float_number_records(
+    records: list[dict[str, str]],
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    outlier_ids: set[str] = set()
+
+    for year_records in group_records_by_year(records).values():
+        record_numbers: list[tuple[str, int]] = []
+        for record in year_records:
+            float_number, _ = parse_title(record.get("title", ""))
+            if float_number.isdigit():
+                record_numbers.append((record["id"], int(float_number)))
+
+        _, outlier_numbers = split_extreme_float_numbers(number for _, number in record_numbers)
+        if not outlier_numbers:
+            continue
+
+        year_outliers = set(outlier_numbers)
+        for record_id, number in record_numbers:
+            if number in year_outliers:
+                outlier_ids.add(record_id)
+
+    kept_records = [record for record in records if record["id"] not in outlier_ids]
+    dropped_records = [record for record in records if record["id"] in outlier_ids]
+    return sort_records(kept_records), sort_records(dropped_records)
 
 
 def scrape_records_with_playwright(
@@ -729,6 +755,14 @@ def refresh_data() -> int:
     if not canonical_records:
         print("ERROR: Canonical record generation returned zero records. Existing artifacts were left unchanged.")
         return 1
+
+    canonical_records, dropped_outliers = exclude_extreme_float_number_records(canonical_records)
+    if dropped_outliers:
+        dropped_labels = ", ".join(
+            f"{record['year']} #{parse_title(record['title'])[0]} (id {record['id']})"
+            for record in dropped_outliers
+        )
+        print(f"Excluded {len(dropped_outliers)} extreme float-number outlier record(s): {dropped_labels}")
 
     canonical_ids = {record["id"] for record in canonical_records}
     legacy_rows = get_legacy_rows(DB_PATH, canonical_ids)

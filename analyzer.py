@@ -3,8 +3,12 @@ import sqlite3
 from collections import Counter
 from datetime import datetime
 import re
+import statistics
 
 DB_NAME = 'floats.db'
+EXTREME_FLOAT_REFERENCE_WINDOW = 5
+EXTREME_FLOAT_MIN_GAP = 500
+EXTREME_FLOAT_RATIO = 1.5
 
 
 def _finds_has_column(conn, column_name):
@@ -16,6 +20,35 @@ def _valid_only_clause(conn):
     if _finds_has_column(conn, "is_valid"):
         return " AND COALESCE(is_valid, 1) = 1"
     return ""
+
+
+def extract_numeric_float_numbers(values):
+    numbers = []
+    for value in values:
+        match = re.search(r'(\d+)', str(value))
+        if match:
+            numbers.append(int(match.group(1)))
+    return numbers
+
+
+def split_extreme_float_numbers(float_numbers):
+    cleaned_numbers = sorted(set(float_numbers))
+    outlier_numbers = []
+
+    while len(cleaned_numbers) >= (EXTREME_FLOAT_REFERENCE_WINDOW + 1):
+        reference_window = cleaned_numbers[-(EXTREME_FLOAT_REFERENCE_WINDOW + 1):-1]
+        reference_value = statistics.median(reference_window)
+        highest_value = cleaned_numbers[-1]
+
+        if (
+            highest_value >= (reference_value * EXTREME_FLOAT_RATIO)
+            and (highest_value - reference_value) >= EXTREME_FLOAT_MIN_GAP
+        ):
+            outlier_numbers.append(cleaned_numbers.pop())
+            continue
+        break
+
+    return cleaned_numbers, outlier_numbers
 
 def get_all_finds():
     """Return raw location strings for all finds."""
@@ -376,22 +409,18 @@ def analyze_unreported_floats(filter_year=None, valid_only=False):
     rows = conn.execute(query, params).fetchall()
     conn.close()
 
-    # Extract numeric float numbers from various formats
-    float_numbers = set()
-    for row in rows:
-        match = re.search(r'(\d+)', str(row['float_number']))
-        if match:
-            float_numbers.add(int(match.group(1)))
-    
-    if not float_numbers:
+    float_numbers = extract_numeric_float_numbers(row['float_number'] for row in rows)
+    clean_numbers, _ = split_extreme_float_numbers(float_numbers)
+
+    if not clean_numbers:
         return {
             "total_hidden": 0,
             "total_found": 0,
             "unreported": 0
         }
-    
-    total_hidden = max(float_numbers)
-    total_found = len(float_numbers)
+
+    total_hidden = clean_numbers[-1]
+    total_found = len(clean_numbers)
     unreported = total_hidden - total_found
     
     return {
@@ -428,16 +457,12 @@ def get_year_recovery_stats(valid_only=False):
             float_query += _valid_only_clause(conn)
         rows = conn.execute(float_query, (year,)).fetchall()
         
-        # Extract numeric float numbers
-        float_numbers = set()
-        for row in rows:
-            match = re.search(r'(\d+)', str(row['float_number']))
-            if match:
-                float_numbers.add(int(match.group(1)))
-        
-        if float_numbers:
-            total_hidden = max(float_numbers)
-            total_found = len(float_numbers)
+        float_numbers = extract_numeric_float_numbers(row['float_number'] for row in rows)
+        clean_numbers, _ = split_extreme_float_numbers(float_numbers)
+
+        if clean_numbers:
+            total_hidden = clean_numbers[-1]
+            total_found = len(clean_numbers)
             recovery_rate = (total_found / total_hidden * 100) if total_hidden > 0 else 0
         else:
             total_hidden = 0
