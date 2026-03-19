@@ -25,8 +25,10 @@ def _model_file_for_mode(model_file, valid_only):
     return f"{root}_valid{ext}"
 
 
-def get_data(db_name=DB_NAME, valid_only=False):
+def get_data(db_name=None, valid_only=False):
     """Fetch and prepare data from the database."""
+    if db_name is None:
+        db_name = DB_NAME
     conn = sqlite3.connect(db_name)
     query = "SELECT date_found, location_raw FROM finds WHERE date_found IS NOT NULL AND date_found != ''"
     if valid_only and _finds_has_column(conn, "is_valid"):
@@ -73,8 +75,12 @@ def prepare_features(df):
     
     return df
 
-def train_model(db_name=DB_NAME, model_file=MODEL_FILE, valid_only=False):
+def train_model(db_name=None, model_file=None, valid_only=False):
     """Train the model and save it."""
+    if db_name is None:
+        db_name = DB_NAME
+    if model_file is None:
+        model_file = MODEL_FILE
     target_model_file = _model_file_for_mode(model_file, valid_only)
     print("Fetching data...")
     df = get_data(db_name=db_name, valid_only=valid_only)
@@ -143,27 +149,17 @@ def predict_today(valid_only=False):
 
 def get_seasonality_score(valid_only=False):
     """Get a simple seasonality score based on historical finds for this month."""
-    conn = sqlite3.connect(DB_NAME)
-    # Get total finds
-    total_query = "SELECT count(*) FROM finds WHERE date_found IS NOT NULL"
-    if valid_only and _finds_has_column(conn, "is_valid"):
-        total_query += " AND COALESCE(is_valid, 1) = 1"
-    total = conn.execute(total_query).fetchone()[0]
-    
-    # Get finds for current month
-    current_month = datetime.now().month
-    # This is a rough approximation since we store dates as strings. 
-    # Ideally we'd use the parsed dates, but for speed we'll just query.
-    # Actually, let's use the python parsing logic we already have in analyzer.py or just re-implement simple check
-    
-    # Let's just use the dataframe logic since we have it
     df = get_data(valid_only=valid_only)
     df = prepare_features(df)
+    total = len(df)
+
+    if total == 0:
+        return 0
+
+    current_month = datetime.now().month
     
     month_counts = df['month'].value_counts()
-    this_month_count = month_counts.get(current_month, 0)
-    
-    if total == 0: return 0
+    this_month_count = int(month_counts.get(current_month, 0))
     
     # Average finds per month (uniform distribution) would be Total / 12
     avg_per_month = total / 12

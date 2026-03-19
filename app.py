@@ -59,6 +59,18 @@ def get_db_connection():
     return conn
 
 
+def parse_selected_year(raw_year):
+    """Return a sanitized year filter tuple of (selected_year, year_param)."""
+    if raw_year in (None, "", "all"):
+        return "all", None
+
+    try:
+        year = int(raw_year)
+    except (TypeError, ValueError):
+        return "all", None
+
+    return str(year), year
+
 def finds_supports_validation(conn):
     table_info = conn.execute("PRAGMA table_info(finds)").fetchall()
     return any(col[1] == 'is_valid' for col in table_info)
@@ -86,7 +98,6 @@ def build_finds_where_clause(year_param=None, valid_only=False, supports_validat
 @app.context_processor
 def inject_filters():
     return {'valid_only': valid_only_enabled()}
-
 # Simple in-memory cache for weather data
 weather_cache = {
     'data': None,
@@ -124,13 +135,12 @@ def get_weather_data():
             
             # Extract relevant data
             temp_c = props.get('temperature', {}).get('value')
-            wind_speed_kmh = props.get('windSpeed', {}).get('value')
+            wind_speed_mps = props.get('windSpeed', {}).get('value')
             text_desc = props.get('textDescription', 'Unknown')
-            icon_url = props.get('icon', '')
-            
-            # Convert units
+
+            # NOAA reports wind speed in meters per second.
             temp_f = round((temp_c * 9/5) + 32) if temp_c is not None else None
-            wind_mph = round(wind_speed_kmh * 0.621371) if wind_speed_kmh is not None else None
+            wind_mph = round(wind_speed_mps * 2.23694) if wind_speed_mps is not None else None
             
             # Map text description to emoji
             desc_lower = text_desc.lower()
@@ -180,20 +190,12 @@ def index():
     supports_validation = finds_supports_validation(conn)
 
     # Get year filter from query parameter
-    selected_year = request.args.get('year', 'all')
-    year_param = None
-    if selected_year != 'all':
-        try:
-            year_param = int(selected_year)
-        except ValueError:
-            selected_year = 'all'
-
+    selected_year, year_param = parse_selected_year(request.args.get('year', 'all'))
     where_clause, where_params = build_finds_where_clause(
         year_param=year_param,
         valid_only=valid_only,
         supports_validation=supports_validation,
     )
-
     # Get total finds (filtered)
     total_finds = conn.execute(
         f'SELECT count(*) FROM finds {where_clause}',
@@ -205,6 +207,7 @@ def index():
     
     # Calculate total floats hidden across all years
     total_hidden_all_years = sum(year['hidden'] for year in year_recovery_stats)
+    total_found_all_years = sum(year['found'] for year in year_recovery_stats)
     
     # Get date analysis stats (filtered)
     date_stats = analyze_dates(year_param, valid_only=valid_only)
@@ -215,8 +218,10 @@ def index():
     # Float numbers are reused each year, so aggregation across years doesn't make sense
     if year_param is not None:
         unreported_stats = analyze_unreported_floats(year_param, valid_only=valid_only)
+        still_out_there = unreported_stats['unreported']
     else:
         unreported_stats = None
+        still_out_there = max(total_hidden_all_years - total_found_all_years, 0)
     
     # Get top locations (filtered)
     all_locs = conn.execute(
@@ -266,13 +271,13 @@ def index():
     
     return render_template('index.html', 
                            total_finds=total_finds,
-                           total_hidden_all_years=total_hidden_all_years,
                            years=year_recovery_stats,
                            top_locs=top_locs,
                            map_markers=map_markers,
                            best_months=best_months,
                            total_dates_analyzed=total_dates_analyzed,
                            unreported_stats=unreported_stats,
+                           still_out_there=still_out_there,
                            last_updated=last_updated,
                            selected_year=selected_year)
 
@@ -364,6 +369,8 @@ def location_detail(location_name):
     if not finds:
         conn.close()
         return "Location not found", 404
+
+    has_image_url = 'image_url' in finds[0].keys()
     
     # Calculate stats
     total_finds = len(finds)
@@ -382,14 +389,14 @@ def location_detail(location_name):
             finders[finder] = finders.get(finder, 0) + 1
         
         # Collect images
-        if find['image_url']:
+        image_url = find['image_url'] if has_image_url else None
+        if image_url:
             # Filter out generic Block Island logo/placeholder images
-            image_url = find['image_url']
             is_placeholder = 'default_image' in image_url
             
             if not is_placeholder:
                 images.append({
-                    'url': find['image_url'],
+                    'url': image_url,
                     'finder': finder,
                     'year': year,
                     'float_number': find['float_number'],
