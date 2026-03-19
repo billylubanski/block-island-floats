@@ -1,4 +1,6 @@
 # Float Tracker - Development Roadmap
+> Historical note: This November 23, 2025 roadmap is preserved as planning history only. See `README.md` and `docs/IMPLEMENTATION_STATUS.md` for the current repo state.
+
 **Created:** November 23, 2025  
 **Status:** Active Planning
 
