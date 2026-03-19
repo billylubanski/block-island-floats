@@ -11,6 +11,7 @@ from scripts.refresh_data import (
     build_manifest,
     canonicalize_date,
     discover_year_filters_from_html,
+    exclude_extreme_float_number_records,
     extract_date_from_detail_html,
     parse_listing_page,
     parse_title,
@@ -88,6 +89,79 @@ def test_build_manifest_counts_records():
     assert manifest["records_by_year"] == {"2026": 1, "2025": 1}
     assert manifest["missing_dates"] == 1
     assert manifest["missing_images"] == 1
+
+
+def test_exclude_extreme_float_number_records_drops_isolated_outlier():
+    records = [
+        {
+            "id": "6007",
+            "year": "2025",
+            "title": "#2044 Susan Farnham",
+            "url": "https://example.com/6007",
+            "image": "https://cdn.example.com/6007.jpg",
+            "location": "Lameshur Bay Trail",
+            "date_found": "2026-01-15",
+        },
+        {
+            "id": "6006",
+            "year": "2025",
+            "title": "558 Cameron",
+            "url": "https://example.com/6006",
+            "image": "https://cdn.example.com/6006.jpg",
+            "location": "Martin Lots",
+            "date_found": "2025-10-09",
+        },
+        {
+            "id": "6005",
+            "year": "2025",
+            "title": "553 Rita",
+            "url": "https://example.com/6005",
+            "image": "https://cdn.example.com/6005.jpg",
+            "location": "Beach Ave Trail",
+            "date_found": "2025-10-08",
+        },
+        {
+            "id": "6004",
+            "year": "2025",
+            "title": "#552 L. Price",
+            "url": "https://example.com/6004",
+            "image": "https://cdn.example.com/6004.jpg",
+            "location": "Rodman's Hollow",
+            "date_found": "2025-10-09",
+        },
+        {
+            "id": "6003",
+            "year": "2025",
+            "title": "551 B. Lavoie",
+            "url": "https://example.com/6003",
+            "image": "https://cdn.example.com/6003.jpg",
+            "location": "Plover Hill",
+            "date_found": "2025-10-11",
+        },
+        {
+            "id": "6002",
+            "year": "2025",
+            "title": "550 D. Ciok",
+            "url": "https://example.com/6002",
+            "image": "https://cdn.example.com/6002.jpg",
+            "location": "Old Mill",
+            "date_found": "2025-10-09",
+        },
+        {
+            "id": "6001",
+            "year": "2025",
+            "title": "546 Kristen B.",
+            "url": "https://example.com/6001",
+            "image": "https://cdn.example.com/6001.jpg",
+            "location": "Rodman's Hollow",
+            "date_found": "2025-10-20",
+        },
+    ]
+
+    kept, dropped = exclude_extreme_float_number_records(records)
+
+    assert {record["id"] for record in dropped} == {"6007"}
+    assert {record["id"] for record in kept} == {"6001", "6002", "6003", "6004", "6005", "6006"}
 
 
 def test_rebuild_database_is_deterministic(tmp_path: Path):

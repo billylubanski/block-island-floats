@@ -14,7 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from analyzer import normalize_location  # noqa: E402
+from analyzer import normalize_location, split_extreme_float_numbers  # noqa: E402
 
 DEFAULT_DB_PATH = REPO_ROOT / "floats.db"
 DEFAULT_REPORT_JSON = REPO_ROOT / "generated" / "validation_report.json"
@@ -288,6 +288,12 @@ def prepare_validation_rows(
         exact_counter[exact_key] += 1
 
         repeated_float_key: tuple[int, str, str] | None = None
+        float_number_value = None
+        if float_value:
+            match = re.search(r"(\d+)", float_value)
+            if match:
+                float_number_value = int(match.group(1))
+
         if year_value is not None and float_value and location_normalized:
             repeated_float_key = (year_value, float_value, location_normalized)
             repeated_float_counter[repeated_float_key] += 1
@@ -305,6 +311,7 @@ def prepare_validation_rows(
                 "image_url_raw": image_url_raw,
                 "year": year_value,
                 "float_number": float_value,
+                "float_number_value": float_number_value,
                 "finder": finder_value,
                 "location_normalized": location_normalized,
                 "date_found": date_value,
@@ -316,7 +323,25 @@ def prepare_validation_rows(
             }
         )
 
+    outlier_numbers_by_year: dict[int, set[int]] = {}
+    for year in {item["year"] for item in prepared if item["year"] is not None}:
+        year_numbers = [
+            item["float_number_value"]
+            for item in prepared
+            if item["year"] == year and item["float_number_value"] is not None
+        ]
+        _, outlier_numbers = split_extreme_float_numbers(year_numbers)
+        if outlier_numbers:
+            outlier_numbers_by_year[year] = set(outlier_numbers)
+
     for item in prepared:
+        if (
+            item["year"] is not None
+            and item["float_number_value"] is not None
+            and item["float_number_value"] in outlier_numbers_by_year.get(item["year"], set())
+        ):
+            add_flag(item["errors"], "extreme_float_number_outlier")
+
         if exact_counter[item["exact_key"]] > 1:
             add_flag(item["suspicious_flags"], "duplicate_exact_row")
         repeat_key = item["repeated_float_key"]
