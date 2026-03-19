@@ -1,4 +1,6 @@
 # Block Island Float Tracker - Feature Audit
+> Historical note: This November 23, 2025 audit is kept for reference only. See `README.md` and `docs/IMPLEMENTATION_STATUS.md` for the current repo state.
+
 **Date:** November 23, 2025  
 **Database:** 4,361 glass floats tracked (2012-2025)
 

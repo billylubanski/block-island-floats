@@ -1,27 +1,40 @@
-﻿# Repository Guidelines
+# Repository Guidelines
 
-## Project Structure & Module Organization
-- `app.py` hosts the Flask app, routes, and DB access; `templates/` contains Jinja views (`base.html`, `index.html`, `search.html`).
-- Data lives in `floats.db`; helper logic sits in `analyzer.py`, `utils.py`, and `locations.py` (location lookup data).
-- Scraping/import scripts (e.g., `scrape_dates_complete.py`, `scrape_floats_playwright.py`, `populate_db.py`, `add_urls_to_db.py`) keep the database current; `scraped_data/` stores pulled artifacts.
-- Debug/reference HTML/text files capture scrape results and should not be shipped to production.
+## Project Layout
 
-## Build, Test, and Development Commands
-- Create venv and install deps: `python -m venv .venv && .venv\Scripts\activate && pip install -r requirements.txt`.
-- Run the app locally: `python app.py` (serves http://localhost:5000).
-- Smoke-check scrapers (as needed): `python scrape_dates_complete.py` or other `scrape_*.py` scripts; ensure respectful concurrency before running.
-- Ad-hoc verifications: `python test_regex.py` (date parsing), `python test_requests.py` / `test_api.py` (endpoint reachability). No formal pytest suite yet—add one when modifying logic.
+- `app.py` hosts the Flask app, routes, and page rendering.
+- `analyzer.py`, `ml_predictor.py`, `locations.py`, and `utils.py` hold analytics, forecast logic, location metadata, and shared helpers.
+- `templates/` and `static/` contain the UI.
+- `scripts/refresh_data.py` orchestrates refreshes; `scripts/validation_pipeline.py` handles staged validation output.
+- `scripts/manual_checks/` contains opt-in smoke checks and data probes that may depend on the live site, a local server, Playwright, or the committed production DB.
 
-## Coding Style & Naming Conventions
-- Follow PEP 8; 4-space indents; favor small, pure functions over inline logic in routes.
-- Use descriptive snake_case for Python and lower-hyphen/semantic class names in templates; keep Jinja expressions readable and side-effect free.
-- Prefer explicit mappings/constants for data normalization (see `analyzer.py`), and keep shared UI styles in `base.html`.
+## Development Commands
 
-## Testing Guidelines
-- Add unit tests around date parsing, location normalization, and any new analytics before merging; keep fixtures deterministic (no live HTTP in tests—mock or use saved HTML in `scraped_data/`).
-- For UI changes, capture screenshots of `/` and `/search` and note any data filters used.
-- Validate scrape updates by comparing row counts and spot-checking recent entries in `floats.db`.
+- Create a virtual environment: `python -m venv .venv`
+- Activate it on Windows: `.venv\Scripts\activate`
+- Install runtime and test deps: `pip install -r requirements.txt pytest`
+- Run the app locally: `python app.py`
+- Run automated tests: `pytest -q`
+- Refresh tracked artifacts: `python scripts/refresh_data.py refresh`
+- Validate refresh outputs: `python scripts/refresh_data.py validate`
+- Run row-level validation against the current DB: `python scripts/refresh_data.py validate-records`
 
-## Commit & Pull Request Guidelines
-- Commits: short, imperative subject (≤72 chars), include “why” in the body if non-obvious.
-- PRs: summary of change, testing notes (commands run), data impact (DB schema or scrape changes), and screenshots for UI updates; link related issues/tasks when available.
+## Testing Conventions
+
+- `pytest.ini` constrains automated collection to `tests/`.
+- `tests/test_*.py` must stay deterministic, self-contained, and safe for CI.
+- Do not add live HTTP, real Playwright browsing, or committed-DB audit probes to `tests/`.
+- Put opt-in checks under `scripts/manual_checks/`; examples include `scripts/manual_checks/verify_ids.py` and `scripts/manual_checks/verify_location.py`.
+- For route coverage, prefer Flask test-client assertions and monkeypatched dependencies over background servers or print-only scripts.
+
+## Coding Notes
+
+- Follow PEP 8 with 4-space indentation.
+- Prefer small functions and explicit data-shaping helpers over inline route logic.
+- Keep shared styling centralized in `templates/base.html`.
+- Treat tracked data artifacts as intentional repo contents unless a task explicitly changes that policy.
+
+## Docs Sources Of Truth
+
+- Canonical current-state docs: `README.md`, this file, and `docs/IMPLEMENTATION_STATUS.md`.
+- Historical planning docs: `docs/FEATURE_AUDIT.md`, `docs/ROADMAP.md`, and `docs/archive/AUDIT_SUMMARY_2025-11-23.md`.
