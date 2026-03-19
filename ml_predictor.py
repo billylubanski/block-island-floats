@@ -127,24 +127,17 @@ def predict_today():
 
 def get_seasonality_score():
     """Get a simple seasonality score based on historical finds for this month."""
-    conn = sqlite3.connect(DB_NAME)
-    # Get total finds
-    total = conn.execute("SELECT count(*) FROM finds WHERE date_found IS NOT NULL").fetchone()[0]
-    
-    # Get finds for current month
-    current_month = datetime.now().month
-    # This is a rough approximation since we store dates as strings. 
-    # Ideally we'd use the parsed dates, but for speed we'll just query.
-    # Actually, let's use the python parsing logic we already have in analyzer.py or just re-implement simple check
-    
-    # Let's just use the dataframe logic since we have it
     df = get_data()
     df = prepare_features(df)
+    total = len(df)
+
+    if total == 0:
+        return 0
+
+    current_month = datetime.now().month
     
     month_counts = df['month'].value_counts()
-    this_month_count = month_counts.get(current_month, 0)
-    
-    if total == 0: return 0
+    this_month_count = int(month_counts.get(current_month, 0))
     
     # Average finds per month (uniform distribution) would be Total / 12
     avg_per_month = total / 12

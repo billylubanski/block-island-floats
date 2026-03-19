@@ -72,13 +72,7 @@
         <div class="stat-label">Most Popular Spot</div>
     </div>
     <div class="card stat-card" style="border-color: var(--accent); background: rgba(80, 232, 168, 0.1);">
-        <div class="stat-value" style="color: #fff;">
-            {% if selected_year == 'all' %}
-            {{ total_hidden_all_years - total_finds }}
-            {% else %}
-            {{ unreported_stats.unreported if unreported_stats else 0 }}
-            {% endif %}
-        </div>
+        <div class="stat-value" style="color: #fff;">{{ still_out_there }}</div>
         <div class="stat-label" style="color: var(--accent); font-weight: 700;">Still Out There! 🎯</div>
     </div>
 </div>
