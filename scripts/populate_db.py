@@ -5,6 +5,16 @@ import os
 DB_NAME = 'floats.db'
 JSON_FILE = 'all_floats_final.json'
 
+
+def ensure_optional_columns(cursor):
+    columns = {row[1] for row in cursor.execute('PRAGMA table_info(finds)').fetchall()}
+
+    if 'url' not in columns:
+        cursor.execute('ALTER TABLE finds ADD COLUMN url TEXT')
+
+    if 'image_url' not in columns:
+        cursor.execute('ALTER TABLE finds ADD COLUMN image_url TEXT')
+
 def setup_database():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -17,9 +27,12 @@ def setup_database():
             finder TEXT,
             location_raw TEXT,
             location_normalized TEXT,
-            date_found TEXT
+            date_found TEXT,
+            url TEXT,
+            image_url TEXT
         )
     ''')
+    ensure_optional_columns(c)
     conn.commit()
     conn.close()
 
@@ -55,8 +68,10 @@ def populate():
                 finder = title
         
         c.execute('''
-            INSERT OR REPLACE INTO finds (id, year, float_number, finder, location_raw, location_normalized, date_found)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT OR REPLACE INTO finds (
+                id, year, float_number, finder, location_raw, location_normalized, date_found, url, image_url
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             item['id'],
             item['year'],
@@ -64,7 +79,9 @@ def populate():
             finder,
             item['location'],
             item['location'], # Normalized same as raw for now
-            item.get('date_found', '')
+            item.get('date_found', ''),
+            item.get('url', ''),
+            item.get('image_url', '')
         ))
         
     conn.commit()
