@@ -16,7 +16,7 @@ Flask app for exploring historical Block Island Glass Float finds, field-plannin
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 python app.py
 ```
 
@@ -24,9 +24,22 @@ The app serves at `http://localhost:5000`.
 
 Set `$env:FLASK_DEBUG = "1"` before `python app.py` if you want the Flask debug server locally.
 
+For convenience, `requirements.txt` still resolves to the full dev install.
+
+## Render Deploy
+
+Use this build command in Render:
+
+```bash
+pip install -r requirements-prod.txt
+```
+
+This keeps test and refresh-only tooling such as `pytest`, `playwright`, and BeautifulSoup out of the production image.
+
 ## Automated Tests
 
 ```bash
+pip install -r requirements-dev.txt
 pytest -q
 ```
 
@@ -37,6 +50,7 @@ pytest -q
 ## Data Refresh
 
 ```bash
+pip install -r requirements-dev.txt
 python scripts/refresh_data.py refresh
 python scripts/refresh_data.py validate
 python scripts/refresh_data.py validate-records
