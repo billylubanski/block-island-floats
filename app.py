@@ -4,7 +4,8 @@ import datetime
 import json
 import sqlite3
 import os
-from collections import Counter
+from collections import Counter, defaultdict
+from functools import lru_cache
 from analyzer import normalize_location, analyze_dates, analyze_unreported_floats, get_year_recovery_stats
 from locations import LOCATIONS
 from utils import get_last_updated
@@ -101,6 +102,95 @@ def build_page_meta(active_nav, mode, kicker, title, subtitle, primary_cta=None)
     if primary_cta:
         page_meta['primary_cta'] = primary_cta
     return page_meta
+
+
+def get_db_mtime():
+    try:
+        return os.path.getmtime(DB_NAME)
+    except OSError:
+        return 0
+
+
+@lru_cache(maxsize=16)
+def _get_location_counts_cached(selected_year, db_mtime):
+    year_param = None if selected_year == 'all' else int(selected_year)
+    where_clause, where_params = build_finds_where_clause(year_param=year_param)
+
+    conn = get_db_connection()
+    all_locs = conn.execute(
+        f'SELECT location_raw FROM finds {where_clause}',
+        where_params,
+    ).fetchall()
+    conn.close()
+
+    loc_counts = Counter(normalize_location(row['location_raw']) for row in all_locs)
+    return tuple(loc_counts.items())
+
+
+def get_location_counts(year_param=None):
+    year_key = 'all' if year_param is None else str(year_param)
+    return Counter(dict(_get_location_counts_cached(year_key, get_db_mtime())))
+
+
+def build_mapped_spots(loc_counts):
+    spots = []
+    for loc, count in loc_counts.most_common():
+        coords = LOCATIONS.get(loc)
+        if not coords:
+            continue
+
+        spots.append({
+            'name': loc,
+            'count': count,
+            'lat': coords['lat'],
+            'lon': coords['lon'],
+        })
+
+    return spots
+
+
+def build_map_clusters(spots):
+    grouped = defaultdict(list)
+    for spot in spots:
+        grouped[(spot['lat'], spot['lon'])].append(spot)
+
+    clusters = []
+    for (lat, lon), group in grouped.items():
+        ranked_group = sorted(group, key=lambda spot: (-spot['count'], spot['name']))
+        total_count = sum(spot['count'] for spot in ranked_group)
+        primary_spot = ranked_group[0]
+
+        clusters.append({
+            'lat': lat,
+            'lon': lon,
+            'count': total_count,
+            'label': primary_spot['name'] if len(ranked_group) == 1 else f"{primary_spot['name']} area",
+            'spot_count': len(ranked_group),
+            'spots': [
+                {
+                    'name': spot['name'],
+                    'count': spot['count'],
+                }
+                for spot in ranked_group[:5]
+            ],
+            'remaining_spot_count': max(len(ranked_group) - 5, 0),
+        })
+
+    return sorted(clusters, key=lambda cluster: (-cluster['count'], cluster['label']))
+
+
+def build_dashboard_map_payload(spots):
+    clusters = build_map_clusters(spots)
+    max_count = max((cluster['count'] for cluster in clusters), default=1)
+
+    return {
+        'center': [41.17, -71.58],
+        'clusters': clusters,
+        'cluster_count': len(clusters),
+        'spot_count': len(spots),
+        'max_count': max_count,
+        'top_cluster': clusters[0] if clusters else None,
+    }
 
 # Simple in-memory cache for weather data
 weather_cache = {
@@ -220,46 +310,10 @@ def index():
         unreported_stats = None
         still_out_there = max(total_hidden_all_years - total_found_all_years, 0)
     
-    # Get top locations (filtered)
-    all_locs = conn.execute(
-        f'SELECT location_raw FROM finds {where_clause}',
-        where_params,
-    ).fetchall()
-    
-    normalized_locs = [normalize_location(row['location_raw']) for row in all_locs]
-    loc_counts = Counter(normalized_locs)
-    
-    # Attach coordinates
-    top_locs = []
-    map_markers = []
-    
-    # Get all locations that have coordinates, plus top 20 even if they don't (to show in list)
-    for loc, count in loc_counts.most_common(100):
-        coords = LOCATIONS.get(loc, None)
-        
-        # Surface only actionable places in the dashboard ranking.
-        if coords:
-            top_locs.append({
-                'name': loc,
-                'count': count,
-                'lat': coords['lat'] if coords else None,
-                'lon': coords['lon'] if coords else None
-            })
-            if len(top_locs) >= 20:
-                break
-            
-    # Data for map (Top 30 with coordinates)
-    for loc, count in loc_counts.most_common():
-        coords = LOCATIONS.get(loc, None)
-        if coords:
-            map_markers.append({
-                'name': loc,
-                'count': count,
-                'lat': coords['lat'],
-                'lon': coords['lon']
-            })
-            if len(map_markers) >= 30:
-                break
+    loc_counts = get_location_counts(year_param=year_param)
+    mapped_spots = build_mapped_spots(loc_counts)
+    top_locs = mapped_spots[:20]
+    dashboard_map = build_dashboard_map_payload(mapped_spots)
     
     conn.close()
     
@@ -276,7 +330,7 @@ def index():
                            total_finds=total_finds,
                            years=year_recovery_stats,
                            top_locs=top_locs,
-                           map_markers=map_markers,
+                           dashboard_map=dashboard_map,
                            best_months=best_months,
                            total_dates_analyzed=total_dates_analyzed,
                            unreported_stats=unreported_stats,
@@ -361,27 +415,7 @@ def about():
 @app.route('/field')
 def field_mode():
     """Mobile-optimized field mode for on-island hunting"""
-    conn = get_db_connection()
-
-    # Get all locations with coordinates and their find counts
-    query = 'SELECT location_raw FROM finds'
-    all_locs = conn.execute(query).fetchall()
-    normalized_locs = [normalize_location(row['location_raw']) for row in all_locs]
-    loc_counts = Counter(normalized_locs)
-    
-    # Build location list with coordinates
-    hunting_spots = []
-    for loc, count in loc_counts.most_common():
-        coords = LOCATIONS.get(loc, None)
-        if coords:  # Only include locations we can navigate to
-            hunting_spots.append({
-                'name': loc,
-                'count': count,
-                'lat': coords['lat'],
-                'lon': coords['lon']
-            })
-    
-    conn.close()
+    hunting_spots = build_mapped_spots(get_location_counts())
     
     # Get last updated
     last_updated = get_last_updated()

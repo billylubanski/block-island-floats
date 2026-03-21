@@ -121,8 +121,10 @@ def test_index_route_renders_dashboard_controls(sample_db: Path, capture_templat
     assert 'class="utility-rail"' in text
     assert 'id="map-loading"' in text
     assert "<div id=\"map\"" in text
-    assert "L.map('map')" in text
-    assert "spinner.style.display = 'none'" in text
+    assert 'id="dashboard-map-data"' in text
+    assert '/static/dashboard-map.js' in text
+    assert "Top mapped clusters" in text
+    assert "Reset view" in text
     assert "Year focus" in text
     assert "Floats still unreported" in text
     assert "Read the island before you head out" in text
@@ -131,6 +133,7 @@ def test_index_route_renders_dashboard_controls(sample_db: Path, capture_templat
     assert context["selected_year"] == "2025"
     assert context["still_out_there"] == 1
     assert context["total_finds"] == 2
+    assert context["dashboard_map"]["cluster_count"] >= 1
 
 
 def test_about_route_renders_project_copy():

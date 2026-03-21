@@ -15,21 +15,50 @@ document.addEventListener('DOMContentLoaded', () => {
     let userLat = null;
     let userLon = null;
     let map = null;
-    let userMarker = null;
+    let userLayer = null;
 
     if (typeof L !== 'undefined') {
-        map = L.map('field-map').setView([41.17, -71.58], 12);
+        const maxCount = Math.max(...spots.map((spot) => spot.count), 1);
+        const getMarkerRadius = (count) => 4 + (Math.sqrt(count / maxCount) * 8);
+        const escapeHtml = (value) => String(value)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
+
+        map = L.map('field-map', {
+            preferCanvas: true,
+            scrollWheelZoom: false,
+            zoomControl: false,
+        });
+
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
 
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
             attribution: 'OpenStreetMap contributors, CARTO',
-            maxZoom: 19
+            maxZoom: 19,
         }).addTo(map);
 
-        spots.forEach((spot) => {
-            L.marker([spot.lat, spot.lon])
-                .addTo(map)
-                .bindPopup(`<strong>${spot.name}</strong><br>${spot.count} finds`);
-        });
+        L.layerGroup(spots.map((spot) => (
+            L.circleMarker([spot.lat, spot.lon], {
+                radius: getMarkerRadius(spot.count),
+                color: '#eadfcf',
+                weight: 1.25,
+                fillColor: '#79d0b4',
+                fillOpacity: 0.42,
+            }).bindPopup(`<strong>${escapeHtml(spot.name)}</strong><br>${spot.count} finds`)
+        ))).addTo(map);
+
+        const bounds = L.latLngBounds(spots.map((spot) => [spot.lat, spot.lon]));
+        if (bounds.isValid()) {
+            map.fitBounds(bounds.pad(0.08), {
+                padding: [20, 20],
+                maxZoom: 13,
+            });
+        } else {
+            map.setView([41.17, -71.58], 12);
+        }
     }
 
     const setDrawerState = (isOpen) => {
@@ -103,12 +132,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusEl.textContent = `Location found. Showing ${spotCards.length} nearby spots.`;
 
                 if (map) {
-                    if (userMarker) {
-                        map.removeLayer(userMarker);
+                    if (userLayer) {
+                        map.removeLayer(userLayer);
                     }
 
-                    userMarker = L.marker([userLat, userLon]).addTo(map).bindPopup('You are here').openPopup();
-                    map.setView([userLat, userLon], 13);
+                    userLayer = L.layerGroup([
+                        L.circle([userLat, userLon], {
+                            radius: Math.max(position.coords.accuracy || 0, 25),
+                            color: '#eadfcf',
+                            weight: 1,
+                            fillColor: '#eadfcf',
+                            fillOpacity: 0.12,
+                        }),
+                        L.circleMarker([userLat, userLon], {
+                            radius: 7,
+                            color: '#0c201b',
+                            weight: 2,
+                            fillColor: '#eadfcf',
+                            fillOpacity: 1,
+                        }).bindPopup('You are here'),
+                    ]).addTo(map);
+                    map.flyTo([userLat, userLon], 13, { duration: 0.6 });
                 }
 
                 updateDistances();

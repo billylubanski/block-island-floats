@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 
 {% block head %}
+<link rel="preconnect" href="https://unpkg.com" crossorigin />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="/static/field-mode.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script src="/static/field-mode.js" defer></script>
 {% endblock %}
 
