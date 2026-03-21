@@ -133,7 +133,7 @@ def test_index_route_renders_dashboard_controls(sample_db: Path, capture_templat
     assert 'id="dashboard-map-data"' in text
     assert '/static/dashboard-map.js' in text
     assert "Top mapped clusters" in text
-    assert "Reset view" in text
+    assert "Reset" in text
     assert "Year focus" in text
     assert "Floats still unreported" in text
     assert "Read the island before you head out" in text
@@ -158,6 +158,14 @@ def test_about_route_renders_project_copy():
     assert "2011" in text
     assert "2023" not in text
     assert "2025" not in text
+
+
+def test_healthcheck_route_returns_ok():
+    with app_module.app.test_client() as client:
+        response = client.get("/healthz")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"status": "ok"}
 
 
 def test_field_route_renders_json_backed_official_guidance(sample_db: Path, monkeypatch: pytest.MonkeyPatch):

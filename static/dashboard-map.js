@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <button class="map-focus-card${index === 0 && options.makeFirstActive !== false ? ' is-active' : ''}" type="button" data-cluster-index="${options.clusterIndex}">
                 <span class="map-focus-card__eyebrow">${label}</span>
                 <span class="map-focus-card__title">${escapeHtml(cluster.label)}</span>
-                <span class="map-focus-card__meta">${metaParts.join(' · ')}</span>
+                <span class="map-focus-card__meta">${metaParts.join(' | ')}</span>
             </button>
         `;
     };

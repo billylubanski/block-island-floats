@@ -147,19 +147,25 @@
         position: absolute;
         top: 1rem;
         left: 1rem;
+        right: 1rem;
         z-index: 850;
-        max-width: min(19rem, calc(100% - 2rem));
-        display: grid;
-        gap: 0.75rem;
+        display: flex;
+        justify-content: flex-start;
         pointer-events: none;
     }
 
-    .dashboard-map__overlay > * {
+    .dashboard-map__overlay > * ,
+    .dashboard-map__dock > * {
         animation: mapOverlayIn 0.42s ease both;
     }
 
-    .dashboard-map__overlay > *:nth-child(2) {
-        animation-delay: 0.06s;
+    .dashboard-map__dock {
+        position: absolute;
+        left: 1rem;
+        right: 1rem;
+        bottom: 1rem;
+        z-index: 850;
+        pointer-events: none;
     }
 
     @keyframes mapOverlayIn {
@@ -175,36 +181,49 @@
     }
 
     .map-legend {
-        display: grid;
-        gap: 0.8rem;
-        padding: 0.95rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        padding: 0.75rem 0.85rem;
         border-radius: 18px;
         background: rgba(7, 20, 18, 0.8);
         border: 1px solid rgba(193, 214, 203, 0.12);
         box-shadow: var(--shadow-md);
         backdrop-filter: blur(18px);
         pointer-events: auto;
+        max-width: min(100%, 48rem);
+        flex-wrap: wrap;
     }
 
     .map-legend__title {
         display: grid;
         gap: 0.25rem;
+        min-width: 0;
     }
 
     .map-legend__title strong {
-        font-size: 1rem;
+        font-size: 0.94rem;
         line-height: 1.2;
     }
 
     .map-legend__title span {
         color: var(--text-2);
-        font-size: 0.84rem;
-        line-height: 1.5;
+        font-size: 0.78rem;
+        line-height: 1.35;
+    }
+
+    .map-legend__tools {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        margin-left: auto;
     }
 
     .map-scale {
         display: grid;
-        gap: 0.45rem;
+        gap: 0.3rem;
+        min-width: 6.25rem;
     }
 
     .map-scale__labels {
@@ -212,13 +231,13 @@
         align-items: center;
         justify-content: space-between;
         color: var(--text-3);
-        font-size: 0.75rem;
+        font-size: 0.68rem;
         letter-spacing: 0.08em;
         text-transform: uppercase;
     }
 
     .map-scale__bar {
-        height: 0.6rem;
+        height: 0.45rem;
         border-radius: 999px;
         background: linear-gradient(90deg, rgba(79, 143, 144, 0.55), rgba(121, 208, 180, 0.92), rgba(43, 96, 119, 0.96));
     }
@@ -234,8 +253,8 @@
     }
 
     .map-layer-toggle button {
-        min-height: 2rem;
-        padding: 0.45rem 0.75rem;
+        min-height: 1.9rem;
+        padding: 0.4rem 0.65rem;
         border: 0;
         border-radius: 999px;
         color: var(--text-2);
@@ -257,8 +276,8 @@
 
     .map-explorer {
         display: grid;
-        gap: 0.8rem;
-        padding: 0.95rem 1rem;
+        gap: 0.55rem;
+        padding: 0.72rem 0.8rem;
         border-radius: 18px;
         background: rgba(7, 20, 18, 0.76);
         border: 1px solid rgba(193, 214, 203, 0.1);
@@ -269,14 +288,13 @@
 
     .map-explorer__header {
         display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 0.75rem;
+        align-items: center;
+        gap: 0.55rem;
     }
 
     .map-explorer__header strong {
         display: block;
-        font-size: 0.98rem;
+        font-size: 0.84rem;
         line-height: 1.2;
     }
 
@@ -284,13 +302,13 @@
         display: block;
         margin-top: 0.18rem;
         color: var(--text-2);
-        font-size: 0.82rem;
-        line-height: 1.45;
+        font-size: 0.74rem;
+        line-height: 1.3;
     }
 
     .map-reset {
-        min-height: 2.2rem;
-        padding: 0.45rem 0.7rem;
+        min-height: 1.9rem;
+        padding: 0.38rem 0.68rem;
         border: 1px solid rgba(193, 214, 203, 0.12);
         border-radius: 999px;
         color: var(--text-1);
@@ -309,14 +327,19 @@
 
     .map-focus-list {
         display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(12.5rem, 15rem);
         gap: 0.55rem;
+        overflow-x: auto;
+        padding-bottom: 0.1rem;
+        scrollbar-width: thin;
     }
 
     .map-focus-card {
         display: grid;
         gap: 0.25rem;
         width: 100%;
-        padding: 0.8rem 0.85rem;
+        padding: 0.68rem 0.75rem;
         border: 1px solid rgba(193, 214, 203, 0.08);
         border-radius: 16px;
         text-align: left;
@@ -344,29 +367,26 @@
 
     .map-focus-card__eyebrow {
         color: var(--text-3);
-        font-size: 0.72rem;
+        font-size: 0.66rem;
         font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
     }
 
     .map-focus-card__title {
-        font-size: 0.96rem;
+        font-size: 0.88rem;
         font-weight: 800;
         line-height: 1.25;
     }
 
     .map-focus-card__meta {
         color: var(--text-2);
-        font-size: 0.82rem;
-        line-height: 1.45;
+        font-size: 0.76rem;
+        line-height: 1.35;
     }
 
     .map-focus-note {
-        margin: 0;
-        color: var(--text-3);
-        font-size: 0.8rem;
-        line-height: 1.45;
+        display: none;
     }
 
     .map-popup {
@@ -402,10 +422,8 @@
     }
 
     .geo-btn {
-        position: absolute;
-        right: 1rem;
-        bottom: 1rem;
-        z-index: 850;
+        min-height: 1.9rem;
+        padding-inline: 0.72rem;
     }
 
     .map-loading {
@@ -555,11 +573,29 @@
             top: 0.85rem;
             left: 0.85rem;
             right: 0.85rem;
-            max-width: none;
+        }
+
+        .dashboard-map__dock {
+            left: 0.85rem;
+            right: 0.85rem;
+            bottom: 0.85rem;
+        }
+
+        .map-scale {
+            display: none;
         }
 
         .map-explorer__header {
             flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .map-legend {
+            width: 100%;
+        }
+
+        .map-legend__tools {
+            margin-left: 0;
         }
 
         .dash-filter-form {
@@ -671,27 +707,32 @@
                     <div class="map-legend">
                         <div class="map-legend__title">
                             <strong>{{ dashboard_map.top_cluster.label }}</strong>
-                            <span>{{ dashboard_map.top_cluster.count }} reported finds in the strongest mapped cluster.</span>
+                            <span>{{ dashboard_map.cluster_count }} mapped clusters. Strongest cluster: {{ dashboard_map.top_cluster.count }} finds.</span>
                         </div>
-                        <div class="map-scale" aria-hidden="true">
-                            <div class="map-scale__labels">
-                                <span>Low</span>
-                                <span>High</span>
+                        <div class="map-legend__tools">
+                            <div class="map-scale" aria-hidden="true">
+                                <div class="map-scale__labels">
+                                    <span>Low</span>
+                                    <span>High</span>
+                                </div>
+                                <div class="map-scale__bar"></div>
                             </div>
-                            <div class="map-scale__bar"></div>
-                        </div>
-                        <div class="map-layer-toggle" role="group" aria-label="Map layers">
-                            <button class="is-active" type="button" data-layer-toggle="heat" aria-pressed="true">Heat</button>
-                            <button class="is-active" type="button" data-layer-toggle="spots" aria-pressed="true">Spots</button>
+                            <div class="map-layer-toggle" role="group" aria-label="Map layers">
+                                <button class="is-active" type="button" data-layer-toggle="heat" aria-pressed="true">Heat</button>
+                                <button class="is-active" type="button" data-layer-toggle="spots" aria-pressed="true">Spots</button>
+                            </div>
+                            <button class="button button--ghost geo-btn" id="dashboard-geolocate" type="button">Geolocate</button>
+                            <button class="map-reset" id="map-reset-view" type="button">Reset</button>
                         </div>
                     </div>
+                </div>
+                <div class="dashboard-map__dock">
                     <div class="map-explorer">
                         <div class="map-explorer__header">
                             <div>
                                 <strong id="map-focus-heading">Top mapped clusters</strong>
-                                <span id="map-focus-subtitle">Use the scouting rail to jump the map to the strongest historical areas.</span>
+                                <span id="map-focus-subtitle">Jump the map with the rail, or geolocate to re-rank by proximity.</span>
                             </div>
-                            <button class="map-reset" id="map-reset-view" type="button">Reset view</button>
                         </div>
                         <div class="map-focus-list" id="map-focus-list">
                             {% for cluster in dashboard_map.clusters[:5] %}
@@ -716,7 +757,6 @@
                         <div>Loading map clusters</div>
                     </div>
                 </div>
-                <button class="button button--ghost geo-btn" id="dashboard-geolocate" type="button">Geolocate me</button>
             </div>
             <div class="dashboard-map__meta">
                 <span>{{ dashboard_map.cluster_count }} mapped clusters distilled from {{ dashboard_map.spot_count }} named spots.</span>

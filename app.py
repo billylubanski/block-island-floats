@@ -616,6 +616,11 @@ def service_worker():
     response.headers['Cache-Control'] = 'no-cache'
     return response
 
+
+@app.route('/healthz')
+def healthcheck():
+    return {'status': 'ok'}, 200
+
 if __name__ == '__main__':
     app.run(
         debug=os.getenv('FLASK_DEBUG', '').lower() in {'1', 'true', 'yes', 'on'},
