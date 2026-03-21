@@ -13,26 +13,12 @@ DB_NAME = 'floats.db'
 MODEL_FILE = 'float_model.pkl'
 
 
-def _finds_has_column(conn, column_name):
-    info = conn.execute("PRAGMA table_info(finds)").fetchall()
-    return any(col[1] == column_name for col in info)
-
-
-def _model_file_for_mode(model_file, valid_only):
-    if not valid_only:
-        return model_file
-    root, ext = os.path.splitext(model_file)
-    return f"{root}_valid{ext}"
-
-
-def get_data(db_name=None, valid_only=False):
+def get_data(db_name=None):
     """Fetch and prepare data from the database."""
     if db_name is None:
         db_name = DB_NAME
     conn = sqlite3.connect(db_name)
     query = "SELECT date_found, location_raw FROM finds WHERE date_found IS NOT NULL AND date_found != ''"
-    if valid_only and _finds_has_column(conn, "is_valid"):
-        query += " AND COALESCE(is_valid, 1) = 1"
     df = pd.read_sql_query(query, conn)
     conn.close()
     
@@ -75,15 +61,14 @@ def prepare_features(df):
     
     return df
 
-def train_model(db_name=None, model_file=None, valid_only=False):
+def train_model(db_name=None, model_file=None):
     """Train the model and save it."""
     if db_name is None:
         db_name = DB_NAME
     if model_file is None:
         model_file = MODEL_FILE
-    target_model_file = _model_file_for_mode(model_file, valid_only)
     print("Fetching data...")
-    df = get_data(db_name=db_name, valid_only=valid_only)
+    df = get_data(db_name=db_name)
     
     if len(df) < 10:
         print("Not enough data to train model.")
@@ -103,21 +88,20 @@ def train_model(db_name=None, model_file=None, valid_only=False):
     clf.fit(X, y)
     
     # Save model and encoder
-    with open(target_model_file, 'wb') as f:
+    with open(model_file, 'wb') as f:
         pickle.dump({'model': clf, 'encoder': le}, f)
         
     print("Model trained and saved.")
     return True
 
-def predict_today(valid_only=False):
+def predict_today():
     """Predict top 3 locations for today."""
-    target_model_file = _model_file_for_mode(MODEL_FILE, valid_only)
-    if not os.path.exists(target_model_file):
+    if not os.path.exists(MODEL_FILE):
         print("Model not found. Training now...")
-        if not train_model(valid_only=valid_only):
+        if not train_model():
             return []
             
-    with open(target_model_file, 'rb') as f:
+    with open(MODEL_FILE, 'rb') as f:
         data = pickle.load(f)
         clf = data['model']
         le = data['encoder']
@@ -147,9 +131,9 @@ def predict_today(valid_only=False):
         
     return predictions
 
-def get_seasonality_score(valid_only=False):
+def get_seasonality_score():
     """Get a simple seasonality score based on historical finds for this month."""
-    df = get_data(valid_only=valid_only)
+    df = get_data()
     df = prepare_features(df)
     total = len(df)
 

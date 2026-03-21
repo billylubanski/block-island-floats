@@ -100,9 +100,6 @@
 
     <div class="utility-rail">
         <form action="/search" method="get" class="search-form">
-            {% if valid_only %}
-            <input type="hidden" name="valid_only" value="1">
-            {% endif %}
             <div class="field-group">
                 <label for="search-query">Search term</label>
                 <input
@@ -115,11 +112,9 @@
             <button class="button button--primary" type="submit">Run search</button>
         </form>
 
-        <a
-            class="button button--subtle"
-            href="{{ url_for('search', q=query, valid_only=1) if not valid_only else url_for('search', q=query) }}">
-            {{ 'Show all rows' if valid_only else 'Use validated rows only' }}
-        </a>
+        <div class="utility-rail__summary">
+            The first 50 matches are shown so the search stays usable on mobile and in the field.
+        </div>
     </div>
 </section>
 
@@ -131,7 +126,7 @@
             <h2>{{ result_count }} match{{ '' if result_count == 1 else 'es' }} for "{{ query }}"</h2>
             <p>The results below are capped at the first 50 matches so the page stays usable in the field.</p>
         </div>
-        <a class="button button--ghost" href="{{ url_for('search', valid_only=1) if valid_only else url_for('search') }}">
+        <a class="button button--ghost" href="{{ url_for('search') }}">
             Clear search
         </a>
     </div>
@@ -161,7 +156,7 @@
                     Normalized from the reporting archive.
                     {% endif %}
                 </span>
-                <a href="{{ url_for('location_detail', location_name=row['location_name'], valid_only=1) if valid_only else url_for('location_detail', location_name=row['location_name']) }}">
+                <a href="{{ url_for('location_detail', location_name=row['location_name']) }}">
                     Open location detail
                 </a>
             </div>

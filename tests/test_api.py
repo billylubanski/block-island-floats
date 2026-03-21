@@ -160,8 +160,8 @@ def test_forecast_route_renders_predictions_and_location_detail(
         "timestamp": "09:30 AM",
     }
 
-    monkeypatch.setattr(app_module, "predict_today", lambda valid_only=False: predictions)
-    monkeypatch.setattr(app_module, "get_seasonality_score", lambda valid_only=False: 7.5)
+    monkeypatch.setattr(app_module, "predict_today", lambda: predictions)
+    monkeypatch.setattr(app_module, "get_seasonality_score", lambda: 7.5)
     monkeypatch.setattr(app_module, "get_weather_data", lambda: weather)
     encoded_location = quote("Rodman's Hollow", safe="")
 

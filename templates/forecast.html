@@ -121,11 +121,9 @@
             <span class="pill">Best read: {{ top_prediction.location }}</span>
             {% endif %}
         </div>
-        <a
-            class="button button--subtle"
-            href="{{ url_for('forecast', valid_only=1) if not valid_only else url_for('forecast') }}">
-            {{ 'Show all rows' if valid_only else 'Use validated rows only' }}
-        </a>
+        <div class="utility-rail__summary">
+            Treat the score as directional guidance, then confirm the call against the map and recent location history.
+        </div>
     </div>
 </section>
 
@@ -195,7 +193,7 @@
         <article class="forecast-row">
             <div class="forecast-row__rank">#{{ loop.index }}</div>
             <div class="forecast-row__main">
-                <a href="{{ url_for('location_detail', location_name=pred.location, valid_only=1) if valid_only else url_for('location_detail', location_name=pred.location) }}">
+                <a href="{{ url_for('location_detail', location_name=pred.location) }}">
                     {{ pred.location }}
                 </a>
                 <span>Historical patterns put this location near the top of the board for the current season.</span>

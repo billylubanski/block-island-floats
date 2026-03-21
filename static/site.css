@@ -49,6 +49,7 @@ html {
 body {
     margin: 0;
     min-height: 100vh;
+    overflow-x: hidden;
     font-family: "Manrope", sans-serif;
     color: var(--text-0);
     background:
@@ -86,6 +87,8 @@ input,
 select,
 textarea {
     font: inherit;
+    appearance: none;
+    -webkit-appearance: none;
 }
 
 .shell {
@@ -103,6 +106,7 @@ textarea {
 }
 
 .site-header__inner {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -142,6 +146,7 @@ textarea {
 .brand__copy {
     display: grid;
     gap: 0.15rem;
+    min-width: 0;
 }
 
 .brand__title {
@@ -167,6 +172,16 @@ textarea {
     border-radius: 999px;
     color: var(--text-0);
     background: rgba(255, 255, 255, 0.03);
+    cursor: pointer;
+    transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.nav-toggle:hover,
+.nav-toggle:focus-visible {
+    color: var(--accent-strong);
+    border-color: rgba(121, 208, 180, 0.24);
+    background: rgba(121, 208, 180, 0.08);
+    outline: none;
 }
 
 .site-nav {
@@ -185,6 +200,7 @@ textarea {
     color: var(--text-2);
     text-decoration: none;
     font-weight: 700;
+    white-space: nowrap;
     letter-spacing: 0.01em;
     transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
     border: 1px solid transparent;
@@ -409,6 +425,8 @@ textarea {
 .utility-rail__summary {
     color: var(--text-1);
     font-size: 0.95rem;
+    line-height: 1.6;
+    max-width: 34rem;
 }
 
 .utility-link {
