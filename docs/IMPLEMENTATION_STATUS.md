@@ -1,11 +1,12 @@
 # Implementation Status
 
-Last updated: 2026-03-19
+Last updated: 2026-03-21
 
 ## Current State
 
 - The production app includes the dashboard, field mode, location detail pages, search, about page, forecast page, and PWA assets.
-- The repo intentionally tracks the current canonical dataset and generated artifacts: `all_floats_final.json`, `floats.db`, `float_model.pkl`, `scraped_data/`, and generated refresh outputs.
+- The repo intentionally tracks the current canonical dataset and generated artifacts: `all_floats_final.json`, `floats.db`, `scraped_data/`, and committed refresh outputs under `generated/`.
+- Forecast predictions now train in memory from the current SQLite database on first use; there is no committed model binary.
 - `scripts/refresh_data.py` is the supported entrypoint for rebuilding artifacts and validation reports.
 - The dashboard already includes the "Still Out There!" stat card; older docs describing it as a manual follow-up are stale.
 
@@ -14,6 +15,7 @@ Last updated: 2026-03-19
 - Automated coverage lives under `tests/` and is meant to run with `pytest -q`.
 - `pytest.ini` limits collection to `tests/` so manual probes do not leak into CI.
 - Manual checks that depend on the external site, a locally running server, Playwright, or the committed production DB live in `scripts/manual_checks/`.
+- Validation reports are generated locally during `validate` runs and are not committed.
 
 ## Known Constraints
 
@@ -25,4 +27,4 @@ Last updated: 2026-03-19
 ## Current Docs
 
 - Canonical: `README.md`, `docs/AGENTS.md`, and this file.
-- Historical reference only: `docs/FEATURE_AUDIT.md`, `docs/ROADMAP.md`, and `docs/archive/AUDIT_SUMMARY_2025-11-23.md`.
+- Historical reference only: `docs/FEATURE_AUDIT.md`, `docs/ROADMAP.md`, `docs/archive/AUDIT_SUMMARY_2025-11-23.md`, and the archived point-in-time notes under `docs/archive/`.

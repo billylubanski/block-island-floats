@@ -7,20 +7,22 @@ Flask app for exploring historical Block Island Glass Float finds, field-plannin
 - Dashboard with year filtering, recovery-rate tables, and a Leaflet heatmap.
 - Field mode with GPS-aware distance sorting and weather context.
 - Location detail pages with find history and photo galleries.
-- Forecast page backed by the local ML model and seasonality scoring.
+- Forecast page backed by seasonality scoring and an in-memory model trained from the local database.
 - Search, about page, and PWA assets for installable mobile use.
-- Refresh pipeline that rebuilds the canonical JSON, SQLite database, model, and generated reports.
+- Refresh pipeline that rebuilds the canonical JSON, SQLite database, and generated reports.
 
 ## Local Development
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements.txt pytest
+pip install -r requirements.txt
 python app.py
 ```
 
 The app serves at `http://localhost:5000`.
+
+Set `$env:FLASK_DEBUG = "1"` before `python app.py` if you want the Flask debug server locally.
 
 ## Automated Tests
 
@@ -41,7 +43,8 @@ python scripts/refresh_data.py validate-records
 ```
 
 - `all_floats_final.json` is the canonical dataset committed to the repo.
-- `floats.db`, `float_model.pkl`, `scraped_data/floats_*.json`, and generated reports are rebuilt from that canonical data.
+- `floats.db`, `scraped_data/floats_*.json`, and refresh outputs under `generated/` are rebuilt from that canonical data.
+- Forecast predictions train in memory from `floats.db` on first use; no model binary is committed.
 - `.github/workflows/refresh-data.yml` runs the refresh flow weekly and opens or updates an automated PR when source data changes.
 
 ## Repository Map
@@ -58,12 +61,13 @@ python scripts/refresh_data.py validate-records
 - Validation stages data through `finds_raw`, `finds_normalized`, and `validation_report`.
 - Rows may include `is_valid`, `validation_errors`, `confidence_score`, `source`, and `suspicious_flags`.
 - App routes support `?valid_only=1` to ignore invalid rows when validation metadata exists.
-- Validation reports are written to `generated/validation_report.json` and `generated/validation_report.csv`.
+- Validation reports are written to `generated/validation_report.json` and `generated/validation_report.csv` as local validation outputs and are not committed.
 
 ## Historical Docs
 
 - `docs/FEATURE_AUDIT.md` and `docs/ROADMAP.md` are preserved as historical planning/reference docs.
 - `docs/archive/AUDIT_SUMMARY_2025-11-23.md` archives the original November 23, 2025 summary snapshot.
+- Archived point-in-time notes such as `docs/archive/date_analysis_summary.md`, `docs/archive/alltrails_research.md`, and `docs/archive/RECOVERY_RATE_UPDATE.md` live under `docs/archive/`.
 
 ## Data Source
 

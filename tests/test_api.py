@@ -182,6 +182,27 @@ def test_forecast_route_renders_predictions_and_location_detail(
     assert "9 mph" in text
 
 
+def test_forecast_route_handles_empty_predictions(sample_db: Path, monkeypatch: pytest.MonkeyPatch):
+    weather = {
+        "temp": 68,
+        "condition": "Partly Cloudy",
+        "wind": 9,
+        "emoji": "WEATHER",
+        "timestamp": "09:30 AM",
+    }
+
+    monkeypatch.setattr(app_module, "predict_today", lambda: [])
+    monkeypatch.setattr(app_module, "get_seasonality_score", lambda: 0)
+    monkeypatch.setattr(app_module, "get_weather_data", lambda: weather)
+
+    with app_module.app.test_client() as client:
+        response = client.get("/forecast")
+
+    assert response.status_code == 200
+    text = response.get_data(as_text=True)
+    assert "Float forecast" in text
+
+
 def test_get_weather_data_converts_noaa_response(monkeypatch: pytest.MonkeyPatch):
     class FakeResponse:
         status_code = 200
