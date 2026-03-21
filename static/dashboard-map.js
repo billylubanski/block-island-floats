@@ -9,6 +9,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const focusSubtitleEl = document.getElementById('map-focus-subtitle');
     const focusNoteEl = document.getElementById('map-focus-note');
     const resetViewBtn = document.getElementById('map-reset-view');
+    const controlsPanelEl = document.getElementById('map-controls-panel');
+    const hotspotsPanelEl = document.getElementById('map-hotspots-panel');
+    const controlsToggleBtn = document.getElementById('dashboard-controls-toggle');
+    const hotspotsToggleBtn = document.getElementById('dashboard-hotspots-toggle');
 
     if (!mapEl || !dataEl) {
         return;
@@ -74,6 +78,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (loadingEl) {
             loadingEl.style.display = 'none';
         }
+    };
+
+    const setPanelState = (panelEl, toggleEl, isExpanded, labels) => {
+        if (!panelEl || !toggleEl) {
+            return;
+        }
+
+        panelEl.classList.toggle('is-collapsed', !isExpanded);
+        toggleEl.classList.toggle('is-active', isExpanded);
+        toggleEl.setAttribute('aria-expanded', String(isExpanded));
+        toggleEl.textContent = isExpanded ? labels.hide : labels.show;
     };
 
     const buildFocusCardMarkup = (cluster, index, options = {}) => {
@@ -378,6 +393,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    controlsToggleBtn?.addEventListener('click', () => {
+        const isExpanded = controlsToggleBtn.getAttribute('aria-expanded') !== 'true';
+        setPanelState(controlsPanelEl, controlsToggleBtn, isExpanded, {
+            show: 'Show controls',
+            hide: 'Hide controls',
+        });
+    });
+
+    hotspotsToggleBtn?.addEventListener('click', () => {
+        const isExpanded = hotspotsToggleBtn.getAttribute('aria-expanded') !== 'true';
+        setPanelState(hotspotsPanelEl, hotspotsToggleBtn, isExpanded, {
+            show: 'Show hotspots',
+            hide: 'Hide hotspots',
+        });
+    });
+
     resetViewBtn?.addEventListener('click', resetMapView);
 
     geolocateBtn?.addEventListener('click', () => {
@@ -439,6 +470,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 note: nearestClusters.length
                     ? `Nearest cluster: ${nearestClusters[0].cluster.label}, ${formatDistance(nearestClusters[0].distance)}.`
                     : 'No mapped clusters available.',
+            });
+            setPanelState(hotspotsPanelEl, hotspotsToggleBtn, true, {
+                show: 'Show hotspots',
+                hide: 'Hide hotspots',
             });
 
             geolocateBtn.disabled = false;

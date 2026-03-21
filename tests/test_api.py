@@ -133,6 +133,8 @@ def test_index_route_renders_dashboard_controls(sample_db: Path, capture_templat
     assert 'id="dashboard-map-data"' in text
     assert '/static/dashboard-map.js' in text
     assert "Top mapped clusters" in text
+    assert "Hide controls" in text
+    assert "Show hotspots" in text
     assert "Reset" in text
     assert "Year focus" in text
     assert "Floats still unreported" in text
