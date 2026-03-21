@@ -213,6 +213,20 @@ def test_validate_outputs_detects_json_db_drift(tmp_path: Path, monkeypatch: pyt
     assert any("drift detected" in error.lower() for error in errors)
 
 
+def test_validate_outputs_passes_without_model_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    records = sample_records()
+    db_path = tmp_path / "floats.db"
+    manifest_path = tmp_path / "refresh_manifest.json"
+    snapshot_dir = tmp_path / "scraped_data"
+
+    rebuild_database(records, db_path)
+    write_json(manifest_path, build_manifest(records))
+    monkeypatch.setattr("scripts.refresh_data.SCRAPED_DATA_DIR", snapshot_dir)
+    write_per_year_snapshots(records)
+
+    assert validate_outputs(records, db_path=db_path, manifest_path=manifest_path) == []
+
+
 def test_canonical_fixture_shape():
     for record in sample_records():
         assert tuple(record.keys()) == CANONICAL_KEYS

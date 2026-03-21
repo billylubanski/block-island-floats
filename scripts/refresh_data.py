@@ -18,7 +18,6 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from analyzer import normalize_location, split_extreme_float_numbers  # noqa: E402
-from ml_predictor import train_model  # noqa: E402
 from scripts.validation_pipeline import (  # noqa: E402
     DEFAULT_REPORT_CSV as VALIDATION_REPORT_CSV,
     DEFAULT_REPORT_JSON as VALIDATION_REPORT_JSON,
@@ -37,7 +36,6 @@ PAGE_SIZE = 24
 CANONICAL_KEYS = ("id", "year", "title", "url", "image", "location", "date_found")
 CANONICAL_JSON_PATH = REPO_ROOT / "all_floats_final.json"
 DB_PATH = REPO_ROOT / "floats.db"
-MODEL_PATH = REPO_ROOT / "float_model.pkl"
 SCRAPED_DATA_DIR = REPO_ROOT / "scraped_data"
 GENERATED_DIR = REPO_ROOT / "generated"
 MANIFEST_PATH = GENERATED_DIR / "refresh_manifest.json"
@@ -787,8 +785,6 @@ def refresh_data() -> int:
     }
     write_json(AUDIT_PATH, audit_payload)
     write_summary(manifest, legacy_rows)
-
-    train_model(db_name=str(DB_PATH), model_file=str(MODEL_PATH))
 
     errors = validate_outputs(canonical_records)
     if errors:

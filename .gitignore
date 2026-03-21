@@ -1,8 +1,11 @@
 __pycache__/
 *.pyc
 *.db-journal
+.codex/
 debug_*.html
 debug_*.txt
+generated/validation_report.csv
+generated/validation_report.json
 output.txt
 unknowns.txt
 result_count.txt
@@ -12,6 +15,7 @@ venv/
 .venv/
 .python310/
 .env
+float_model.pkl
 *.log
 .DS_Store
 .pytest_cache/
