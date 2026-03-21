@@ -7,6 +7,8 @@
     <title>{% if page_meta and page_meta.title %}{{ page_meta.title }} | {% endif %}Block Island Glass Floats</title>
 
     <meta name="theme-color" content="#071412">
+    <meta name="color-scheme" content="dark">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Block Island Floats">
@@ -24,7 +26,7 @@
 <body class="page-mode--{{ page_meta.mode if page_meta else 'dashboard' }}">
     <header class="site-header">
         <div class="shell site-header__inner">
-            <a class="brand" href="{{ url_for('index', valid_only=1) if valid_only else url_for('index') }}">
+            <a class="brand" href="{{ url_for('index') }}">
                 <span class="brand__mark" aria-hidden="true"></span>
                 <span class="brand__copy">
                     <span class="brand__title">Block Island Floats</span>
@@ -35,6 +37,7 @@
             <button
                 class="nav-toggle"
                 type="button"
+                aria-label="Open navigation"
                 aria-expanded="false"
                 aria-controls="site-nav"
                 data-nav-toggle>
@@ -43,28 +46,25 @@
 
             <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
                 <a class="site-nav__link {% if page_meta and page_meta.active_nav == 'dashboard' %}is-active{% endif %}"
-                    href="{{ url_for('index', valid_only=1) if valid_only else url_for('index') }}">
+                    href="{{ url_for('index') }}">
                     Dashboard
                 </a>
                 <a class="site-nav__link {% if page_meta and page_meta.active_nav == 'field' %}is-active{% endif %}"
-                    href="{{ url_for('field_mode', valid_only=1) if valid_only else url_for('field_mode') }}">
+                    href="{{ url_for('field_mode') }}">
                     Field Mode
                 </a>
                 <a class="site-nav__link {% if page_meta and page_meta.active_nav == 'search' %}is-active{% endif %}"
-                    href="{{ url_for('search', valid_only=1) if valid_only else url_for('search') }}">
+                    href="{{ url_for('search') }}">
                     Search
                 </a>
                 <a class="site-nav__link {% if page_meta and page_meta.active_nav == 'forecast' %}is-active{% endif %}"
-                    href="{{ url_for('forecast', valid_only=1) if valid_only else url_for('forecast') }}">
+                    href="{{ url_for('forecast') }}">
                     Forecast
                 </a>
                 <a class="site-nav__link {% if page_meta and page_meta.active_nav == 'about' %}is-active{% endif %}"
-                    href="{{ url_for('about', valid_only=1) if valid_only else url_for('about') }}">
+                    href="{{ url_for('about') }}">
                     About
                 </a>
-                {% if valid_only %}
-                <span class="site-badge">Validated rows</span>
-                {% endif %}
             </nav>
         </div>
     </header>
@@ -109,6 +109,7 @@
 
             const setOpen = (isOpen) => {
                 toggle.setAttribute('aria-expanded', String(isOpen));
+                toggle.setAttribute('aria-label', isOpen ? 'Close navigation' : 'Open navigation');
                 document.body.classList.toggle('nav-open', isOpen);
             };
 
@@ -126,6 +127,12 @@
                     return;
                 }
                 if (!header.contains(event.target)) {
+                    setOpen(false);
+                }
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
                     setOpen(false);
                 }
             });

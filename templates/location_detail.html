@@ -262,7 +262,7 @@
 {% endblock %}
 
 {% block page_intro %}
-<a href="{{ url_for('index', valid_only=1) if valid_only else url_for('index') }}" class="back-link">Back to dashboard</a>
+<a href="{{ url_for('index') }}" class="back-link">Back to dashboard</a>
 
 <section class="location-hero">
     <div class="surface location-hero__main">
@@ -281,7 +281,7 @@
                 {{ page_meta.primary_cta.label }}
             </a>
             {% endif %}
-            <a class="button button--ghost" href="{{ url_for('field_mode', valid_only=1) if valid_only else url_for('field_mode') }}">
+            <a class="button button--ghost" href="{{ url_for('field_mode') }}">
                 Open field mode
             </a>
         </div>
