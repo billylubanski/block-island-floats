@@ -1,50 +1,187 @@
 {% extends "base.html" %}
 
+{% block head %}
+<style>
+    .search-form {
+        display: flex;
+        align-items: end;
+        gap: 0.9rem;
+        flex-wrap: wrap;
+    }
+
+    .search-form .field-group {
+        flex: 1 1 28rem;
+    }
+
+    .search-form input[type="text"] {
+        width: 100%;
+    }
+
+    .results-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .result-list {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .result-card {
+        display: grid;
+        gap: 0.85rem;
+        padding: 1rem 1.1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(193, 214, 203, 0.08);
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .result-card__meta {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .result-card h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        line-height: 1.25;
+    }
+
+    .result-card__summary {
+        margin: 0;
+        color: var(--text-1);
+        line-height: 1.65;
+    }
+
+    .result-card__summary strong {
+        color: var(--text-0);
+    }
+
+    .result-card__footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        color: var(--text-2);
+        font-size: 0.92rem;
+    }
+
+    .result-card__footer a {
+        color: var(--accent-strong);
+        text-decoration: none;
+        font-weight: 800;
+    }
+
+    @media (max-width: 720px) {
+        .search-form {
+            align-items: stretch;
+        }
+
+        .search-form .button {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card">
-    <h2>Search Finds</h2>
-    <form action="/search" method="get" style="display: flex; gap: 1rem; margin-top: 1rem;">
-        {% if valid_only %}
-        <input type="hidden" name="valid_only" value="1">
-        {% endif %}
-        <input type="text" name="q" placeholder="Search by finder, location, or float number..." value="{{ query }}">
-        <button type="submit">Search</button>
-    </form>
-    <p style="margin-top: 0.75rem;">
-        <a href="{{ url_for('search', q=query, valid_only=1) if not valid_only else url_for('search', q=query) }}"
-            style="color: var(--accent); text-decoration: none; font-weight: 600; font-size: 0.9rem;">
+<section class="surface">
+    <div class="section-heading">
+        <span class="eyebrow">Query surface</span>
+        <h2>Search by finder, location, or float number</h2>
+        <p>Use the archive as a quick locator, then jump into the location page when you need the larger pattern.</p>
+    </div>
+
+    <div class="utility-rail">
+        <form action="/search" method="get" class="search-form">
+            {% if valid_only %}
+            <input type="hidden" name="valid_only" value="1">
+            {% endif %}
+            <div class="field-group">
+                <label for="search-query">Search term</label>
+                <input
+                    id="search-query"
+                    type="text"
+                    name="q"
+                    placeholder="Try a finder name, Rodman's Hollow, or float 245"
+                    value="{{ query }}">
+            </div>
+            <button class="button button--primary" type="submit">Run search</button>
+        </form>
+
+        <a
+            class="button button--subtle"
+            href="{{ url_for('search', q=query, valid_only=1) if not valid_only else url_for('search', q=query) }}">
             {{ 'Show all rows' if valid_only else 'Use validated rows only' }}
         </a>
-    </p>
-</div>
+    </div>
+</section>
 
 {% if query %}
-<div class="card">
-    <h3>Results for "{{ query }}"</h3>
+<section class="surface">
+    <div class="results-header">
+        <div class="section-heading" style="margin-bottom: 0;">
+            <span class="eyebrow">Results</span>
+            <h2>{{ result_count }} match{{ '' if result_count == 1 else 'es' }} for "{{ query }}"</h2>
+            <p>The results below are capped at the first 50 matches so the page stays usable in the field.</p>
+        </div>
+        <a class="button button--ghost" href="{{ url_for('search', valid_only=1) if valid_only else url_for('search') }}">
+            Clear search
+        </a>
+    </div>
+
     {% if results %}
-    <table>
-        <thead>
-            <tr>
-                <th>Year</th>
-                <th>Float #</th>
-                <th>Finder</th>
-                <th>Location</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in results %}
-            <tr>
-                <td>{{ row['year'] }}</td>
-                <td>{{ row['float_number'] }}</td>
-                <td>{{ row['finder'] }}</td>
-                <td>{{ row['location_raw'] }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="result-list">
+        {% for row in results %}
+        <article class="result-card">
+            <div class="result-card__meta">
+                <span class="pill pill--accent">{{ row['year'] }}</span>
+                <span class="pill">
+                    Float #{{ row['float_number'] if row['float_number'] else 'Unknown' }}
+                </span>
+            </div>
+
+            <h3>{{ row['location_name'] }}</h3>
+            <p class="result-card__summary">
+                <strong>{{ row['finder'] }}</strong> reported this float at
+                <strong>{{ row['location_name'] }}</strong>.
+            </p>
+
+            <div class="result-card__footer">
+                <span>
+                    {% if row['location_raw'] and row['location_raw'] != row['location_name'] %}
+                    Source text: {{ row['location_raw'] }}
+                    {% else %}
+                    Normalized from the reporting archive.
+                    {% endif %}
+                </span>
+                <a href="{{ url_for('location_detail', location_name=row['location_name'], valid_only=1) if valid_only else url_for('location_detail', location_name=row['location_name']) }}">
+                    Open location detail
+                </a>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
     {% else %}
-    <p style="margin-top: 1rem; color: var(--text-secondary);">No results found.</p>
+    <div class="empty-state">
+        <h3>No matching reports</h3>
+        <p>Try a broader location name, part of a finder name, or the float number without punctuation.</p>
+    </div>
     {% endif %}
-</div>
+</section>
+{% else %}
+<section class="surface surface--soft">
+    <div class="section-heading" style="margin-bottom: 0;">
+        <span class="eyebrow">How to use it</span>
+        <h2>Search is the fast route, location detail is the deeper read</h2>
+        <p>Start with a query to confirm a float, finder, or place name, then move into the corresponding location page when you want the broader trail context.</p>
+    </div>
+</section>
 {% endif %}
 {% endblock %}

@@ -7,133 +7,149 @@
 <script src="/static/field-mode.js" defer></script>
 {% endblock %}
 
-{% block content %}
-<div class="field-mode-page">
-    <div class="field-header">
-        <h1>🎯 Field Mode</h1>
-        <div class="field-header-actions">
-            <a href="https://www.blockislandinfo.com/glass-float-project/" target="_blank" class="report-btn" rel="noreferrer">
-                <span>📝</span> Report Find
-            </a>
-            <a href="/" class="back-btn">Dashboard</a>
-        </div>
-    </div>
+{% block page_intro %}
+<section class="field-command">
+    <div class="surface field-command__shell">
+        <div class="field-command__top">
+            <div class="field-command__copy">
+                <p class="page-kicker">{{ page_meta.kicker }}</p>
+                <h1>{{ page_meta.title }}</h1>
+                <p class="lead">{{ page_meta.subtitle }}</p>
+            </div>
 
-    {% if weather %}
-    <div class="weather-widget">
-        <div class="weather-main">
-            <div class="weather-icon">{{ weather.emoji }}</div>
-            <div class="weather-temp">{{ weather.temp }}°</div>
+            <div class="field-command__actions">
+                <a href="https://www.blockislandinfo.com/glass-float-project/" target="_blank" rel="noreferrer" class="button button--primary">
+                    Report a find
+                </a>
+                <a href="{{ url_for('index', valid_only=1) if valid_only else url_for('index') }}" class="button button--ghost">
+                    Dashboard
+                </a>
+            </div>
         </div>
-        <div class="weather-details">
-            <div class="weather-condition">{{ weather.condition }}</div>
-            <div class="weather-meta">
-                <span>💨 {{ weather.wind }} mph</span>
-                <span>•</span>
-                <span>Updated {{ weather.timestamp }}</span>
+
+        <div class="field-command__meta">
+            {% if weather %}
+            <div class="weather-widget field-weather">
+                <div class="weather-main">
+                    <div class="weather-icon">{{ weather.emoji }}</div>
+                    <div class="weather-temp">{{ weather.temp }} F</div>
+                </div>
+                <div class="weather-details">
+                    <div class="weather-condition">{{ weather.condition }}</div>
+                    <div class="weather-meta">
+                        <span>Wind {{ weather.wind }} mph</span>
+                        <span>Updated {{ weather.timestamp }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="geolocate-section">
+                <button class="button button--primary geolocate-btn" id="geolocate-btn" type="button">
+                    Find my location
+                </button>
+                <div class="geolocate-status" id="status">Allow location access to sort the nearest hunting spots.</div>
             </div>
         </div>
     </div>
-    {% endif %}
+</section>
+{% endblock %}
 
-    <div class="geolocate-section">
-        <button class="geolocate-btn" id="geolocate-btn" type="button">
-            📍 Find My Location
-        </button>
-        <div class="geolocate-status" id="status">Tap to see nearby hunting spots</div>
+{% block content %}
+<section class="surface field-map-panel">
+    <div class="section-heading">
+        <span class="eyebrow">Map first</span>
+        <h2>Use the map to orient before you move</h2>
+        <p>The list below carries the full set of mapped hunting spots and will re-sort itself when location access is available.</p>
     </div>
 
     <div id="field-map" aria-label="Map of common hunting spots"></div>
 
-    <div class="spots-section">
-        <div class="spots-header">
-            <h2>Hunting Spots</h2>
-            <span class="spot-count" id="spot-count">{{ hunting_spots|length }} locations</span>
-        </div>
+    <p class="field-last-updated">Last updated: {{ last_updated }}</p>
+</section>
 
-        <div class="loading" id="loading">
-            Calculating distances...
+<section class="surface">
+    <div class="spots-header">
+        <div>
+            <span class="eyebrow">Move list</span>
+            <h2>Hunting spots</h2>
         </div>
-
-        <div id="spots-list">
-            {% for spot in hunting_spots %}
-            <div class="spot-card" data-lat="{{ spot.lat }}" data-lon="{{ spot.lon }}">
-                <div class="spot-header">
-                    <h3 class="spot-name">{{ spot.name }}</h3>
-                    <span class="spot-distance">--</span>
-                </div>
-                <div class="spot-stats">
-                    <div class="spot-stat">
-                        <span>🏆</span>
-                        <span>{{ spot.count }} finds</span>
-                    </div>
-                </div>
-                <div class="nav-buttons">
-                    <a href="https://maps.google.com/?q={{ spot.lat }},{{ spot.lon }}" class="nav-btn" target="_blank" rel="noreferrer">
-                        Google Maps
-                    </a>
-                    <a href="maps://?q={{ spot.lat }},{{ spot.lon }}" class="nav-btn">
-                        Apple Maps
-                    </a>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+        <span class="spot-count" id="spot-count">{{ hunting_spots|length }} locations</span>
     </div>
 
-    <button
-        class="etiquette-trigger"
-        id="etiquette-trigger"
-        type="button"
-        aria-controls="field-etiquette-drawer"
-        aria-expanded="false">
-        View Tips
-    </button>
+    <div class="loading" id="loading">Calculating distances...</div>
 
-    <div class="etiquette-backdrop" id="etiquette-backdrop" hidden></div>
-
-    <aside
-        class="etiquette-drawer"
-        id="field-etiquette-drawer"
-        aria-hidden="true"
-        aria-labelledby="field-etiquette-title">
-        <div class="etiquette-handle" aria-hidden="true"></div>
-        <div class="etiquette-header">
-            <div>
-                <p class="etiquette-kicker">Official guidance</p>
-                <h2 id="field-etiquette-title">{{ etiquette.title }}</h2>
-                <p class="etiquette-intro">{{ etiquette.intro }}</p>
+    <div id="spots-list" class="spots-list">
+        {% for spot in hunting_spots %}
+        <div class="spot-card" data-lat="{{ spot.lat }}" data-lon="{{ spot.lon }}">
+            <div class="spot-header">
+                <h3 class="spot-name">{{ spot.name }}</h3>
+                <span class="spot-distance">--</span>
             </div>
-            <button class="etiquette-close" id="etiquette-close" type="button" aria-label="Close etiquette panel">
-                Close
-            </button>
+            <div class="spot-stats">
+                <div class="spot-stat">{{ spot.count }} finds reported</div>
+            </div>
+            <div class="nav-buttons">
+                <a href="https://maps.google.com/?q={{ spot.lat }},{{ spot.lon }}" class="nav-btn" target="_blank" rel="noreferrer">
+                    Google Maps
+                </a>
+                <a href="maps://?q={{ spot.lat }},{{ spot.lon }}" class="nav-btn">
+                    Apple Maps
+                </a>
+            </div>
         </div>
+        {% endfor %}
+    </div>
+</section>
 
-        <div class="etiquette-accordion">
-            <details class="etiquette-section" open>
-                <summary>{{ etiquette.rules_heading }}</summary>
-                <ul>
-                    {% for rule in etiquette.rules %}
-                    <li>{{ rule }}</li>
-                    {% endfor %}
-                </ul>
-            </details>
+<button
+    class="etiquette-trigger button button--subtle"
+    id="etiquette-trigger"
+    type="button"
+    aria-controls="field-etiquette-drawer"
+    aria-expanded="false">
+    Trail tips
+</button>
 
-            <details class="etiquette-section">
-                <summary>{{ etiquette.restricted_heading }}</summary>
-                <ul>
-                    {% for location in etiquette.restricted_locations %}
-                    <li>{{ location }}</li>
-                    {% endfor %}
-                </ul>
-            </details>
+<div class="etiquette-backdrop" id="etiquette-backdrop" hidden></div>
+
+<aside
+    class="etiquette-drawer"
+    id="field-etiquette-drawer"
+    aria-hidden="true"
+    aria-labelledby="field-etiquette-title">
+    <div class="etiquette-handle" aria-hidden="true"></div>
+    <div class="etiquette-header">
+        <div>
+            <p class="etiquette-kicker">Official guidance</p>
+            <h2 id="field-etiquette-title">{{ etiquette.title }}</h2>
+            <p class="etiquette-intro">{{ etiquette.intro }}</p>
         </div>
-    </aside>
+        <button class="etiquette-close" id="etiquette-close" type="button" aria-label="Close etiquette panel">
+            Close
+        </button>
+    </div>
 
-    <script id="field-spots-data" type="application/json">{{ hunting_spots|tojson }}</script>
+    <div class="etiquette-accordion">
+        <details class="etiquette-section" open>
+            <summary>{{ etiquette.rules_heading }}</summary>
+            <ul>
+                {% for rule in etiquette.rules %}
+                <li>{{ rule }}</li>
+                {% endfor %}
+            </ul>
+        </details>
 
-    <p class="field-last-updated">
-        Last updated: {{ last_updated }}
-    </p>
-</div>
+        <details class="etiquette-section">
+            <summary>{{ etiquette.restricted_heading }}</summary>
+            <ul>
+                {% for location in etiquette.restricted_locations %}
+                <li>{{ location }}</li>
+                {% endfor %}
+            </ul>
+        </details>
+    </div>
+</aside>
+
+<script id="field-spots-data" type="application/json">{{ hunting_spots|tojson }}</script>
 {% endblock %}

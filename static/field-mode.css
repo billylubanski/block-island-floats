@@ -1,201 +1,179 @@
-.field-mode-page {
-    padding-bottom: 6rem;
+.field-command__shell {
+    display: grid;
+    gap: 1.25rem;
 }
 
-.field-mode-page .field-header {
-    background: rgba(10, 51, 34, 0.92);
-    backdrop-filter: blur(12px);
-    padding: 1rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+.field-command__top {
     display: flex;
+    align-items: flex-start;
     justify-content: space-between;
-    align-items: center;
     gap: 1rem;
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    flex-wrap: wrap;
 }
 
-.field-mode-page .field-header h1 {
+.field-command__copy {
+    display: grid;
+    gap: 0.9rem;
+    max-width: 44rem;
+}
+
+.field-command__copy h1 {
     margin: 0;
-    font-size: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    background: none;
-    -webkit-text-fill-color: initial;
-    color: var(--text-primary);
+    font-family: "Fraunces", serif;
+    font-size: clamp(2.45rem, 5vw, 4rem);
+    line-height: 0.94;
+    letter-spacing: -0.03em;
 }
 
-.field-header-actions {
+.field-command__actions {
     display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.field-command__meta {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
     gap: 1rem;
-    align-items: center;
+    align-items: stretch;
 }
 
-.back-btn {
-    color: var(--text-secondary);
-    text-decoration: none;
-    font-size: 0.9rem;
-}
-
-.report-btn {
-    background: var(--accent);
-    color: var(--bg-color);
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.5rem;
-    text-decoration: none;
-    font-weight: 600;
-    font-size: 0.9rem;
-    border: 1px solid var(--accent);
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-}
-
-.report-btn:active {
-    transform: scale(0.98);
-}
-
-.weather-widget {
-    margin: 1rem;
+.field-weather {
+    min-height: 100%;
 }
 
 .geolocate-section {
-    padding: 1rem;
-    text-align: center;
-    background: linear-gradient(135deg, rgba(26, 134, 114, 0.2), rgba(29, 95, 154, 0.2));
+    display: grid;
+    gap: 0.8rem;
+    align-content: center;
+    padding: 1rem 1.1rem;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(193, 214, 203, 0.08);
 }
 
 .geolocate-btn {
-    background: var(--accent);
-    color: var(--bg-color);
-    border: none;
-    padding: 1rem 2rem;
-    border-radius: 0.5rem;
-    font-size: 1.1rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-}
-
-.geolocate-btn:active {
-    transform: scale(0.98);
+    justify-self: start;
 }
 
 .geolocate-status {
-    margin-top: 0.75rem;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
+    color: var(--text-2);
+    line-height: 1.6;
 }
 
-.spots-section {
-    padding: 1rem;
+.field-map-panel {
+    display: grid;
+    gap: 1rem;
+}
+
+#field-map {
+    height: 24rem;
+    border-radius: 24px;
+    overflow: hidden;
 }
 
 .spots-header {
     display: flex;
+    align-items: flex-end;
     justify-content: space-between;
-    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
     margin-bottom: 1rem;
-    gap: 0.75rem;
 }
 
 .spots-header h2 {
-    margin: 0;
-    font-size: 1.25rem;
+    margin: 0.4rem 0 0;
 }
 
 .spot-count {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
+    color: var(--text-2);
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.spots-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 0.9rem;
 }
 
 .spot-card {
-    background: var(--card-bg);
-    border-radius: 0.75rem;
+    display: grid;
+    gap: 0.85rem;
     padding: 1rem;
-    margin-bottom: 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(193, 214, 203, 0.08);
 }
 
 .spot-header {
     display: flex;
-    justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 0.75rem;
+    justify-content: space-between;
     gap: 0.75rem;
 }
 
 .spot-name {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text-primary);
     margin: 0;
+    font-size: 1.05rem;
+    line-height: 1.3;
 }
 
 .spot-distance {
-    color: var(--accent);
-    font-weight: 600;
-    font-size: 0.9rem;
     white-space: nowrap;
+    color: var(--accent-strong);
+    font-size: 0.9rem;
+    font-weight: 800;
 }
 
 .spot-stats {
-    display: flex;
-    gap: 1.5rem;
-    margin-bottom: 1rem;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
+    color: var(--text-2);
+    font-size: 0.92rem;
 }
 
 .spot-stat {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
+    line-height: 1.5;
 }
 
 .nav-buttons {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.65rem;
+    flex-wrap: wrap;
 }
 
 .nav-btn {
-    flex: 1;
-    padding: 0.75rem;
-    border-radius: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.7rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid rgba(121, 208, 180, 0.16);
+    background: rgba(121, 208, 180, 0.08);
+    color: var(--accent-strong);
     text-decoration: none;
-    text-align: center;
-    font-weight: 600;
-    font-size: 0.9rem;
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    background: rgba(26, 134, 114, 0.1);
-}
-
-.nav-btn:active {
-    background: var(--accent);
-    color: var(--bg-color);
+    font-weight: 800;
+    flex: 1 1 8rem;
 }
 
 .loading {
     display: none;
-    text-align: center;
-    padding: 2rem;
-    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-2);
 }
 
 .loading.active {
     display: block;
 }
 
-#field-map {
-    height: 250px;
-    border-radius: 0.75rem;
-    margin: 1rem;
+.field-last-updated {
+    margin: 0;
+    color: var(--text-3);
+    font-size: 0.88rem;
 }
 
 .etiquette-trigger {
@@ -203,17 +181,14 @@
     right: 1rem;
     bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
     z-index: 140;
-    background: linear-gradient(135deg, #50E8A8, #8CE7FF);
-    color: #051714;
-    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.35);
 }
 
 .etiquette-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(5, 23, 20, 0.62);
-    backdrop-filter: blur(4px);
     z-index: 149;
+    background: rgba(5, 18, 16, 0.62);
+    backdrop-filter: blur(4px);
 }
 
 .etiquette-drawer {
@@ -223,11 +198,11 @@
     bottom: 0;
     z-index: 150;
     padding: 0.85rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
-    border-top-left-radius: 1.25rem;
-    border-top-right-radius: 1.25rem;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(4, 18, 15, 0.97);
-    box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(193, 214, 203, 0.12);
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    background: rgba(6, 18, 16, 0.98);
+    box-shadow: 0 -24px 48px rgba(0, 0, 0, 0.36);
     transform: translateY(calc(100% + 2rem));
     transition: transform 0.25s ease;
     max-height: min(78vh, 42rem);
@@ -241,26 +216,26 @@
 .etiquette-handle {
     width: 3rem;
     height: 0.3rem;
-    border-radius: 999px;
-    background: rgba(243, 237, 231, 0.25);
     margin: 0 auto 1rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
 }
 
 .etiquette-header {
     display: flex;
-    justify-content: space-between;
     align-items: flex-start;
+    justify-content: space-between;
     gap: 1rem;
     margin-bottom: 1rem;
 }
 
 .etiquette-kicker {
     margin: 0 0 0.35rem;
-    color: var(--accent);
-    font-size: 0.8rem;
-    font-weight: 700;
+    color: var(--accent-strong);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.11em;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
 }
 
 .etiquette-header h2 {
@@ -270,16 +245,17 @@
 
 .etiquette-intro {
     margin: 0.5rem 0 0;
-    color: var(--text-secondary);
-    max-width: 40rem;
+    color: var(--text-2);
+    line-height: 1.6;
 }
 
 .etiquette-close {
-    background: transparent;
-    color: var(--text-secondary);
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: none;
-    flex-shrink: 0;
+    min-width: 6rem;
+    min-height: 2.7rem;
+    border-radius: 999px;
+    border: 1px solid rgba(193, 214, 203, 0.14);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-0);
 }
 
 .etiquette-accordion {
@@ -288,21 +264,21 @@
 }
 
 .etiquette-section {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 0.9rem;
+    border-radius: 18px;
+    border: 1px solid rgba(193, 214, 203, 0.08);
+    background: rgba(255, 255, 255, 0.03);
     overflow: hidden;
 }
 
 .etiquette-section summary {
-    list-style: none;
-    cursor: pointer;
-    padding: 1rem 1.1rem;
-    font-weight: 700;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
     gap: 1rem;
+    padding: 1rem 1.1rem;
+    cursor: pointer;
+    list-style: none;
+    font-weight: 800;
 }
 
 .etiquette-section summary::-webkit-details-marker {
@@ -311,67 +287,37 @@
 
 .etiquette-section summary::after {
     content: "+";
-    color: var(--accent);
+    color: var(--accent-strong);
     font-size: 1.2rem;
     line-height: 1;
 }
 
 .etiquette-section[open] summary::after {
-    content: "−";
+    content: "-";
 }
 
 .etiquette-section ul {
     margin: 0;
-    padding: 0 1.1rem 1.1rem 2.2rem;
-    color: var(--text-secondary);
+    padding: 0 1.1rem 1.1rem 2.1rem;
+    color: var(--text-2);
     display: grid;
     gap: 0.7rem;
-}
-
-.field-last-updated {
-    text-align: center;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
-    padding: 1rem;
+    line-height: 1.55;
 }
 
 body.field-drawer-open {
     overflow: hidden;
 }
 
-@media (min-width: 900px) {
-    .etiquette-drawer {
-        left: auto;
-        right: 1rem;
-        bottom: 1rem;
-        width: min(28rem, calc(100vw - 2rem));
-        border-radius: 1.25rem;
-        transform: translateY(1rem);
-        opacity: 0;
-        pointer-events: none;
-    }
-
-    .etiquette-drawer.is-open {
-        transform: translateY(0);
-        opacity: 1;
-        pointer-events: auto;
+@media (max-width: 980px) {
+    .field-command__meta {
+        grid-template-columns: 1fr;
     }
 }
 
-@media (max-width: 768px) {
-    .field-mode-page .field-header {
-        padding: 1rem;
-        align-items: flex-start;
-        flex-direction: column;
-    }
-
-    .field-header-actions {
-        width: 100%;
-        justify-content: space-between;
-    }
-
-    .nav-buttons {
-        flex-direction: column;
+@media (max-width: 760px) {
+    #field-map {
+        height: 20rem;
     }
 
     .etiquette-header {

@@ -20,15 +20,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof L !== 'undefined') {
         map = L.map('field-map').setView([41.17, -71.58], 12);
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '© OpenStreetMap contributors © CARTO',
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: 'OpenStreetMap contributors, CARTO',
             maxZoom: 19
         }).addTo(map);
 
         spots.forEach((spot) => {
             L.marker([spot.lat, spot.lon])
                 .addTo(map)
-                .bindPopup(`<b>${spot.name}</b><br>${spot.count} finds`);
+                .bindPopup(`<strong>${spot.name}</strong><br>${spot.count} finds`);
         });
     }
 
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const getUserLocation = () => {
         if (!navigator.geolocation) {
-            statusEl.textContent = 'Geolocation not supported on this device.';
+            statusEl.textContent = 'Geolocation is not supported on this device.';
             return;
         }
 

@@ -10,6 +10,7 @@ requirejs_config.js
 shared_header.js
 venv/
 .venv/
+.python310/
 .env
 *.log
 .DS_Store
