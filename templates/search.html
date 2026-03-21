@@ -64,7 +64,7 @@
 
     .result-card__footer {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
         gap: 1rem;
         flex-wrap: wrap;
@@ -72,10 +72,31 @@
         font-size: 0.92rem;
     }
 
+    .result-card__actions {
+        display: flex;
+        gap: 0.85rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
     .result-card__footer a {
         color: var(--accent-strong);
         text-decoration: none;
         font-weight: 800;
+    }
+
+    .result-callout {
+        margin: 1rem 0 0;
+        padding: 1rem 1.05rem;
+        border-radius: 18px;
+        border: 1px solid rgba(193, 214, 203, 0.08);
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--text-1);
+        line-height: 1.65;
+    }
+
+    .result-callout p {
+        margin: 0;
     }
 
     @media (max-width: 720px) {
@@ -131,6 +152,10 @@
         </a>
     </div>
 
+    <div class="result-callout">
+        <p>If you already registered a float and want to add a photo or finder story later, the official project supports re-registering it through <a class="utility-link" href="{{ official_links.register }}" target="_blank" rel="noreferrer">Register Floats</a>.</p>
+    </div>
+
     {% if results %}
     <div class="result-list">
         {% for row in results %}
@@ -156,9 +181,16 @@
                     Normalized from the reporting archive.
                     {% endif %}
                 </span>
-                <a href="{{ url_for('location_detail', location_name=row['location_name']) }}">
-                    Open location detail
-                </a>
+                <div class="result-card__actions">
+                    <a href="{{ url_for('location_detail', location_name=row['location_name']) }}">
+                        Open location detail
+                    </a>
+                    {% if row['report_url'] %}
+                    <a href="{{ row['report_url'] }}" target="_blank" rel="noreferrer">
+                        Open official report
+                    </a>
+                    {% endif %}
+                </div>
             </div>
         </article>
         {% endfor %}
@@ -175,7 +207,7 @@
     <div class="section-heading" style="margin-bottom: 0;">
         <span class="eyebrow">How to use it</span>
         <h2>Search is the fast route, location detail is the deeper read</h2>
-        <p>Start with a query to confirm a float, finder, or place name, then move into the corresponding location page when you want the broader trail context.</p>
+        <p>Start with a query to confirm a float, finder, or place name, then move into the corresponding location page when you want the broader trail context. Use the official report link when you need the original finder post or want to re-register a float with a photo and story.</p>
     </div>
 </section>
 {% endif %}

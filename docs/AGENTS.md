@@ -5,12 +5,14 @@
 - Core helpers live in `analyzer.py`, `ml_predictor.py`, `locations.py`, and `utils.py`.
 - The canonical refresh workflow lives in `scripts/refresh_data.py`; staged row validation lives in `scripts/validation_pipeline.py`.
 - Manual probes that may hit the live site, require Playwright, expect a local server, or inspect the committed production DB live in `scripts/manual_checks/`.
-- Generated artifacts include `all_floats_final.json`, `scraped_data/`, `generated/`, `floats.db`, and `float_model.pkl`.
+- Generated artifacts include `all_floats_final.json`, `scraped_data/`, committed refresh outputs in `generated/`, and `floats.db`.
+- Forecast predictions train from `floats.db` in memory; no committed model binary is part of the repo state.
 - Deterministic HTML fixtures for parser tests live in `tests/fixtures/`.
 
 ## Build, Test, and Development Commands
-- Create a venv and install deps: `python -m venv .venv && .venv\Scripts\activate && pip install -r requirements.txt pytest`.
+- Create a venv and install deps: `python -m venv .venv && .venv\Scripts\activate && pip install -r requirements.txt`.
 - Run the app locally: `python app.py` (serves http://localhost:5000).
+- Enable Flask debug mode explicitly when needed: `$env:FLASK_DEBUG='1'; python app.py`.
 - Refresh the canonical dataset and rebuild derived artifacts: `python scripts/refresh_data.py refresh`.
 - Validate canonical JSON, snapshots, manifest, and SQLite outputs: `python scripts/refresh_data.py validate`.
 - Run staged record validation on the current database: `python scripts/refresh_data.py validate-records`.
@@ -20,7 +22,7 @@
 - `pytest.ini` constrains automated collection to `tests/`.
 - Keep `tests/test_*.py` deterministic and fixture-driven; do not rely on live HTTP or a manually started local server.
 - Prefer Flask test-client assertions and monkeypatched dependencies over background servers or print-only scripts.
-- Put opt-in checks under `scripts/manual_checks/`; examples include `scripts/manual_checks/verify_ids.py` and `scripts/manual_checks/verify_location.py`.
+- Put opt-in checks under `scripts/manual_checks/`; examples include `scripts/manual_checks/verify_ids.py`, `scripts/manual_checks/verify_location.py`, and `scripts/manual_checks/verify_requests.py`.
 - For UI changes, capture screenshots of `/` and `/search` and note any data filters used.
 
 ## Coding Notes
@@ -35,4 +37,4 @@
 
 ## Docs Sources Of Truth
 - Canonical current-state docs: `README.md`, this file, and `docs/IMPLEMENTATION_STATUS.md`.
-- Historical reference docs: `docs/FEATURE_AUDIT.md`, `docs/ROADMAP.md`, and `docs/archive/AUDIT_SUMMARY_2025-11-23.md`.
+- Historical reference docs: `docs/FEATURE_AUDIT.md`, `docs/ROADMAP.md`, and the archived notes under `docs/archive/`.

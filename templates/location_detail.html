@@ -168,6 +168,25 @@
         line-height: 1.6;
     }
 
+    .find-card__actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .find-card__actions a {
+        color: var(--accent-strong);
+        text-decoration: none;
+        font-weight: 800;
+    }
+
+    .official-note {
+        margin: 0 0 1rem;
+        color: var(--text-2);
+        line-height: 1.65;
+    }
+
     .no-images {
         color: var(--text-2);
         line-height: 1.7;
@@ -384,6 +403,8 @@
         <p>The most recent reports give you the freshest read before you open the complete archive.</p>
     </div>
 
+    <p class="official-note">This page groups finds by location. When a specific report matters, open the original official post below, or use <a class="utility-link" href="{{ official_links.register }}" target="_blank" rel="noreferrer">Register Floats</a> to re-register a find with a photo and story.</p>
+
     <div class="recent-finds">
         {% for find in recent_finds %}
         <article class="find-card">
@@ -393,6 +414,11 @@
             </div>
             <h3>Float #{{ find.float_number if find.float_number else 'Unknown' }}</h3>
             <p>{{ find.finder if find.finder else 'Unknown finder' }}</p>
+            {% if find.url %}
+            <div class="find-card__actions">
+                <a href="{{ find.url }}" target="_blank" rel="noreferrer">Open official report</a>
+            </div>
+            {% endif %}
         </article>
         {% endfor %}
     </div>

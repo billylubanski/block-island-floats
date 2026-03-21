@@ -1,42 +1,52 @@
+import os
 import sqlite3
-import pandas as pd
+from datetime import datetime
+from functools import lru_cache
+
 import numpy as np
+import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
-import pickle
-import os
-from datetime import datetime
 
 from analyzer import normalize_location
 
-DB_NAME = 'floats.db'
-MODEL_FILE = 'float_model.pkl'
+DB_NAME = "floats.db"
+MAX_PREDICTIONS = 3
+MIN_TRAINING_ROWS = 10
+
+
+def _empty_training_frame():
+    return pd.DataFrame(columns=["date_found", "location_raw", "location_normalized"])
 
 
 def get_data(db_name=None):
     """Fetch and prepare data from the database."""
     if db_name is None:
         db_name = DB_NAME
-    conn = sqlite3.connect(db_name)
-    query = "SELECT date_found, location_raw FROM finds WHERE date_found IS NOT NULL AND date_found != ''"
-    df = pd.read_sql_query(query, conn)
-    conn.close()
-    
-    # Normalize locations
-    df['location_normalized'] = df['location_raw'].apply(normalize_location)
-    # Filter out "Other/Unknown" if desired, or keep them. 
-    # For prediction, maybe we want to exclude them? 
-    # Let's keep them for now but maybe the user doesn't want to go to "Other/Unknown" page.
-    # Actually, "Other/Unknown" might be a valid bucket, but the link /location/Other/Unknown might be weird.
-    # Let's filter out 'Other/Unknown' for better predictions of actual places.
-    df = df[df['location_normalized'] != 'Other/Unknown']
-    
+
+    if not os.path.exists(db_name):
+        return _empty_training_frame()
+
+    try:
+        with sqlite3.connect(db_name) as conn:
+            query = "SELECT date_found, location_raw FROM finds WHERE date_found IS NOT NULL AND date_found != ''"
+            df = pd.read_sql_query(query, conn)
+    except sqlite3.Error:
+        return _empty_training_frame()
+
+    if df.empty:
+        return _empty_training_frame()
+
+    df = df.copy()
+    df["location_normalized"] = df["location_raw"].apply(normalize_location)
+    df = df[df["location_normalized"] != "Other/Unknown"].copy()
     return df
+
 
 def parse_date(date_str):
     """Parse date string to datetime object."""
     formats = [
-        "%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y", 
+        "%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y",
         "%B %d, %Y", "%b %d, %Y", "%B %Y", "%b %Y"
     ]
     for fmt in formats:
@@ -46,90 +56,114 @@ def parse_date(date_str):
             continue
     return None
 
+
 def prepare_features(df):
     """Feature engineering."""
-    df['dt'] = df['date_found'].apply(parse_date)
-    df = df.dropna(subset=['dt'])
-    
+    if df.empty:
+        return df.copy()
+
+    df = df.copy()
+    df["dt"] = df["date_found"].apply(parse_date)
+    df = df.dropna(subset=["dt"]).copy()
+    if df.empty:
+        return df
+
     # Cyclic features for day of year
-    df['day_of_year'] = df['dt'].dt.dayofyear
-    df['sin_day'] = np.sin(2 * np.pi * df['day_of_year'] / 365.0)
-    df['cos_day'] = np.cos(2 * np.pi * df['day_of_year'] / 365.0)
-    
+    df["day_of_year"] = df["dt"].dt.dayofyear
+    df["sin_day"] = np.sin(2 * np.pi * df["day_of_year"] / 365.0)
+    df["cos_day"] = np.cos(2 * np.pi * df["day_of_year"] / 365.0)
+
     # Month
-    df['month'] = df['dt'].dt.month
-    
+    df["month"] = df["dt"].dt.month
+
     return df
 
-def train_model(db_name=None, model_file=None):
-    """Train the model and save it."""
-    if db_name is None:
-        db_name = DB_NAME
-    if model_file is None:
-        model_file = MODEL_FILE
-    print("Fetching data...")
-    df = get_data(db_name=db_name)
-    
-    if len(df) < 10:
-        print("Not enough data to train model.")
-        return False
 
-    print(f"Training on {len(df)} records...")
+def _build_model_bundle(db_name):
+    df = get_data(db_name=db_name)
+    if len(df) < MIN_TRAINING_ROWS:
+        return None
+
     df = prepare_features(df)
-    
+    if len(df) < MIN_TRAINING_ROWS:
+        return None
+
     # Target encoding
     le = LabelEncoder()
-    df['target'] = le.fit_transform(df['location_normalized'])
-    
-    X = df[['sin_day', 'cos_day', 'month']]
-    y = df['target']
-    
+    df["target"] = le.fit_transform(df["location_normalized"])
+
+    X = df[["sin_day", "cos_day", "month"]]
+    y = df["target"]
+
     clf = RandomForestClassifier(n_estimators=100, random_state=42)
     clf.fit(X, y)
-    
-    # Save model and encoder
-    with open(model_file, 'wb') as f:
-        pickle.dump({'model': clf, 'encoder': le}, f)
-        
-    print("Model trained and saved.")
-    return True
+
+    return {"model": clf, "encoder": le}
+
+
+@lru_cache(maxsize=8)
+def _get_cached_model_bundle(db_name, db_mtime_ns):
+    return _build_model_bundle(db_name)
+
+
+def clear_model_cache():
+    _get_cached_model_bundle.cache_clear()
+
+
+def train_model(db_name=None):
+    """Train and return the in-memory model bundle."""
+    resolved_db_name = db_name or DB_NAME
+    return _build_model_bundle(resolved_db_name)
+
+
+def get_model_bundle(db_name=None):
+    resolved_db_name = db_name or DB_NAME
+    if not os.path.exists(resolved_db_name):
+        return None
+
+    try:
+        db_mtime_ns = os.stat(resolved_db_name).st_mtime_ns
+    except OSError:
+        return None
+
+    return _get_cached_model_bundle(resolved_db_name, db_mtime_ns)
+
 
 def predict_today():
     """Predict top 3 locations for today."""
-    if not os.path.exists(MODEL_FILE):
-        print("Model not found. Training now...")
-        if not train_model():
-            return []
-            
-    with open(MODEL_FILE, 'rb') as f:
-        data = pickle.load(f)
-        clf = data['model']
-        le = data['encoder']
-        
+    data = get_model_bundle()
+    if not data:
+        return []
+
+    clf = data["model"]
+    le = data["encoder"]
+
     today = datetime.now()
     day_of_year = today.timetuple().tm_yday
     sin_day = np.sin(2 * np.pi * day_of_year / 365.0)
     cos_day = np.cos(2 * np.pi * day_of_year / 365.0)
     month = today.month
-    
-    X_new = pd.DataFrame([[sin_day, cos_day, month]], columns=['sin_day', 'cos_day', 'month'])
-    
+
+    X_new = pd.DataFrame([[sin_day, cos_day, month]], columns=["sin_day", "cos_day", "month"])
+
     # Get probabilities
     probs = clf.predict_proba(X_new)[0]
-    
+
     # Get top 3 indices
-    top_3_idx = probs.argsort()[-3:][::-1]
-    
+    top_count = min(MAX_PREDICTIONS, len(probs))
+    top_3_idx = probs.argsort()[-top_count:][::-1]
+
     predictions = []
     for idx in top_3_idx:
         location = le.inverse_transform([idx])[0]
         probability = probs[idx]
         predictions.append({
-            'location': location,
-            'probability': round(probability * 100, 1)
+            "location": location,
+            "probability": round(probability * 100, 1)
         })
-        
+
     return predictions
+
 
 def get_seasonality_score():
     """Get a simple seasonality score based on historical finds for this month."""
@@ -141,19 +175,22 @@ def get_seasonality_score():
         return 0
 
     current_month = datetime.now().month
-    
-    month_counts = df['month'].value_counts()
+
+    month_counts = df["month"].value_counts()
     this_month_count = int(month_counts.get(current_month, 0))
-    
+
     # Average finds per month (uniform distribution) would be Total / 12
     avg_per_month = total / 12
-    
+
     # Score: Ratio of this month's finds to average
-    score = (this_month_count / avg_per_month) * 5 # Scale to 0-10 roughly
-    
+    score = (this_month_count / avg_per_month) * 5  # Scale to 0-10 roughly
+
     return min(round(score, 1), 10)
 
+
 if __name__ == "__main__":
-    train_model()
-    print("\nPrediction for today:")
-    print(predict_today())
+    if train_model():
+        print("\nPrediction for today:")
+        print(predict_today())
+    else:
+        print("Not enough data to train the forecast model.")
