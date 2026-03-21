@@ -1,6 +1,5 @@
 import sqlite3
 import sys
-from datetime import datetime as real_datetime
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -91,7 +90,7 @@ def test_location_detail_handles_legacy_schema_without_image_url(tmp_path, monke
     assert context['images'] == []
 
 
-def test_get_seasonality_score_ignores_blank_dates(tmp_path, monkeypatch):
+def test_build_forecast_artifact_ignores_blank_dates_for_seasonality(tmp_path):
     db_path = tmp_path / 'seasonality.db'
     create_finds_db(db_path, include_image_url=True)
 
@@ -122,19 +121,18 @@ def test_get_seasonality_score_ignores_blank_dates(tmp_path, monkeypatch):
             url='',
             image_url='',
         )
+    artifact = ml_predictor.build_forecast_artifact(
+        db_name=str(db_path),
+        total_records=62,
+        latest_source_date='2025-12-15',
+        generated_at='2026-03-21T00:00:00Z',
+    )
 
-    class FakeDatetime(real_datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return cls(2026, 7, 15)
-
-    monkeypatch.setattr(ml_predictor, 'DB_NAME', str(db_path))
-    monkeypatch.setattr(ml_predictor, 'datetime', FakeDatetime)
-
-    assert ml_predictor.get_seasonality_score() == 5.0
+    assert artifact['source']['training_rows'] == 12
+    assert artifact['seasonality_by_month']['7'] == 5.0
 
 
-def test_predict_today_trains_in_memory_without_persisted_model(tmp_path, monkeypatch):
+def test_build_forecast_artifact_preserves_normalized_prediction_locations(tmp_path):
     db_path = tmp_path / 'forecast.db'
     create_finds_db(db_path, include_image_url=True)
 
@@ -151,16 +149,19 @@ def test_predict_today_trains_in_memory_without_persisted_model(tmp_path, monkey
             url='',
             image_url='',
         )
-
-    monkeypatch.setattr(ml_predictor, 'DB_NAME', str(db_path))
-
-    predictions = ml_predictor.predict_today()
+    artifact = ml_predictor.build_forecast_artifact(
+        db_name=str(db_path),
+        total_records=12,
+        latest_source_date='2025-07-12',
+        generated_at='2026-03-21T00:00:00Z',
+    )
+    predictions = artifact['predictions_by_day']['182']
 
     assert predictions
     assert {prediction['location'] for prediction in predictions} <= {"Rodman's Hollow", "Clay Head Trail"}
 
 
-def test_predict_today_returns_empty_when_training_data_is_insufficient(tmp_path, monkeypatch):
+def test_build_forecast_artifact_returns_empty_predictions_when_training_data_is_insufficient(tmp_path):
     db_path = tmp_path / 'small.db'
     create_finds_db(db_path, include_image_url=True)
 
@@ -177,46 +178,43 @@ def test_predict_today_returns_empty_when_training_data_is_insufficient(tmp_path
             url='',
             image_url='',
         )
+    artifact = ml_predictor.build_forecast_artifact(
+        db_name=str(db_path),
+        total_records=3,
+        latest_source_date='2025-07-03',
+        generated_at='2026-03-21T00:00:00Z',
+    )
 
-    monkeypatch.setattr(ml_predictor, 'DB_NAME', str(db_path))
-
-    assert ml_predictor.predict_today() == []
+    assert all(predictions == [] for predictions in artifact['predictions_by_day'].values())
 
 
-def test_predict_today_reuses_cached_model_for_same_db(tmp_path, monkeypatch):
-    db_path = tmp_path / 'cached.db'
+def test_build_forecast_artifact_includes_day_366(tmp_path):
+    db_path = tmp_path / 'leap.db'
     create_finds_db(db_path, include_image_url=True)
 
     for idx in range(12):
         insert_find(
             db_path,
-            id=f'cached-{idx}',
+            id=f'leap-{idx}',
             year='2025',
             float_number=str(idx + 1),
             finder='Tester',
-            location_raw='rodman' if idx % 3 else 'clayhead',
+            location_raw='rodman' if idx % 2 == 0 else 'clayhead',
             location_normalized='unused',
-            date_found=f'2025-08-{(idx % 12) + 1:02d}',
+            date_found=f'2025-12-{(idx % 12) + 1:02d}',
             url='',
             image_url='',
         )
 
-    class CountingForest(ml_predictor.RandomForestClassifier):
-        fit_calls = 0
+    artifact = ml_predictor.build_forecast_artifact(
+        db_name=str(db_path),
+        total_records=12,
+        latest_source_date='2025-12-12',
+        generated_at='2026-03-21T00:00:00Z',
+    )
 
-        def fit(self, X, y, sample_weight=None):
-            type(self).fit_calls += 1
-            return super().fit(X, y, sample_weight=sample_weight)
-
-    monkeypatch.setattr(ml_predictor, 'DB_NAME', str(db_path))
-    monkeypatch.setattr(ml_predictor, 'RandomForestClassifier', CountingForest)
-
-    first = ml_predictor.predict_today()
-    second = ml_predictor.predict_today()
-
-    assert first
-    assert second
-    assert CountingForest.fit_calls == 1
+    assert '366' in artifact['predictions_by_day']
+    assert isinstance(artifact['predictions_by_day']['366'], list)
 
 
 def test_index_uses_unique_float_counts_for_all_years_unreported(tmp_path, monkeypatch, capture_templates):

@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import lru_cache
 
 import numpy as np
@@ -13,6 +13,7 @@ from analyzer import normalize_location
 DB_NAME = "floats.db"
 MAX_PREDICTIONS = 3
 MIN_TRAINING_ROWS = 10
+REFERENCE_LEAP_YEAR = 2024
 
 
 def _empty_training_frame():
@@ -47,7 +48,7 @@ def parse_date(date_str):
     """Parse date string to datetime object."""
     formats = [
         "%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y",
-        "%B %d, %Y", "%b %d, %Y", "%B %Y", "%b %Y"
+        "%B %d, %Y", "%b %d, %Y", "%B %Y", "%b %Y",
     ]
     for fmt in formats:
         try:
@@ -68,37 +69,47 @@ def prepare_features(df):
     if df.empty:
         return df
 
-    # Cyclic features for day of year
+    # Cyclic features for day of year.
     df["day_of_year"] = df["dt"].dt.dayofyear
     df["sin_day"] = np.sin(2 * np.pi * df["day_of_year"] / 365.0)
     df["cos_day"] = np.cos(2 * np.pi * df["day_of_year"] / 365.0)
-
-    # Month
     df["month"] = df["dt"].dt.month
-
     return df
 
 
+def build_seasonality_by_month(df):
+    scores = {str(month): 0 for month in range(1, 13)}
+    total = len(df)
+    if total == 0:
+        return scores
+
+    month_counts = df["month"].value_counts()
+    avg_per_month = total / 12
+    for month in range(1, 13):
+        this_month_count = int(month_counts.get(month, 0))
+        score = (this_month_count / avg_per_month) * 5
+        scores[str(month)] = min(round(score, 1), 10)
+    return scores
+
+
+def _build_model_bundle_from_frame(df):
+    if len(df) < MIN_TRAINING_ROWS:
+        return None
+
+    working = df.copy()
+    encoder = LabelEncoder()
+    working["target"] = encoder.fit_transform(working["location_normalized"])
+
+    features = working[["sin_day", "cos_day", "month"]]
+    targets = working["target"]
+
+    model = RandomForestClassifier(n_estimators=100, random_state=42)
+    model.fit(features, targets)
+    return {"model": model, "encoder": encoder}
+
+
 def _build_model_bundle(db_name):
-    df = get_data(db_name=db_name)
-    if len(df) < MIN_TRAINING_ROWS:
-        return None
-
-    df = prepare_features(df)
-    if len(df) < MIN_TRAINING_ROWS:
-        return None
-
-    # Target encoding
-    le = LabelEncoder()
-    df["target"] = le.fit_transform(df["location_normalized"])
-
-    X = df[["sin_day", "cos_day", "month"]]
-    y = df["target"]
-
-    clf = RandomForestClassifier(n_estimators=100, random_state=42)
-    clf.fit(X, y)
-
-    return {"model": clf, "encoder": le}
+    return _build_model_bundle_from_frame(prepare_features(get_data(db_name=db_name)))
 
 
 @lru_cache(maxsize=8)
@@ -129,68 +140,80 @@ def get_model_bundle(db_name=None):
     return _get_cached_model_bundle(resolved_db_name, db_mtime_ns)
 
 
-def predict_today():
-    """Predict top 3 locations for today."""
-    data = get_model_bundle()
-    if not data:
+def _predict_for_day(model_bundle, day_of_year, month):
+    if not model_bundle:
         return []
 
-    clf = data["model"]
-    le = data["encoder"]
+    model = model_bundle["model"]
+    encoder = model_bundle["encoder"]
 
-    today = datetime.now()
-    day_of_year = today.timetuple().tm_yday
     sin_day = np.sin(2 * np.pi * day_of_year / 365.0)
     cos_day = np.cos(2 * np.pi * day_of_year / 365.0)
-    month = today.month
+    feature_frame = pd.DataFrame([[sin_day, cos_day, month]], columns=["sin_day", "cos_day", "month"])
+    probabilities = model.predict_proba(feature_frame)[0]
 
-    X_new = pd.DataFrame([[sin_day, cos_day, month]], columns=["sin_day", "cos_day", "month"])
-
-    # Get probabilities
-    probs = clf.predict_proba(X_new)[0]
-
-    # Get top 3 indices
-    top_count = min(MAX_PREDICTIONS, len(probs))
-    top_3_idx = probs.argsort()[-top_count:][::-1]
+    top_count = min(MAX_PREDICTIONS, len(probabilities))
+    top_indices = probabilities.argsort()[-top_count:][::-1]
 
     predictions = []
-    for idx in top_3_idx:
-        location = le.inverse_transform([idx])[0]
-        probability = probs[idx]
-        predictions.append({
-            "location": location,
-            "probability": round(probability * 100, 1)
-        })
-
+    for idx in top_indices:
+        predictions.append(
+            {
+                "location": encoder.inverse_transform([idx])[0],
+                "probability": round(float(probabilities[idx]) * 100, 1),
+            }
+        )
     return predictions
+
+
+def _reference_month_for_day(day_of_year):
+    reference_date = datetime(REFERENCE_LEAP_YEAR, 1, 1) + timedelta(days=day_of_year - 1)
+    return reference_date.month
+
+
+def build_predictions_by_day(model_bundle):
+    predictions = {}
+    for day_of_year in range(1, 367):
+        predictions[str(day_of_year)] = _predict_for_day(
+            model_bundle,
+            day_of_year=day_of_year,
+            month=_reference_month_for_day(day_of_year),
+        )
+    return predictions
+
+
+def build_forecast_artifact(db_name=None, *, total_records=0, latest_source_date="", generated_at=None):
+    resolved_db_name = db_name or DB_NAME
+    prepared = prepare_features(get_data(db_name=resolved_db_name))
+    model_bundle = _build_model_bundle_from_frame(prepared)
+
+    return {
+        "generated_at": generated_at or datetime.utcnow().replace(microsecond=0).isoformat() + "Z",
+        "source": {
+            "total_records": total_records,
+            "latest_source_date": latest_source_date,
+            "training_rows": int(len(prepared)),
+        },
+        "seasonality_by_month": build_seasonality_by_month(prepared),
+        "predictions_by_day": build_predictions_by_day(model_bundle),
+    }
+
+
+def predict_today():
+    """Predict top 3 locations for today."""
+    today = datetime.now()
+    return _predict_for_day(get_model_bundle(), today.timetuple().tm_yday, today.month)
 
 
 def get_seasonality_score():
     """Get a simple seasonality score based on historical finds for this month."""
-    df = get_data()
-    df = prepare_features(df)
-    total = len(df)
-
-    if total == 0:
-        return 0
-
-    current_month = datetime.now().month
-
-    month_counts = df["month"].value_counts()
-    this_month_count = int(month_counts.get(current_month, 0))
-
-    # Average finds per month (uniform distribution) would be Total / 12
-    avg_per_month = total / 12
-
-    # Score: Ratio of this month's finds to average
-    score = (this_month_count / avg_per_month) * 5  # Scale to 0-10 roughly
-
-    return min(round(score, 1), 10)
+    today = datetime.now()
+    seasonality = build_seasonality_by_month(prepare_features(get_data()))
+    return seasonality.get(str(today.month), 0)
 
 
 if __name__ == "__main__":
-    if train_model():
-        print("\nPrediction for today:")
-        print(predict_today())
-    else:
-        print("Not enough data to train the forecast model.")
+    artifact = build_forecast_artifact()
+    today = datetime.now()
+    print("\nPrediction for today:")
+    print(artifact["predictions_by_day"][str(today.timetuple().tm_yday)])

@@ -18,6 +18,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from analyzer import normalize_location, split_extreme_float_numbers  # noqa: E402
+import ml_predictor  # noqa: E402
 from scripts.validation_pipeline import (  # noqa: E402
     DEFAULT_REPORT_CSV as VALIDATION_REPORT_CSV,
     DEFAULT_REPORT_JSON as VALIDATION_REPORT_JSON,
@@ -41,7 +42,12 @@ GENERATED_DIR = REPO_ROOT / "generated"
 MANIFEST_PATH = GENERATED_DIR / "refresh_manifest.json"
 SUMMARY_PATH = GENERATED_DIR / "refresh_summary.md"
 AUDIT_PATH = GENERATED_DIR / "legacy_row_audit.json"
+FORECAST_PATH = GENERATED_DIR / "forecast_artifact.json"
 REPORT_DATE_FORMAT = "%B %d, %Y at %I:%M %p %Z"
+
+
+class SourceAccessDeniedError(RuntimeError):
+    """Raised when the upstream site returns a CDN/WAF access denied page."""
 
 
 def make_session() -> requests.Session:
@@ -84,6 +90,32 @@ def load_json(path: Path, default: Any) -> Any:
         return default
     with path.open(encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def is_access_denied_html(html: str) -> bool:
+    normalized = " ".join((html or "").lower().split())
+    if "access denied" not in normalized:
+        return False
+    denial_signals = (
+        "you don't have permission to access",
+        "reference #",
+        "errors.edgesuite.net",
+        "access denied",
+    )
+    return any(signal in normalized for signal in denial_signals)
+
+
+def assert_access_allowed_html(html: str, *, context: str) -> None:
+    if is_access_denied_html(html):
+        raise SourceAccessDeniedError(f"Source access denied while fetching {context}.")
+
+
+def validate_source_response(response: requests.Response, *, context: str) -> str:
+    if response.status_code == 403:
+        raise SourceAccessDeniedError(f"Source access denied while fetching {context}.")
+    response.raise_for_status()
+    assert_access_allowed_html(response.text, context=context)
+    return response.text
 
 
 def canonicalize_date(date_value: str | None) -> str:
@@ -186,6 +218,14 @@ def discover_year_filters_from_html(html: str) -> dict[str, str]:
         if category_id:
             year_filters[year_match.group(1)] = category_id
 
+    if year_filters:
+        return dict(sorted(year_filters.items(), key=lambda item: item[0], reverse=True))
+
+    script_pairs = re.findall(r'"label":"(20\d{2})","value":"(\d+)"', html)
+    if script_pairs:
+        for year, category_id in script_pairs:
+            year_filters[year] = category_id
+
     return dict(sorted(year_filters.items(), key=lambda item: item[0], reverse=True))
 
 
@@ -193,8 +233,9 @@ def discover_year_filters(session: requests.Session, page_html: str | None = Non
     html = page_html
     if html is None:
         response = session.get(BASE_URL, timeout=30)
-        response.raise_for_status()
-        html = response.text
+        html = validate_source_response(response, context=BASE_URL)
+    else:
+        assert_access_allowed_html(html, context=BASE_URL)
 
     filters = discover_year_filters_from_html(html)
     if filters:
@@ -210,6 +251,7 @@ def discover_year_filters(session: requests.Session, page_html: str | None = Non
         page = browser.new_page()
         page.goto(BASE_URL, wait_until="networkidle", timeout=60000)
         html = page.content()
+        assert_access_allowed_html(html, context=BASE_URL)
         browser.close()
 
     filters = discover_year_filters_from_html(html)
@@ -313,12 +355,14 @@ def scrape_records_with_playwright(
         browser = playwright.chromium.launch(headless=True)
         page = browser.new_page()
         page.goto(BASE_URL, wait_until="networkidle", timeout=60000)
+        assert_access_allowed_html(page.content(), context=BASE_URL)
         years = extract_years_from_label_texts(page.locator("label").all_text_contents())
 
         for year in years:
             print(f"Scraping rendered archive for {year}...", flush=True)
             seen_ids: set[str] = set()
             page.goto(BASE_URL, wait_until="networkidle", timeout=60000)
+            assert_access_allowed_html(page.content(), context=f"{BASE_URL} [{year}]")
             label = page.locator(f"xpath=//label[starts-with(normalize-space(.), '{year}')]").first
             if label.count() == 0:
                 print(f"Skipping {year}: label not found.", flush=True)
@@ -332,15 +376,13 @@ def scrape_records_with_playwright(
                 try:
                     page.wait_for_selector('.item[data-type="events"]', timeout=15000)
                 except PlaywrightTimeoutError:
+                    assert_access_allowed_html(page.content(), context=f"{BASE_URL} [{year}]")
                     cached_records = sort_records(cached_by_year.get(year, [])) if cached_by_year else []
                     if cached_records:
-                        print(
-                            f"No rendered results for {year}; using {len(cached_records)} cached records.",
-                            flush=True,
+                        raise RuntimeError(
+                            f"Rendered archive for {year} returned no results; refusing cached fallback while source access is unstable."
                         )
-                        all_records.extend(cached_records)
-                    else:
-                        print(f"No rendered results for {year}; skipping year.", flush=True)
+                    print(f"No rendered results for {year}; skipping year.", flush=True)
                     break
                 page.wait_for_timeout(1000)
                 page_records = collect_rendered_page_records(page, year, seen_ids)
@@ -358,6 +400,7 @@ def scrape_records_with_playwright(
                 next_btn.click()
                 page.wait_for_load_state("networkidle")
                 page.wait_for_timeout(1000)
+                assert_access_allowed_html(page.content(), context=f"{BASE_URL} [{year}]")
 
             print(f"Collected {len(seen_ids)} rendered records for {year}.", flush=True)
 
@@ -423,8 +466,8 @@ def scrape_year_records(session: requests.Session, year: str, category_id: str) 
             "sort": "date",
         }
         response = session.get(BASE_URL, params=params, timeout=30)
-        response.raise_for_status()
-        page_records, derived_next_skip = parse_listing_page(response.text, year)
+        html = validate_source_response(response, context=f"{BASE_URL}?categories={category_id}&skip={next_skip}")
+        page_records, derived_next_skip = parse_listing_page(html, year)
         new_records = [record for record in page_records if record["id"] not in seen_ids]
         if not new_records:
             break
@@ -439,6 +482,44 @@ def scrape_year_records(session: requests.Session, year: str, category_id: str) 
         next_skip = derived_next_skip
 
     return sort_records(year_records)
+
+
+def scrape_records(
+    session: requests.Session,
+    cached_by_year: dict[str, list[dict[str, str]]] | None = None,
+) -> list[dict[str, str]]:
+    try:
+        year_filters = discover_year_filters(session)
+    except SourceAccessDeniedError:
+        raise
+    except Exception:
+        return scrape_records_with_playwright(cached_by_year=cached_by_year)
+
+    all_records: list[dict[str, str]] = []
+    for year, category_id in year_filters.items():
+        print(f"Scraping request archive for {year}...", flush=True)
+        try:
+            year_records = scrape_year_records(session, year, category_id)
+        except SourceAccessDeniedError:
+            raise
+        except Exception:
+            year_records = []
+
+        if year_records:
+            all_records.extend(year_records)
+            print(f"Collected {len(year_records)} request records for {year}.", flush=True)
+            continue
+
+        cached_records = sort_records(cached_by_year.get(year, [])) if cached_by_year else []
+        if cached_records:
+            raise RuntimeError(
+                f"Request archive for {year} returned no results; refusing cached fallback while source access is unstable."
+            )
+        print(f"No request results for {year}; skipping year.", flush=True)
+
+    if all_records:
+        return sort_records(all_records)
+    return scrape_records_with_playwright(cached_by_year=cached_by_year)
 
 
 def extract_date_from_detail_html(html: str) -> str:
@@ -480,8 +561,8 @@ def fetch_detail_date(session: requests.Session, url: str) -> str:
     if not url:
         return ""
     response = session.get(url, timeout=30)
-    response.raise_for_status()
-    return extract_date_from_detail_html(response.text)
+    html = validate_source_response(response, context=url)
+    return extract_date_from_detail_html(html)
 
 
 def load_existing_canonical_records() -> dict[str, dict[str, str]]:
@@ -622,9 +703,24 @@ def get_legacy_rows(db_path: Path, canonical_ids: set[str]) -> list[dict[str, An
     return legacy_rows
 
 
+def build_forecast_summary(forecast_artifact: dict[str, Any]) -> dict[str, int]:
+    predictions_by_day = forecast_artifact.get("predictions_by_day", {})
+    populated_prediction_days = 0
+    if isinstance(predictions_by_day, dict):
+        populated_prediction_days = sum(1 for predictions in predictions_by_day.values() if predictions)
+
+    source = forecast_artifact.get("source", {})
+    training_rows = source.get("training_rows", 0) if isinstance(source, dict) else 0
+    return {
+        "training_rows": int(training_rows),
+        "populated_prediction_days": int(populated_prediction_days),
+    }
+
+
 def build_manifest(
     records: list[dict[str, str]],
     validation_summary: dict[str, Any] | None = None,
+    forecast_summary: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     counts_by_year = Counter(record["year"] for record in records)
     valid_dates = [record["date_found"] for record in records if record["date_found"]]
@@ -645,6 +741,11 @@ def build_manifest(
             "invalid_rows": validation_summary.get("invalid_rows", 0),
             "suspicious_rows": validation_summary.get("suspicious_rows", 0),
             "flagged_rows": validation_summary.get("flagged_rows", 0),
+        }
+    if forecast_summary:
+        manifest["forecast"] = {
+            "training_rows": forecast_summary.get("training_rows", 0),
+            "populated_prediction_days": forecast_summary.get("populated_prediction_days", 0),
         }
     return manifest
 
@@ -682,14 +783,62 @@ def write_summary(manifest: dict[str, Any], legacy_rows: list[dict[str, Any]]) -
                 f"- Validation report CSV: {VALIDATION_REPORT_CSV}",
             ]
         )
+    forecast = manifest.get("forecast")
+    if forecast:
+        lines.extend(
+            [
+                "",
+                "## Forecast Artifact",
+                "",
+                f"- Training rows: {forecast['training_rows']}",
+                f"- Populated prediction days: {forecast['populated_prediction_days']}/366",
+                f"- Artifact JSON: {FORECAST_PATH}",
+            ]
+        )
     SUMMARY_PATH.parent.mkdir(parents=True, exist_ok=True)
     SUMMARY_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def validate_forecast_artifact(manifest: dict[str, Any], forecast_path: Path = FORECAST_PATH) -> list[str]:
+    expected_months = {str(month) for month in range(1, 13)}
+    expected_days = {str(day) for day in range(1, 367)}
+
+    if not forecast_path.exists():
+        return [f"Forecast artifact is missing: {forecast_path}"]
+
+    try:
+        forecast_artifact = load_json(forecast_path, {})
+    except json.JSONDecodeError:
+        return [f"Forecast artifact is invalid JSON: {forecast_path}"]
+
+    errors: list[str] = []
+    source = forecast_artifact.get("source", {})
+    if not isinstance(source, dict):
+        errors.append("Forecast artifact source payload is missing or invalid.")
+    else:
+        if source.get("total_records") != manifest.get("total_records"):
+            errors.append("Forecast artifact total_records does not match refresh manifest.")
+        if source.get("latest_source_date", "") != manifest.get("latest_source_date", ""):
+            errors.append("Forecast artifact latest_source_date does not match refresh manifest.")
+
+    seasonality_by_month = forecast_artifact.get("seasonality_by_month", {})
+    if not isinstance(seasonality_by_month, dict) or set(seasonality_by_month) != expected_months:
+        errors.append("Forecast artifact seasonality_by_month must contain months 1..12.")
+
+    predictions_by_day = forecast_artifact.get("predictions_by_day", {})
+    if not isinstance(predictions_by_day, dict) or set(predictions_by_day) != expected_days:
+        errors.append("Forecast artifact predictions_by_day must contain days 1..366.")
+    elif any(not isinstance(predictions, list) for predictions in predictions_by_day.values()):
+        errors.append("Forecast artifact predictions_by_day entries must be lists.")
+
+    return errors
 
 
 def validate_outputs(
     records: list[dict[str, str]],
     db_path: Path = DB_PATH,
     manifest_path: Path = MANIFEST_PATH,
+    forecast_path: Path = FORECAST_PATH,
 ) -> list[str]:
     errors: list[str] = []
 
@@ -723,6 +872,7 @@ def validate_outputs(
         latest_date = max(valid_dates) if valid_dates else ""
         if manifest.get("latest_source_date", "") != latest_date:
             errors.append("Refresh manifest latest_source_date does not match canonical JSON.")
+        errors.extend(validate_forecast_artifact(manifest, forecast_path=forecast_path))
 
     for year in {record["year"] for record in records}:
         snapshot_path = SCRAPED_DATA_DIR / f"floats_{year}.json"
@@ -739,7 +889,14 @@ def refresh_data() -> int:
     existing_by_id = load_existing_canonical_records()
     cached_by_year = group_records_by_year(list(existing_by_id.values()))
     session = make_session()
-    all_records = scrape_records_with_playwright(cached_by_year=cached_by_year)
+    try:
+        all_records = scrape_records(session, cached_by_year=cached_by_year)
+    except SourceAccessDeniedError as exc:
+        print(f"ERROR: {exc}")
+        return 1
+    except RuntimeError as exc:
+        print(f"ERROR: {exc}")
+        return 1
 
     if not all_records:
         print("ERROR: The source site returned zero records. Existing artifacts were left unchanged.")
@@ -775,7 +932,21 @@ def refresh_data() -> int:
         default_source="blockislandinfo.com",
     )
 
-    manifest = build_manifest(canonical_records, validation_summary=validation_summary)
+    valid_dates = [record["date_found"] for record in canonical_records if record["date_found"]]
+    forecast_artifact = ml_predictor.build_forecast_artifact(
+        db_name=str(DB_PATH),
+        total_records=len(canonical_records),
+        latest_source_date=max(valid_dates) if valid_dates else "",
+        generated_at=iso_now(),
+    )
+    write_json(FORECAST_PATH, forecast_artifact)
+
+    forecast_summary = build_forecast_summary(forecast_artifact)
+    manifest = build_manifest(
+        canonical_records,
+        validation_summary=validation_summary,
+        forecast_summary=forecast_summary,
+    )
     write_json(MANIFEST_PATH, manifest)
 
     audit_payload = {

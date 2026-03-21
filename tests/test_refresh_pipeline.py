@@ -8,14 +8,18 @@ from scripts.refresh_data import (
     AUDIT_PATH,
     CANONICAL_KEYS,
     MANIFEST_PATH,
+    SourceAccessDeniedError,
     build_manifest,
     canonicalize_date,
+    discover_year_filters,
     discover_year_filters_from_html,
     exclude_extreme_float_number_records,
     extract_date_from_detail_html,
+    is_access_denied_html,
     parse_listing_page,
     parse_title,
     rebuild_database,
+    scrape_records,
     validate_outputs,
     write_json,
     write_per_year_snapshots,
@@ -52,9 +56,57 @@ def sample_records() -> list[dict[str, str]]:
     ]
 
 
+def sample_forecast_artifact(*, total_records: int = 2, latest_source_date: str = "2026-06-12") -> dict[str, object]:
+    return {
+        "generated_at": "2026-03-21T00:00:00Z",
+        "source": {
+            "total_records": total_records,
+            "latest_source_date": latest_source_date,
+            "training_rows": 2,
+        },
+        "seasonality_by_month": {str(month): 0 for month in range(1, 13)},
+        "predictions_by_day": {str(day): [] for day in range(1, 367)},
+    }
+
+
 def test_discover_year_filters_from_html():
     filters = discover_year_filters_from_html(load_fixture("found_floats_page.html"))
     assert filters == {"2026": "31", "2025": "24"}
+
+
+def test_discover_year_filters_from_script_payload():
+    html = """
+    <script>
+    var yearFilters = [{"label":"2024","value":"23"},{"label":"2025","value":"24"}];
+    </script>
+    """
+    filters = discover_year_filters_from_html(html)
+    assert filters == {"2025": "24", "2024": "23"}
+
+
+def test_is_access_denied_html_detects_edgesuite_block_page():
+    html = """
+    <html><body>
+    <h1>Access Denied</h1>
+    <p>You don't have permission to access "http://www.blockislandinfo.com/" on this server.</p>
+    <p>Reference #18.deadbeef</p>
+    <a href="https://errors.edgesuite.net/18.deadbeef">details</a>
+    </body></html>
+    """
+    assert is_access_denied_html(html) is True
+
+
+def test_discover_year_filters_rejects_access_denied_html():
+    blocked_html = """
+    <html><body>
+    <h1>Access Denied</h1>
+    <p>You don't have permission to access "http://www.blockislandinfo.com/" on this server.</p>
+    <p>Reference #18.deadbeef</p>
+    </body></html>
+    """
+
+    with pytest.raises(SourceAccessDeniedError):
+        discover_year_filters(None, page_html=blocked_html)
 
 
 def test_parse_listing_page_extracts_records_and_next_skip():
@@ -62,6 +114,14 @@ def test_parse_listing_page_extracts_records_and_next_skip():
     assert [record["id"] for record in records] == ["6001", "6000"]
     assert records[0]["url"].endswith("/event/321-alex-p/6001/")
     assert next_skip == 24
+
+
+def test_scrape_records_refuses_cached_fallback_when_year_goes_empty(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr("scripts.refresh_data.discover_year_filters", lambda session: {"2025": "24"})
+    monkeypatch.setattr("scripts.refresh_data.scrape_year_records", lambda session, year, category_id: [])
+
+    with pytest.raises(RuntimeError, match="refusing cached fallback"):
+        scrape_records(object(), cached_by_year={"2025": sample_records()})
 
 
 @pytest.mark.parametrize(
@@ -190,6 +250,7 @@ def test_validate_outputs_detects_json_db_drift(tmp_path: Path, monkeypatch: pyt
     records = sample_records()
     db_path = tmp_path / "floats.db"
     manifest_path = tmp_path / "refresh_manifest.json"
+    forecast_path = tmp_path / "forecast_artifact.json"
     snapshot_dir = tmp_path / "scraped_data"
 
     rebuild_database(records, db_path)
@@ -206,14 +267,15 @@ def test_validate_outputs_detects_json_db_drift(tmp_path: Path, monkeypatch: pyt
     conn.close()
 
     write_json(manifest_path, build_manifest(records))
+    write_json(forecast_path, sample_forecast_artifact())
     monkeypatch.setattr("scripts.refresh_data.SCRAPED_DATA_DIR", snapshot_dir)
     write_per_year_snapshots(records)
 
-    errors = validate_outputs(records, db_path=db_path, manifest_path=manifest_path)
+    errors = validate_outputs(records, db_path=db_path, manifest_path=manifest_path, forecast_path=forecast_path)
     assert any("drift detected" in error.lower() for error in errors)
 
 
-def test_validate_outputs_passes_without_model_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_validate_outputs_requires_forecast_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     records = sample_records()
     db_path = tmp_path / "floats.db"
     manifest_path = tmp_path / "refresh_manifest.json"
@@ -224,7 +286,24 @@ def test_validate_outputs_passes_without_model_artifact(tmp_path: Path, monkeypa
     monkeypatch.setattr("scripts.refresh_data.SCRAPED_DATA_DIR", snapshot_dir)
     write_per_year_snapshots(records)
 
-    assert validate_outputs(records, db_path=db_path, manifest_path=manifest_path) == []
+    errors = validate_outputs(records, db_path=db_path, manifest_path=manifest_path, forecast_path=tmp_path / "missing.json")
+    assert any("forecast artifact is missing" in error.lower() for error in errors)
+
+
+def test_validate_outputs_passes_with_forecast_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    records = sample_records()
+    db_path = tmp_path / "floats.db"
+    manifest_path = tmp_path / "refresh_manifest.json"
+    forecast_path = tmp_path / "forecast_artifact.json"
+    snapshot_dir = tmp_path / "scraped_data"
+
+    rebuild_database(records, db_path)
+    write_json(manifest_path, build_manifest(records))
+    write_json(forecast_path, sample_forecast_artifact())
+    monkeypatch.setattr("scripts.refresh_data.SCRAPED_DATA_DIR", snapshot_dir)
+    write_per_year_snapshots(records)
+
+    assert validate_outputs(records, db_path=db_path, manifest_path=manifest_path, forecast_path=forecast_path) == []
 
 
 def test_canonical_fixture_shape():

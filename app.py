@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, url_for
-import importlib
 import requests
 import datetime
 import json
@@ -15,6 +14,7 @@ app = Flask(__name__)
 DB_NAME = 'floats.db'
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 FIELD_ETIQUETTE_PATH = os.path.join(APP_ROOT, 'data', 'field_etiquette.json')
+FORECAST_ARTIFACT_PATH = os.path.join(APP_ROOT, 'generated', 'forecast_artifact.json')
 OFFICIAL_LINKS = {
     'project': 'https://www.blockislandinfo.com/glass-float-project/',
     'register': 'https://www.blockislandinfo.com/glass-float-project/register-floats/',
@@ -86,6 +86,45 @@ def load_field_etiquette():
 
 
 FIELD_ETIQUETTE = load_field_etiquette()
+
+
+def _empty_forecast_artifact():
+    return {
+        'generated_at': '',
+        'source': {
+            'total_records': 0,
+            'latest_source_date': '',
+            'training_rows': 0,
+        },
+        'seasonality_by_month': {str(month): 0 for month in range(1, 13)},
+        'predictions_by_day': {str(day): [] for day in range(1, 367)},
+    }
+
+
+@lru_cache(maxsize=4)
+def _load_forecast_artifact_cached(path, mtime_ns):
+    try:
+        with open(path, encoding='utf-8') as forecast_file:
+            return json.load(forecast_file)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Warning: using empty forecast artifact: {exc}")
+        return _empty_forecast_artifact()
+
+
+def clear_forecast_cache():
+    _load_forecast_artifact_cached.cache_clear()
+
+
+def load_forecast_artifact():
+    try:
+        mtime_ns = os.stat(FORECAST_ARTIFACT_PATH).st_mtime_ns
+    except OSError:
+        return _empty_forecast_artifact()
+    return _load_forecast_artifact_cached(FORECAST_ARTIFACT_PATH, mtime_ns)
+
+
+def get_today():
+    return datetime.date.today()
 
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME)
@@ -571,17 +610,28 @@ def location_detail(location_name):
                               ) if coords else None,
                           ))
 
-@lru_cache(maxsize=1)
-def _load_forecast_predictor():
-    return importlib.import_module('ml_predictor')
-
-
 def predict_today():
-    return _load_forecast_predictor().predict_today()
+    artifact = load_forecast_artifact()
+    predictions_by_day = artifact.get('predictions_by_day', {})
+    if not isinstance(predictions_by_day, dict):
+        return []
+
+    day_key = str(get_today().timetuple().tm_yday)
+    predictions = predictions_by_day.get(day_key, [])
+    return predictions if isinstance(predictions, list) else []
 
 
 def get_seasonality_score():
-    return _load_forecast_predictor().get_seasonality_score()
+    artifact = load_forecast_artifact()
+    seasonality_by_month = artifact.get('seasonality_by_month', {})
+    if not isinstance(seasonality_by_month, dict):
+        return 0
+
+    score = seasonality_by_month.get(str(get_today().month), 0)
+    try:
+        return float(score)
+    except (TypeError, ValueError):
+        return 0
 
 @app.route('/forecast')
 def forecast():

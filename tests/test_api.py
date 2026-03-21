@@ -1,7 +1,7 @@
 import copy
+import datetime
 import sqlite3
 from pathlib import Path
-from types import SimpleNamespace
 from urllib.parse import quote
 
 import analyzer
@@ -52,10 +52,10 @@ def clear_weather_cache():
 
 
 @pytest.fixture(autouse=True)
-def clear_forecast_module_cache():
-    app_module._load_forecast_predictor.cache_clear()
+def clear_forecast_artifact_cache():
+    app_module.clear_forecast_cache()
     yield
-    app_module._load_forecast_predictor.cache_clear()
+    app_module.clear_forecast_cache()
 
 
 @pytest.fixture
@@ -317,36 +317,50 @@ def test_forecast_route_handles_empty_predictions(sample_db: Path, monkeypatch: 
     assert "Float forecast" in text
 
 
-def test_forecast_module_loads_only_when_forecast_route_is_hit(
+def test_forecast_helpers_read_generated_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    forecast_path = tmp_path / "forecast_artifact.json"
+    artifact = {
+        "generated_at": "2026-03-21T00:00:00Z",
+        "source": {
+            "total_records": 10,
+            "latest_source_date": "2026-01-11",
+            "training_rows": 10,
+        },
+        "seasonality_by_month": {str(month): float(month) for month in range(1, 13)},
+        "predictions_by_day": {str(day): [] for day in range(1, 367)},
+    }
+    artifact["predictions_by_day"]["182"] = [
+        {"location": "Rodman's Hollow", "probability": 88.5},
+        {"location": "Clay Head Trail", "probability": 52.0},
+    ]
+    forecast_path.write_text(app_module.json.dumps(artifact), encoding="utf-8")
+
+    monkeypatch.setattr(app_module, "FORECAST_ARTIFACT_PATH", str(forecast_path))
+    monkeypatch.setattr(app_module, "get_today", lambda: datetime.date(2026, 7, 1))
+
+    assert app_module.predict_today() == artifact["predictions_by_day"]["182"]
+    assert app_module.get_seasonality_score() == 7.0
+
+
+def test_forecast_route_handles_invalid_forecast_artifact(
     sample_db: Path,
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ):
-    imported_names = []
-    predictor = SimpleNamespace(
-        predict_today=lambda: [],
-        get_seasonality_score=lambda: 0,
-    )
-    real_import_module = app_module.importlib.import_module
+    forecast_path = tmp_path / "forecast_artifact.json"
+    forecast_path.write_text("{not-json", encoding="utf-8")
 
-    def fake_import_module(name, package=None):
-        imported_names.append(name)
-        if name == "ml_predictor":
-            return predictor
-        return real_import_module(name, package)
-
+    monkeypatch.setattr(app_module, "FORECAST_ARTIFACT_PATH", str(forecast_path))
+    monkeypatch.setattr(app_module, "get_today", lambda: datetime.date(2026, 7, 1))
     monkeypatch.setattr(app_module, "get_weather_data", lambda: None)
-    monkeypatch.setattr(app_module.importlib, "import_module", fake_import_module)
 
     with app_module.app.test_client() as client:
-        index_response = client.get("/")
+        response = client.get("/forecast")
 
-        assert index_response.status_code == 200
-        assert imported_names == []
-
-        forecast_response = client.get("/forecast")
-
-    assert forecast_response.status_code == 200
-    assert imported_names == ["ml_predictor"]
+    assert response.status_code == 200
+    text = response.get_data(as_text=True)
+    assert "Float forecast" in text
+    assert "No predictions available" in text
 
 
 def test_get_weather_data_converts_noaa_response(monkeypatch: pytest.MonkeyPatch):
