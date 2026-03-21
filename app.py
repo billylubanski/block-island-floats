@@ -617,6 +617,12 @@ def service_worker():
     return response
 
 
+@app.route('/favicon.ico')
+def favicon():
+    from flask import send_from_directory
+    return send_from_directory('static', 'icon-192.png', mimetype='image/png')
+
+
 @app.route('/healthz')
 def healthcheck():
     return {'status': 'ok'}, 200

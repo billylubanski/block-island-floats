@@ -170,6 +170,14 @@ def test_healthcheck_route_returns_ok():
     assert response.get_json() == {"status": "ok"}
 
 
+def test_favicon_route_returns_icon():
+    with app_module.app.test_client() as client:
+        response = client.get("/favicon.ico")
+
+    assert response.status_code == 200
+    assert response.mimetype == "image/png"
+
+
 def test_field_route_renders_json_backed_official_guidance(sample_db: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(app_module, "get_weather_data", lambda: None)
 

@@ -1,10 +1,11 @@
-const CACHE_NAME = 'float-tracker-v4';
+const CACHE_NAME = 'float-tracker-v5';
 const ASSETS_TO_CACHE = [
     '/',
     '/field',
     '/about',
     '/search',
     '/forecast',
+    '/favicon.ico',
     '/static/site.css',
     '/static/dashboard-map.js',
     '/static/field-mode.css',
