@@ -13,7 +13,15 @@ app = Flask(__name__)
 DB_NAME = 'floats.db'
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 FIELD_ETIQUETTE_PATH = os.path.join(APP_ROOT, 'data', 'field_etiquette.json')
-REPORT_FIND_URL = 'https://www.blockislandinfo.com/glass-float-project/'
+OFFICIAL_LINKS = {
+    'project': 'https://www.blockislandinfo.com/glass-float-project/',
+    'register': 'https://www.blockislandinfo.com/glass-float-project/register-floats/',
+    'found': 'https://www.blockislandinfo.com/glass-float-project/found-floats/',
+    'tips': 'https://www.blockislandinfo.com/glass-float-project/tips-and-etiquette/',
+    'greenway': 'https://www.blockislandinfo.com/glass-float-project/greenway-trail-guide/',
+    'archives': 'https://www.blockislandinfo.com/glass-float-project/found-float-archives/',
+}
+REPORT_FIND_URL = OFFICIAL_LINKS['register']
 DEFAULT_FIELD_ETIQUETTE = {
     'title': 'Field Etiquette',
     'intro': 'Official float-hunting guidance for use while you are out on the trail.',
@@ -28,6 +36,15 @@ DEFAULT_FIELD_ETIQUETTE = {
         'Look up. Floats may be hidden in trees.',
         'One float per person per year.',
     ],
+    'notes_heading': 'Field reminders',
+    'notes': [
+        'Most official hides are on beaches or marked Greenway trails, with a smaller number in other public places.',
+        'Trail hides sit close to the edge of established paths. Do not cut a new route into the brush for a promising spot.',
+        'Leave no trace and carry out any trash you notice while hunting.',
+        'Check for ticks and poison ivy after longer walks.',
+        'If you find a second float, leave it in place or re-hide it in an approved area so someone else can discover it.',
+        'Register your float so the official archive can attach your find, photo, and story to the season record.',
+    ],
     'restricted_heading': 'Floats are NOT hidden on',
     'restricted_locations': [
         'Dunes or up bluffs',
@@ -38,7 +55,23 @@ DEFAULT_FIELD_ETIQUETTE = {
         'Flowerbeds',
         'The Statue of Rebecca',
     ],
+    'resources_heading': 'Official resources',
+    'resources': [
+        {
+            'label': 'Register floats',
+            'href': OFFICIAL_LINKS['register'],
+        },
+        {
+            'label': 'Greenway trail guide',
+            'href': OFFICIAL_LINKS['greenway'],
+        },
+    ],
 }
+
+
+@app.context_processor
+def inject_official_links():
+    return {'official_links': OFFICIAL_LINKS}
 
 
 def load_field_etiquette():
@@ -324,6 +357,7 @@ def search():
             'finder': row['finder'] or 'Unknown finder',
             'location_name': location_name,
             'location_raw': row['location_raw'],
+            'report_url': row['url'],
         })
     conn.close()
     return render_template(

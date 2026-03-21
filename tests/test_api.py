@@ -1,3 +1,4 @@
+import copy
 import sqlite3
 from pathlib import Path
 from urllib.parse import quote
@@ -139,9 +140,93 @@ def test_about_route_renders_project_copy():
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
-    assert "Built for hunters who like evidence before mileage" in text
-    assert "What this app is tracking" in text
-    assert "How the experience is organized" in text
+    assert "How the Block Island hunt started" in text
+    assert "How the official project works" in text
+    assert "Use each source for the right job" in text
+    assert "Open Greenway guide" in text
+    assert "2011" in text
+    assert "2023" not in text
+    assert "2025" not in text
+
+
+def test_field_route_renders_json_backed_official_guidance(sample_db: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(app_module, "get_weather_data", lambda: None)
+
+    with app_module.app.test_client() as client:
+        response = client.get("/field")
+
+    assert response.status_code == 200
+    text = response.get_data(as_text=True)
+    assert "Field reminders" in text
+    assert "Register your float so the official archive can attach your find" in text
+    assert "Greenway trail guide" in text
+    assert app_module.OFFICIAL_LINKS["register"] in text
+
+
+def test_field_route_renders_fallback_guidance_payload(sample_db: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(app_module, "get_weather_data", lambda: None)
+    monkeypatch.setattr(app_module, "FIELD_ETIQUETTE", copy.deepcopy(app_module.DEFAULT_FIELD_ETIQUETTE))
+
+    with app_module.app.test_client() as client:
+        response = client.get("/field")
+
+    assert response.status_code == 200
+    text = response.get_data(as_text=True)
+    assert "Field reminders" in text
+    assert "Leave no trace" in text
+    assert "Register floats" in text
+
+
+def test_search_route_includes_official_report_links(sample_db: Path):
+    with app_module.app.test_client() as client:
+        response = client.get("/search?q=Tester")
+
+    assert response.status_code == 200
+    text = response.get_data(as_text=True)
+    assert "Open location detail" in text
+    assert "Open official report" in text
+    assert "Register Floats" in text
+    assert "https://example.com/find/2025-1" in text
+
+
+def test_search_route_hides_official_report_link_when_url_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    db_path = tmp_path / "missing-url.db"
+    create_finds_db(db_path)
+    insert_find(
+        db_path,
+        id="2025-1",
+        year="2025",
+        float_number="1",
+        finder="Tester",
+        location_raw="rodman",
+        location_normalized="Rodman's Hollow",
+        date_found="2025-07-10",
+        url="",
+        image_url="https://cdn.example.com/2025-1.jpg",
+    )
+
+    monkeypatch.setattr(app_module, "DB_NAME", str(db_path))
+
+    with app_module.app.test_client() as client:
+        response = client.get("/search?q=Tester")
+
+    assert response.status_code == 200
+    text = response.get_data(as_text=True)
+    assert "Open location detail" in text
+    assert "Open official report" not in text
+
+
+def test_location_detail_renders_recent_find_official_report_links(sample_db: Path):
+    encoded_location = quote("Rodman's Hollow", safe="")
+
+    with app_module.app.test_client() as client:
+        response = client.get(f"/location/{encoded_location}")
+
+    assert response.status_code == 200
+    text = response.get_data(as_text=True)
+    assert "Open official report" in text
+    assert app_module.OFFICIAL_LINKS["register"] in text
+    assert "This page groups finds by location." in text
 
 
 def test_forecast_route_renders_predictions_and_location_detail(

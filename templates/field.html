@@ -148,6 +148,30 @@
                 {% endfor %}
             </ul>
         </details>
+
+        {% if etiquette.notes %}
+        <details class="etiquette-section">
+            <summary>{{ etiquette.notes_heading }}</summary>
+            <ul>
+                {% for note in etiquette.notes %}
+                <li>{{ note }}</li>
+                {% endfor %}
+            </ul>
+        </details>
+        {% endif %}
+
+        {% if etiquette.resources %}
+        <details class="etiquette-section">
+            <summary>{{ etiquette.resources_heading }}</summary>
+            <div class="etiquette-resource-links">
+                {% for resource in etiquette.resources %}
+                <a href="{{ resource.href }}" class="etiquette-resource-link" target="_blank" rel="noreferrer">
+                    {{ resource.label }}
+                </a>
+                {% endfor %}
+            </div>
+        </details>
+        {% endif %}
     </div>
 </aside>
 
