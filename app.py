@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, url_for
+import importlib
 import requests
 import datetime
 import json
@@ -570,7 +571,17 @@ def location_detail(location_name):
                               ) if coords else None,
                           ))
 
-from ml_predictor import predict_today, get_seasonality_score
+@lru_cache(maxsize=1)
+def _load_forecast_predictor():
+    return importlib.import_module('ml_predictor')
+
+
+def predict_today():
+    return _load_forecast_predictor().predict_today()
+
+
+def get_seasonality_score():
+    return _load_forecast_predictor().get_seasonality_score()
 
 @app.route('/forecast')
 def forecast():
@@ -606,4 +617,8 @@ def service_worker():
     return response
 
 if __name__ == '__main__':
-    app.run(debug=os.getenv('FLASK_DEBUG', '').lower() in {'1', 'true', 'yes', 'on'}, port=5000)
+    app.run(
+        debug=os.getenv('FLASK_DEBUG', '').lower() in {'1', 'true', 'yes', 'on'},
+        host='0.0.0.0',
+        port=int(os.getenv('PORT', '5000')),
+    )

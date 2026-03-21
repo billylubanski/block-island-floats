@@ -1,6 +1,7 @@
 import copy
 import sqlite3
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.parse import quote
 
 import analyzer
@@ -48,6 +49,13 @@ def clear_weather_cache():
     yield
     app_module.weather_cache["data"] = None
     app_module.weather_cache["timestamp"] = None
+
+
+@pytest.fixture(autouse=True)
+def clear_forecast_module_cache():
+    app_module._load_forecast_predictor.cache_clear()
+    yield
+    app_module._load_forecast_predictor.cache_clear()
 
 
 @pytest.fixture
@@ -289,6 +297,38 @@ def test_forecast_route_handles_empty_predictions(sample_db: Path, monkeypatch: 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
     assert "Float forecast" in text
+
+
+def test_forecast_module_loads_only_when_forecast_route_is_hit(
+    sample_db: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    imported_names = []
+    predictor = SimpleNamespace(
+        predict_today=lambda: [],
+        get_seasonality_score=lambda: 0,
+    )
+    real_import_module = app_module.importlib.import_module
+
+    def fake_import_module(name, package=None):
+        imported_names.append(name)
+        if name == "ml_predictor":
+            return predictor
+        return real_import_module(name, package)
+
+    monkeypatch.setattr(app_module, "get_weather_data", lambda: None)
+    monkeypatch.setattr(app_module.importlib, "import_module", fake_import_module)
+
+    with app_module.app.test_client() as client:
+        index_response = client.get("/")
+
+        assert index_response.status_code == 200
+        assert imported_names == []
+
+        forecast_response = client.get("/forecast")
+
+    assert forecast_response.status_code == 200
+    assert imported_names == ["ml_predictor"]
 
 
 def test_get_weather_data_converts_noaa_response(monkeypatch: pytest.MonkeyPatch):
