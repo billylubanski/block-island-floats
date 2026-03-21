@@ -1,8 +1,6 @@
 name: Refresh Float Data
 
 on:
-  schedule:
-    - cron: "0 13 * * 1"
   workflow_dispatch:
 
 permissions:
@@ -30,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
 
       - name: Install Chromium
         run: python -m playwright install chromium
@@ -70,6 +68,7 @@ jobs:
             all_floats_final.json
             floats.db
             scraped_data/floats_*.json
+            generated/forecast_artifact.json
             generated/refresh_manifest.json
             generated/refresh_summary.md
             generated/legacy_row_audit.json
@@ -111,6 +110,7 @@ jobs:
             all_floats_final.json
             floats.db
             scraped_data/floats_*.json
+            generated/forecast_artifact.json
             generated/refresh_manifest.json
             generated/refresh_summary.md
             generated/legacy_row_audit.json

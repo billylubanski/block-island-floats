@@ -1,12 +1,12 @@
 # Data Refresh Summary
 
-- Refreshed at: March 21, 2026 at 04:31 PM UTC
+- Refreshed at: March 21, 2026 at 08:02 PM UTC
 - Total records: 4249
 - Latest source date: 2026-01-11
 - Missing dates: 3494
 - Missing URLs: 0
 - Missing images: 0
-- Legacy DB-only rows excluded: 0
+- Legacy DB-only rows excluded: 3
 
 ## Records by Year
 
@@ -30,5 +30,11 @@
 - Invalid rows: 330
 - Suspicious rows: 37
 - Flagged rows: 356
-- Validation report JSON: C:\Users\Billy\.codex\worktrees\09ea\BI Float\generated\validation_report.json
-- Validation report CSV: C:\Users\Billy\.codex\worktrees\09ea\BI Float\generated\validation_report.csv
+- Validation report JSON: C:\Users\Billy\Documents\BI Float\generated\validation_report.json
+- Validation report CSV: C:\Users\Billy\Documents\BI Float\generated\validation_report.csv
+
+## Forecast Artifact
+
+- Training rows: 723
+- Populated prediction days: 366/366
+- Artifact JSON: C:\Users\Billy\Documents\BI Float\generated\forecast_artifact.json

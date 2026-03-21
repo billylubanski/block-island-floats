@@ -58,13 +58,13 @@ python scripts/refresh_data.py validate-records
 
 - `all_floats_final.json` is the canonical dataset committed to the repo.
 - `floats.db`, `scraped_data/floats_*.json`, and refresh outputs under `generated/` are rebuilt from that canonical data.
-- Forecast predictions train in memory from `floats.db` on first use; no model binary is committed.
-- `.github/workflows/refresh-data.yml` runs the refresh flow weekly and opens or updates an automated PR when source data changes.
+- Forecast predictions are generated offline during refresh and committed as `generated/forecast_artifact.json`.
+- `.github/workflows/refresh-data.yml` is currently manual-only while the upstream source is blocking automated archive access.
 
 ## Repository Map
 
-- `app.py` contains Flask routes and page-level wiring.
-- `analyzer.py`, `ml_predictor.py`, `locations.py`, and `utils.py` contain analytics, ML, lookup data, and shared helpers.
+- `app.py` contains Flask routes and page-level wiring, including loading the committed forecast artifact.
+- `analyzer.py`, `ml_predictor.py`, `locations.py`, and `utils.py` contain analytics, offline ML generation, lookup data, and shared helpers.
 - `scripts/refresh_data.py` and `scripts/validation_pipeline.py` drive refresh and validation.
 - `tests/` contains automated pytest coverage.
 - `scripts/manual_checks/` contains manual checks that may hit the live site, expect a local server, or inspect the committed production DB.

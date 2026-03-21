@@ -1,5 +1,5 @@
 {
-  "refreshed_at": "2026-03-21T16:31:13+00:00",
+  "refreshed_at": "2026-03-21T20:02:16+00:00",
   "total_records": 4249,
   "latest_source_date": "2026-01-11",
   "records_by_year": {
@@ -21,10 +21,14 @@
   "missing_urls": 0,
   "missing_images": 0,
   "validation": {
-    "run_id": "20260321T163109Z",
+    "run_id": "20260321T200209Z",
     "valid_rows": 3919,
     "invalid_rows": 330,
     "suspicious_rows": 37,
     "flagged_rows": 356
+  },
+  "forecast": {
+    "training_rows": 723,
+    "populated_prediction_days": 366
   }
 }

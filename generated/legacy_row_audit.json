@@ -1,5 +1,54 @@
 {
-  "generated_at": "2026-03-21T16:31:13+00:00",
-  "legacy_row_count": 0,
-  "rows": []
+  "generated_at": "2026-03-21T20:02:16+00:00",
+  "legacy_row_count": 3,
+  "rows": [
+    {
+      "id": 5739,
+      "year": 2022,
+      "float_number": "",
+      "finder": "Lauren Chapin, number unclear 6293?",
+      "location_raw": "Junk removal job in Wakefield, RI!",
+      "location_normalized": "Other/Unknown",
+      "date_found": "",
+      "url": "https://www.blockislandinfo.com/event/lauren-chapin-number-unclear-6293%3f/5739/",
+      "image_url": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/crm/blockislandri/image_0E6F6DA5-FE47-44B0-45B6C4870F588D5E_0e724b10-e693-eb12-fbf51aad91585ac9.jpg",
+      "is_valid": 0,
+      "validation_errors": "[\"invalid_float_number\", \"missing_normalized_location\"]",
+      "confidence_score": 0.5,
+      "source": "blockislandinfo.com",
+      "suspicious_flags": "[]"
+    },
+    {
+      "id": 5740,
+      "year": 2022,
+      "float_number": "",
+      "finder": "196",
+      "location_raw": "not sure",
+      "location_normalized": "Other/Unknown",
+      "date_found": "2026-03-10",
+      "url": "https://www.blockislandinfo.com/event/196/5740/",
+      "image_url": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+      "is_valid": 0,
+      "validation_errors": "[\"invalid_float_number\", \"missing_normalized_location\"]",
+      "confidence_score": 0.5,
+      "source": "blockislandinfo.com",
+      "suspicious_flags": "[]"
+    },
+    {
+      "id": 5741,
+      "year": 2025,
+      "float_number": "138",
+      "finder": "K Frost",
+      "location_raw": "Behind stone wall near Ballards",
+      "location_normalized": "Ballard's Beach",
+      "date_found": "2026-03-12",
+      "url": "https://www.blockislandinfo.com/event/138-k-frost/5741/",
+      "image_url": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+      "is_valid": 1,
+      "validation_errors": "[]",
+      "confidence_score": 1.0,
+      "source": "blockislandinfo.com",
+      "suspicious_flags": "[]"
+    }
+  ]
 }
