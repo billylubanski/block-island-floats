@@ -24,17 +24,17 @@ The app serves at `http://localhost:5000`.
 
 Set `$env:FLASK_DEBUG = "1"` before `python app.py` if you want the Flask debug server locally.
 
-For convenience, `requirements.txt` still resolves to the full dev install.
+`requirements.txt` mirrors the production install. Use `requirements-dev.txt` for local development, tests, and refresh tooling.
 
 ## Render Deploy
 
-Use this build command in Render:
+Render can keep using the default build command:
 
 ```bash
-pip install -r requirements-prod.txt
+pip install -r requirements.txt
 ```
 
-This keeps test and refresh-only tooling such as `pytest`, `playwright`, and BeautifulSoup out of the production image.
+That resolves to the lean production dependency set and keeps test and refresh-only tooling such as `pytest`, `playwright`, and BeautifulSoup out of the production image.
 
 ## Automated Tests
 
