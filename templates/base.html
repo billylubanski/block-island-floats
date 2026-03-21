@@ -4,518 +4,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Block Island Glass Floats</title>
+    <title>{% if page_meta and page_meta.title %}{{ page_meta.title }} | {% endif %}Block Island Glass Floats</title>
 
-    <!-- PWA Meta Tags -->
-    <meta name="theme-color" content="#051714">
+    <meta name="theme-color" content="#071412">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Float Tracker">
+    <meta name="apple-mobile-web-app-title" content="Block Island Floats">
     <link rel="manifest" href="/static/manifest.json">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg-color: #051714;
-            --card-bg: rgba(10, 51, 34, 0.7);
-            --text-primary: #F3EDE7;
-            --text-secondary: #A39A93;
-            --accent: #50E8A8;
-            --accent-glow: rgba(80, 232, 168, 0.3);
-            --glass-border: rgba(243, 237, 231, 0.1);
-        }
-
-        * {
-            transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-        }
-
-        body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            background-image:
-                radial-gradient(circle at 10% 20%, rgba(26, 134, 114, 0.2) 0%, transparent 20%),
-                radial-gradient(circle at 90% 80%, rgba(29, 95, 154, 0.2) 0%, transparent 20%);
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 3rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid var(--glass-border);
-        }
-
-        h1 {
-            font-size: 2.5rem;
-            font-weight: 700;
-            background: linear-gradient(to right, #50E8A8, #1D5F9A);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin: 0;
-        }
-
-        h2 {
-            margin-top: 0;
-            margin-bottom: 1rem;
-        }
-
-        nav a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            margin-left: 2rem;
-            font-weight: 600;
-            transition: color 0.3s;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.3s;
-        }
-
-        nav a:hover {
-            color: var(--accent);
-        }
-
-        .card {
-            background: var(--card-bg);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--glass-border);
-            border-radius: 1rem;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            box-shadow:
-                0 4px 6px -1px rgba(0, 0, 0, 0.2),
-                0 2px 4px -1px rgba(0, 0, 0, 0.1),
-                0 0 0 1px rgba(80, 232, 168, 0.05);
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow:
-                0 20px 25px -5px rgba(0, 0, 0, 0.3),
-                0 10px 10px -5px rgba(0, 0, 0, 0.2),
-                0 0 0 1px rgba(80, 232, 168, 0.15);
-            border-color: var(--accent-glow);
-        }
-
-        .control-bar {
-            background: rgba(10, 51, 34, 0.6);
-            backdrop-filter: blur(16px);
-            border: 1px solid var(--glass-border);
-            border-radius: 1rem;
-            padding: 1.25rem 2rem;
-            margin-bottom: 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 1.5rem;
-            box-shadow:
-                0 4px 6px -1px rgba(0, 0, 0, 0.1),
-                0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            transition: all 0.3s ease;
-        }
-
-        .control-bar:hover {
-            border-color: var(--accent-glow);
-            box-shadow:
-                0 10px 15px -3px rgba(0, 0, 0, 0.2),
-                0 4px 6px -2px rgba(0, 0, 0, 0.1);
-            transform: translateY(-2px);
-            background: rgba(10, 51, 34, 0.7);
-        }
-
-        input[type="text"],
-        select {
-            background: rgba(10, 51, 34, 0.5);
-            border: 1px solid var(--glass-border);
-            color: var(--text-primary);
-            padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
-            font-family: inherit;
-            font-size: 1rem;
-        }
-
-        input[type="text"] {
-            width: 100%;
-            max-width: 400px;
-        }
-
-        input[type="text"]:focus,
-        select:focus {
-            outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 2px var(--accent-glow);
-        }
-
-        button {
-            background: linear-gradient(to right, #50E8A8, #1A8672);
-            color: #051714;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.3s;
-        }
-
-        button:hover {
-            opacity: 0.9;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1rem;
-        }
-
-        th,
-        td {
-            text-align: left;
-            padding: 1rem;
-            border-bottom: 1px solid var(--glass-border);
-        }
-
-        th {
-            color: var(--text-secondary);
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.875rem;
-            letter-spacing: 0.05em;
-        }
-
-        tr:hover td {
-            background: rgba(255, 255, 255, 0.02);
-        }
-
-        .stat-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 3rem;
-        }
-
-        .stat-card {
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: 3rem;
-            font-weight: 700;
-            color: var(--accent);
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-label {
-            color: var(--text-secondary);
-            font-size: 1rem;
-        }
-
-        /* Loading Spinner */
-        .map-loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 1000;
-            text-align: center;
-        }
-
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(80, 232, 168, 0.2);
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 1rem;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 1rem;
-            }
-
-            header {
-                flex-direction: column;
-                gap: 1rem;
-                text-align: center;
-            }
-
-            nav a {
-                margin: 0 1rem;
-            }
-
-            h1 {
-                font-size: 2rem;
-            }
-
-            .stat-value {
-                font-size: 2.5rem;
-            }
-
-            .card {
-                padding: 1.5rem;
-            }
-
-            .table-container {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-            }
-
-            /* Responsive map height */
-            #map {
-                height: 350px !important;
-            }
-        }
-
-        /* About Page Styles */
-        .about-text {
-            color: var(--text-secondary);
-            line-height: 1.6;
-            margin-bottom: 1.5rem;
-        }
-
-        .about-section-title {
-            color: var(--accent);
-            margin-top: 2rem;
-            margin-bottom: 1rem;
-        }
-
-        .about-list {
-            color: var(--text-secondary);
-            line-height: 1.6;
-            margin-bottom: 2rem;
-            padding-left: 1.5rem;
-        }
-
-        .about-list li {
-            margin-bottom: 0.5rem;
-        }
-
-        .disclaimer-box {
-            background: rgba(80, 232, 168, 0.05);
-            border: 1px solid var(--accent-glow);
-            padding: 1.5rem;
-            border-radius: 0.5rem;
-            margin-top: 2rem;
-        }
-
-        .disclaimer-title {
-            margin-top: 0;
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-        }
-
-        .disclaimer-text {
-            margin-bottom: 0;
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            line-height: 1.5;
-        }
-
-        .credits-list {
-            list-style: none;
-            padding: 0;
-            color: var(--text-secondary);
-        }
-
-        .credits-item {
-            margin-bottom: 1rem;
-        }
-
-        .credits-label {
-            color: var(--text-primary);
-            font-weight: 600;
-        }
-
-        .credits-link {
-            color: var(--accent);
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-
-        .credits-link:hover {
-            text-decoration: underline;
-            color: var(--accent-glow);
-        }
-
-        /* Weather Widget Styles */
-        .weather-widget {
-            background: linear-gradient(135deg, rgba(80, 232, 168, 0.1), rgba(29, 95, 154, 0.2));
-            border: 1px solid rgba(80, 232, 168, 0.2);
-            border-radius: 1.5rem;
-            padding: 2rem;
-            margin-bottom: 2rem;
-            margin-top: 1.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            backdrop-filter: blur(16px);
-            box-shadow:
-                0 10px 30px -5px rgba(0, 0, 0, 0.3),
-                0 0 0 1px rgba(80, 232, 168, 0.1) inset;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .weather-widget::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(80, 232, 168, 0.5), transparent);
-        }
-
-        .weather-main {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-        }
-
-        .weather-icon {
-            font-size: 3.5rem;
-            filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.2));
-            animation: float 6s ease-in-out infinite;
-        }
-
-        @keyframes float {
-
-            0%,
-            100% {
-                transform: translateY(0);
-            }
-
-            50% {
-                transform: translateY(-5px);
-            }
-        }
-
-        .weather-temp {
-            font-size: 3.5rem;
-            font-weight: 800;
-            background: linear-gradient(to bottom, #ffffff, #e0e0e0);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            line-height: 1;
-            letter-spacing: -0.05em;
-        }
-
-        .weather-details {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            text-align: right;
-        }
-
-        .weather-condition {
-            color: var(--accent);
-            font-weight: 700;
-            font-size: 1.25rem;
-            text-transform: capitalize;
-            letter-spacing: 0.02em;
-        }
-
-        .weather-meta {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 0.75rem;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 0.5rem 1rem;
-            border-radius: 2rem;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        @media (max-width: 480px) {
-            .weather-widget {
-                flex-direction: column;
-                text-align: center;
-                gap: 1.5rem;
-                padding: 1.5rem;
-            }
-
-            .weather-main {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-
-            .weather-details {
-                text-align: center;
-                align-items: center;
-                width: 100%;
-            }
-
-            .weather-meta {
-                justify-content: center;
-                width: 100%;
-                box-sizing: border-box;
-            }
-        }
-    </style>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@400;500;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/static/site.css">
     {% block head %}{% endblock %}
 </head>
 
-<body>
-    <div class="container">
-        <header>
-            <h1>Glass Float Tracker</h1>
-            <nav>
-                <a href="/{% if valid_only %}?valid_only=1{% endif %}">Dashboard</a>
-                <a href="/field{% if valid_only %}?valid_only=1{% endif %}">🎯 Field Mode</a>
-                <a href="/search{% if valid_only %}?valid_only=1{% endif %}">Search</a>
-                <a href="{{ url_for('forecast', valid_only=1) if valid_only else url_for('forecast') }}">Forecast</a>
-                <a href="/about{% if valid_only %}?valid_only=1{% endif %}">About</a>
-                {% if valid_only %}
-                <span
-                    style="display: inline-block; margin-left: 1rem; color: var(--accent); font-size: 0.8rem; font-weight: 700;">
-                    Valid rows only
+<body class="page-mode--{{ page_meta.mode if page_meta else 'dashboard' }}">
+    <header class="site-header">
+        <div class="shell site-header__inner">
+            <a class="brand" href="{{ url_for('index', valid_only=1) if valid_only else url_for('index') }}">
+                <span class="brand__mark" aria-hidden="true"></span>
+                <span class="brand__copy">
+                    <span class="brand__title">Block Island Floats</span>
+                    <span class="brand__meta">Tracker and field guide</span>
                 </span>
+            </a>
+
+            <button
+                class="nav-toggle"
+                type="button"
+                aria-expanded="false"
+                aria-controls="site-nav"
+                data-nav-toggle>
+                Menu
+            </button>
+
+            <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
+                <a class="site-nav__link {% if page_meta and page_meta.active_nav == 'dashboard' %}is-active{% endif %}"
+                    href="{{ url_for('index', valid_only=1) if valid_only else url_for('index') }}">
+                    Dashboard
+                </a>
+                <a class="site-nav__link {% if page_meta and page_meta.active_nav == 'field' %}is-active{% endif %}"
+                    href="{{ url_for('field_mode', valid_only=1) if valid_only else url_for('field_mode') }}">
+                    Field Mode
+                </a>
+                <a class="site-nav__link {% if page_meta and page_meta.active_nav == 'search' %}is-active{% endif %}"
+                    href="{{ url_for('search', valid_only=1) if valid_only else url_for('search') }}">
+                    Search
+                </a>
+                <a class="site-nav__link {% if page_meta and page_meta.active_nav == 'forecast' %}is-active{% endif %}"
+                    href="{{ url_for('forecast', valid_only=1) if valid_only else url_for('forecast') }}">
+                    Forecast
+                </a>
+                <a class="site-nav__link {% if page_meta and page_meta.active_nav == 'about' %}is-active{% endif %}"
+                    href="{{ url_for('about', valid_only=1) if valid_only else url_for('about') }}">
+                    About
+                </a>
+                {% if valid_only %}
+                <span class="site-badge">Validated rows</span>
                 {% endif %}
             </nav>
-        </header>
+        </div>
+    </header>
 
-        {% block content %}{% endblock %}
+    <div class="shell site-frame">
+        {% block page_intro %}
+        {% if page_meta %}
+        <section class="page-intro page-intro--{{ page_meta.mode }}">
+            <div class="page-intro__content">
+                <p class="page-kicker">{{ page_meta.kicker }}</p>
+                <div class="page-intro__headline">
+                    <h1>{{ page_meta.title }}</h1>
+                    {% if page_meta.primary_cta %}
+                    <a
+                        class="button button--primary"
+                        href="{{ page_meta.primary_cta.href }}"
+                        {% if page_meta.primary_cta.external %}target="_blank" rel="noreferrer"{% endif %}>
+                        {{ page_meta.primary_cta.label }}
+                    </a>
+                    {% endif %}
+                </div>
+                <p class="page-lead">{{ page_meta.subtitle }}</p>
+            </div>
+        </section>
+        {% endif %}
+        {% endblock %}
+
+        <main class="page-main">
+            {% block content %}{% endblock %}
+        </main>
     </div>
+
     <script>
+        (() => {
+            const toggle = document.querySelector('[data-nav-toggle]');
+            const nav = document.getElementById('site-nav');
+            const header = document.querySelector('.site-header');
+
+            if (!toggle || !nav || !header) {
+                return;
+            }
+
+            const setOpen = (isOpen) => {
+                toggle.setAttribute('aria-expanded', String(isOpen));
+                document.body.classList.toggle('nav-open', isOpen);
+            };
+
+            toggle.addEventListener('click', () => {
+                const next = toggle.getAttribute('aria-expanded') !== 'true';
+                setOpen(next);
+            });
+
+            nav.querySelectorAll('a').forEach((link) => {
+                link.addEventListener('click', () => setOpen(false));
+            });
+
+            document.addEventListener('click', (event) => {
+                if (toggle.getAttribute('aria-expanded') !== 'true') {
+                    return;
+                }
+                if (!header.contains(event.target)) {
+                    setOpen(false);
+                }
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 880) {
+                    setOpen(false);
+                }
+            });
+        })();
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
+                    .catch((error) => {
+                        console.log('ServiceWorker registration failed:', error);
                     });
             });
         }
     </script>
+    {% block scripts %}{% endblock %}
 </body>
 
 </html>

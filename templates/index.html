@@ -7,294 +7,544 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <style>
-    .geo-btn {
-        position: absolute;
-        bottom: 20px;
-        right: 20px;
-        z-index: 1000;
-        background: var(--card-bg);
-        border: 1px solid var(--accent);
-        color: var(--accent);
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
-        cursor: pointer;
-        font-weight: 600;
-        backdrop-filter: blur(4px);
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    .dashboard-stage {
+        display: grid;
+        grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
+        gap: var(--space-5);
+        align-items: stretch;
+        margin-bottom: var(--space-7);
     }
 
-    .geo-btn:hover {
-        background: var(--accent);
-        color: var(--bg-color);
+    .dashboard-stage__intro {
+        display: grid;
+        gap: var(--space-5);
+        align-content: start;
+    }
+
+    .dashboard-stage__intro h1 {
+        margin: 0;
+        font-family: "Fraunces", serif;
+        font-size: clamp(2.75rem, 5vw, 4.35rem);
+        line-height: 0.94;
+        letter-spacing: -0.03em;
+    }
+
+    .dashboard-stage__intro p {
+        margin: 0;
+    }
+
+    .dashboard-copy {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .dashboard-copy__actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .dash-filter-form {
+        display: flex;
+        align-items: end;
+        gap: 0.85rem;
+        flex-wrap: wrap;
+    }
+
+    .dash-filter-form select {
+        min-width: 9rem;
+    }
+
+    .hero-metric {
+        display: grid;
+        gap: 0.7rem;
+        padding: 1.2rem;
+        border-radius: var(--radius-lg);
+        background:
+            linear-gradient(145deg, rgba(234, 223, 207, 0.12), rgba(121, 208, 180, 0.08)),
+            rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(234, 223, 207, 0.16);
+    }
+
+    .hero-metric__value {
+        font-size: clamp(3rem, 7vw, 4.5rem);
+        line-height: 0.9;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+    }
+
+    .hero-metric__label {
+        color: var(--text-1);
+        font-size: 1rem;
+        line-height: 1.5;
+    }
+
+    .hero-note {
+        color: var(--text-2);
+        font-size: 0.92rem;
+        line-height: 1.6;
+    }
+
+    .dashboard-stage__map {
+        display: grid;
+        gap: 1rem;
+        min-height: 100%;
+    }
+
+    .dashboard-map {
+        display: grid;
+        gap: 1rem;
+        height: 100%;
+    }
+
+    .dashboard-map__frame {
+        position: relative;
+        min-height: 34rem;
+        overflow: hidden;
+        border-radius: 24px;
+    }
+
+    #map {
+        width: 100%;
+        height: 100%;
+        min-height: 34rem;
+    }
+
+    .geo-btn {
+        position: absolute;
+        right: 1rem;
+        bottom: 1rem;
+        z-index: 1000;
+    }
+
+    .map-loading {
+        position: absolute;
+        inset: 0;
+        z-index: 999;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(180deg, rgba(7, 20, 18, 0.12), rgba(7, 20, 18, 0.32));
+    }
+
+    .map-loading__content {
+        display: grid;
+        gap: 0.85rem;
+        justify-items: center;
+        color: var(--accent-ink);
+        padding: 1rem 1.2rem;
+        border-radius: 18px;
+        background: rgba(244, 239, 231, 0.84);
+    }
+
+    .spinner {
+        width: 2.4rem;
+        height: 2.4rem;
+        border: 3px solid rgba(7, 20, 18, 0.12);
+        border-top-color: rgba(7, 20, 18, 0.6);
+        border-radius: 999px;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .dashboard-map__meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        color: var(--text-2);
+        font-size: 0.9rem;
+    }
+
+    .dashboard-columns {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: var(--space-5);
+    }
+
+    .rank-list,
+    .season-list,
+    .recovery-list {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .rank-row,
+    .season-row,
+    .recovery-row {
+        display: grid;
+        gap: 0.85rem;
+        align-items: center;
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(193, 214, 203, 0.08);
+    }
+
+    .rank-row {
+        grid-template-columns: auto minmax(0, 1fr) minmax(7rem, 9rem);
+    }
+
+    .season-row {
+        grid-template-columns: minmax(0, 1fr) auto minmax(7rem, 9rem);
+    }
+
+    .recovery-row {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .rank-row__index,
+    .season-row__count,
+    .recovery-row__year {
+        font-size: 0.8rem;
+        font-weight: 800;
+        color: var(--accent-strong);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .rank-row__main,
+    .recovery-row__main {
+        display: grid;
+        gap: 0.25rem;
+    }
+
+    .rank-row__main a,
+    .recovery-row__main strong {
+        font-size: 1rem;
+        font-weight: 800;
+        text-decoration: none;
+    }
+
+    .rank-row__main span,
+    .season-row__meta,
+    .recovery-row__meta {
+        color: var(--text-2);
+        font-size: 0.9rem;
+    }
+
+    .recovery-row__stats {
+        color: var(--text-1);
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .section-footnote {
+        margin: 1rem 0 0;
+        color: var(--text-3);
+        font-size: 0.88rem;
+        line-height: 1.6;
+    }
+
+    @media (max-width: 1180px) {
+        .dashboard-stage,
+        .dashboard-columns {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 760px) {
+        .rank-row,
+        .season-row,
+        .recovery-row {
+            grid-template-columns: 1fr;
+        }
+
+        .dashboard-map__frame,
+        #map {
+            min-height: 24rem;
+        }
+
+        .dash-filter-form {
+            width: 100%;
+        }
+
+        .dash-filter-form .field-group {
+            width: 100%;
+        }
+
+        .dash-filter-form select {
+            width: 100%;
+        }
     }
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="control-bar">
-    <form action="/" method="get" style="display: flex; align-items: center; gap: 1rem; flex-grow: 1;">
-        {% if valid_only %}
-        <input type="hidden" name="valid_only" value="1">
-        {% endif %}
-        <label for="year" style="color: var(--text-secondary); font-weight: 600; white-space: nowrap;">Filter by
-            Year:</label>
-        <select id="year" name="year" onchange="this.form.submit()" style="min-width: 150px;">
-            <option value="all" {% if selected_year=='all' %}selected{% endif %}>All Years</option>
-            {% for row in years %}
-            <option value="{{ row['year'] }}" {% if selected_year==row['year']|string %}selected{% endif %}>
-                {{ row['year'] }}
-            </option>
-            {% endfor %}
-        </select>
-        <noscript><button type="submit">Apply</button></noscript>
-    </form>
-    <a href="/?year={{ selected_year }}{% if not valid_only %}&valid_only=1{% endif %}"
-        style="color: var(--accent); text-decoration: none; font-weight: 600; font-size: 0.9rem;">
-        {{ 'Show all rows' if valid_only else 'Use validated rows only' }}
-    </a>
-    <a href="https://www.blockislandinfo.com/glass-float-project/" target="_blank"
-        style="background: var(--accent); color: var(--bg-color); padding: 0.5rem 0.75rem; border-radius: 0.5rem; text-decoration: none; font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; gap: 0.25rem; margin-right: 1rem;">
-        <span>📝</span> Report Find
-    </a>
-    <div style="color: var(--text-secondary); font-size: 0.9rem;">
-        Showing <strong>{{ total_finds }}</strong> floats {% if selected_year != 'all' %}found in <span
-            style="color: var(--accent);">{{ selected_year }}</span>{% else %}across all years{% endif %}
-    </div>
-</div>
-
-<div class="stat-grid">
-    <div class="card stat-card">
-        <div class="stat-value">{{ total_finds }}</div>
-        <div class="stat-label">Total Floats Found</div>
-    </div>
-    <div class="card stat-card">
-        <div class="stat-value">{{ years|length }}</div>
-        <div class="stat-label">Years Tracked</div>
-    </div>
-    <div class="card stat-card">
-        <div class="stat-value">{{ top_locs[0].name if top_locs else "N/A" }}</div>
-        <div class="stat-label">Most Popular Spot</div>
-    </div>
-    <div class="card stat-card" style="border-color: var(--accent); background: rgba(80, 232, 168, 0.1);">
-        <div class="stat-value" style="color: #fff;">{{ still_out_there }}</div>
-        <div class="stat-label" style="color: var(--accent); font-weight: 700;">Still Out There! 🎯</div>
-    </div>
-</div>
-
-<div class="card">
-    <h2>Float Map</h2>
-    <p style="color: var(--text-secondary); margin-bottom: 1rem;">Heatmap showing concentration of finds across the
-        island.</p>
-    <div style="position: relative; height: 500px; width: 100%;">
-        <div id="map" style="height: 100%; width: 100%; border-radius: 0.5rem; z-index: 1;"></div>
-        <div id="map-loading" class="map-loading">
-            <div class="spinner"></div>
-            <div style="color: var(--text-secondary); font-weight: 600;">Loading Map...</div>
+{% block page_intro %}
+<section class="dashboard-stage">
+    <div class="surface dashboard-stage__intro">
+        <div class="dashboard-copy">
+            <p class="page-kicker">{{ page_meta.kicker }}</p>
+            <h1>{{ page_meta.title }}</h1>
+            <p class="lead">{{ page_meta.subtitle }}</p>
+            <div class="dashboard-copy__actions">
+                <a class="button button--primary" href="{{ page_meta.primary_cta.href }}" target="_blank" rel="noreferrer">
+                    {{ page_meta.primary_cta.label }}
+                </a>
+                <a class="button button--ghost" href="{{ url_for('field_mode', valid_only=1) if valid_only else url_for('field_mode') }}">
+                    Open field mode
+                </a>
+            </div>
         </div>
-        <button class="geo-btn" onclick="locateUser()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
-            </svg>
-            Geolocate Me
-        </button>
+
+        <div class="utility-rail">
+            <div class="utility-rail__group">
+                <form action="/" method="get" class="dash-filter-form">
+                    {% if valid_only %}
+                    <input type="hidden" name="valid_only" value="1">
+                    {% endif %}
+                    <div class="field-group">
+                        <label for="year">Year focus</label>
+                        <select id="year" name="year" onchange="this.form.submit()">
+                            <option value="all" {% if selected_year == 'all' %}selected{% endif %}>All seasons</option>
+                            {% for row in years %}
+                            <option value="{{ row['year'] }}" {% if selected_year == row['year']|string %}selected{% endif %}>
+                                {{ row['year'] }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <noscript>
+                        <button class="button button--subtle" type="submit">Apply filter</button>
+                    </noscript>
+                </form>
+
+                <a
+                    class="button button--subtle"
+                    href="/?year={{ selected_year }}{% if not valid_only %}&valid_only=1{% endif %}">
+                    {{ 'Show all rows' if valid_only else 'Use validated rows only' }}
+                </a>
+            </div>
+
+            <div class="utility-rail__summary">
+                {% if selected_year != 'all' %}
+                Showing <strong>{{ total_finds }}</strong> finds reported in <strong>{{ selected_year }}</strong>.
+                {% else %}
+                Showing <strong>{{ total_finds }}</strong> finds across the full tracked archive.
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="hero-metric">
+            <span class="eyebrow">Primary read</span>
+            <span class="hero-metric__value">{{ still_out_there }}</span>
+            <p class="hero-metric__label">
+                Floats still unreported {% if selected_year != 'all' %}in {{ selected_year }}{% else %}across the tracked seasons{% endif %}.
+            </p>
+            <p class="hero-note">
+                {% if primary_location %}
+                Start with {{ primary_location.name }} as the historical anchor, then use the map to work outward.
+                {% else %}
+                Use the map and supporting reads below to narrow where to start.
+                {% endif %}
+            </p>
+        </div>
+
+        <div class="kpi-strip">
+            <article class="kpi-tile">
+                <span class="kpi-tile__value">{{ total_finds }}</span>
+                <span class="kpi-tile__label">Reported finds</span>
+            </article>
+            <article class="kpi-tile">
+                <span class="kpi-tile__value">{{ years|length }}</span>
+                <span class="kpi-tile__label">Tracked seasons</span>
+            </article>
+            <article class="kpi-tile">
+                <span class="kpi-tile__value">{{ best_month[0] if best_month else 'N/A' }}</span>
+                <span class="kpi-tile__label">
+                    Best month{% if best_month %}: {{ best_month[1] }} dated finds{% endif %}
+                </span>
+            </article>
+        </div>
     </div>
-    <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 1rem; text-align: center;">
-        Last updated: {{ last_updated }}
-    </p>
-</div>
 
-<div class="card">
-    <h2>Top Hunting Grounds</h2>
-    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Based on historical data, these are the best
-        trails
-        to check.</p>
-
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Rank</th>
-                    <th>Location</th>
-                    <th>Total Finds</th>
-                    <th>Probability</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for loc in top_locs %}
-                <tr>
-                    <td>#{{ loop.index }}</td>
-                    <td style="font-weight: 600; color: var(--text-primary);">
-                        <a href="/location/{{ loc.name }}{% if valid_only %}?valid_only=1{% endif %}"
-                            style="color: var(--accent); text-decoration: none;">
-                            {{ loc.name }}
-                        </a>
-                    </td>
-                    <td>{{ loc.count }}</td>
-                    <td>
-                        <div
-                            style="background: rgba(255,255,255,0.1); height: 6px; border-radius: 3px; width: 100px; display: inline-block; vertical-align: middle; margin-right: 10px;">
-                            <div
-                                style="background: var(--accent); height: 100%; border-radius: 3px; width: {{ [loc.count / total_finds * 100 * 5, 100] | min }}%;">
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="surface dashboard-stage__map">
+        <div class="section-heading">
+            <span class="eyebrow">Recovery map</span>
+            <h2>See where the archive keeps clustering</h2>
+            <p>The live map is the fastest way to balance proven hot spots with on-island proximity.</p>
+        </div>
+        <div class="dashboard-map">
+            <div class="dashboard-map__frame">
+                <div id="map"></div>
+                <div id="map-loading" class="map-loading">
+                    <div class="map-loading__content">
+                        <div class="spinner"></div>
+                        <div>Loading map</div>
+                    </div>
+                </div>
+                <button class="button button--ghost geo-btn" type="button" onclick="locateUser()">Geolocate me</button>
+            </div>
+            <div class="dashboard-map__meta">
+                <span>Heatmap and reference markers based on reported finds.</span>
+                <span>Last updated: {{ last_updated }}</span>
+            </div>
+        </div>
     </div>
-</div>
+</section>
+{% endblock %}
 
-<div class="card">
-    <h2>Best Times to Hunt</h2>
-    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
-        Based on {{ total_dates_analyzed }} dated finds, these are the most productive months.
-    </p>
+{% block content %}
+<section class="dashboard-columns">
+    <section class="surface">
+        <div class="section-heading">
+            <span class="eyebrow">Best starting points</span>
+            <h2>Top hunting grounds</h2>
+            <p>Historical density gives you a grounded first pass before you improvise in the field.</p>
+        </div>
 
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Month</th>
-                    <th>Finds</th>
-                    <th>Activity Level</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for month, count in best_months %}
-                <tr>
-                    <td style="font-weight: 600; color: var(--text-primary);">{{ month }}</td>
-                    <td>{{ count }}</td>
-                    <td>
-                        <div
-                            style="background: rgba(255,255,255,0.1); height: 6px; border-radius: 3px; width: 100px; display: inline-block; vertical-align: middle;">
-                            <div
-                                style="background: var(--accent); height: 100%; border-radius: 3px; width: {{ (count / best_months[0][1] * 100) if best_months else 0 }}%;">
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="rank-list">
+            {% for loc in top_locs[:10] %}
+            <article class="rank-row">
+                <div class="rank-row__index">#{{ loop.index }}</div>
+                <div class="rank-row__main">
+                    <a href="{{ url_for('location_detail', location_name=loc.name, valid_only=1) if valid_only else url_for('location_detail', location_name=loc.name) }}">
+                        {{ loc.name }}
+                    </a>
+                    <span>{{ loc.count }} reported finds</span>
+                </div>
+                <div>
+                    <div class="progress-track">
+                        <div class="progress-fill" style="width: {{ [loc.count / total_finds * 100 * 5, 100] | min }}%;"></div>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="surface">
+        <div class="section-heading">
+            <span class="eyebrow">Seasonal read</span>
+            <h2>Best times to hunt</h2>
+            <p>These months show the most reported momentum from the portion of the archive with dates attached.</p>
+        </div>
+
+        <div class="season-list">
+            {% for month, count in best_months %}
+            <article class="season-row">
+                <strong>{{ month }}</strong>
+                <span class="season-row__count">{{ count }} finds</span>
+                <div>
+                    <div class="progress-track">
+                        <div class="progress-fill" style="width: {{ (count / best_months[0][1] * 100) if best_months else 0 }}%;"></div>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+
+        <p class="section-footnote">
+            Based on {{ total_dates_analyzed }} dated finds in the registry.
+        </p>
+    </section>
+</section>
+
+<section class="surface">
+    <div class="section-heading">
+        <span class="eyebrow">Year-by-year trend</span>
+        <h2>Recovery by season</h2>
+        <p>Use the long view to judge how much of each annual drop has historically surfaced.</p>
     </div>
-</div>
 
-<div class="card">
-    <h2>Finds by Year</h2>
-    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Historical trend showing float discoveries over
-        recovery rates.</p>
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Year</th>
-                    <th>Hidden</th>
-                    <th>Found</th>
-                    <th style="width: 50%;">Recovery Rate</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in years %}
-                <tr>
-                    <td style="font-weight: 600; color: var(--text-primary);">{{ row['year'] }}</td>
-                    <td style="color: var(--text-secondary);">{{ row['hidden'] }}</td>
-                    <td>{{ row['found'] }}</td>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 0.75rem;">
-                            <div
-                                style="background: rgba(255,255,255,0.1); height: 10px; border-radius: 5px; flex: 1; display: flex; align-items: center;">
-                                <div
-                                    style="background: linear-gradient(to right, var(--accent), #1A8672); height: 100%; border-radius: 5px; width: {{ row['recovery_rate'] if row['recovery_rate'] > 0 else 0 }}%; transition: width 0.3s ease;">
-                                </div>
-                            </div>
-                            <span
-                                style="color: var(--text-secondary); font-size: 0.875rem; min-width: 3rem; text-align: right;">
-                                {{ row['recovery_rate'] | round(1) }}%
-                            </span>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="recovery-list">
+        {% for row in years %}
+        <article class="recovery-row">
+            <div class="recovery-row__year">{{ row['year'] }}</div>
+            <div class="recovery-row__main">
+                <strong>{{ row['recovery_rate'] | round(1) }}% recovery rate</strong>
+                <div class="recovery-row__meta">{{ row['found'] }} found out of {{ row['hidden'] }} hidden</div>
+                <div class="progress-track">
+                    <div class="progress-fill" style="width: {{ row['recovery_rate'] if row['recovery_rate'] > 0 else 0 }}%;"></div>
+                </div>
+            </div>
+            <div class="recovery-row__stats">
+                {% if best_recovery_year and best_recovery_year['year'] == row['year'] %}
+                Strongest year
+                {% else %}
+                {{ row['hidden'] - row['found'] if row['hidden'] > row['found'] else 0 }} unreported
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
     </div>
-</div>
+</section>
+{% endblock %}
 
+{% block scripts %}
 <script>
-    var map = L.map('map').setView([41.17, -71.58], 13);
+    const map = L.map('map').setView([41.17, -71.58], 13);
 
-    // Dark mode tiles
-    var tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    const tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 19
     });
 
     tiles.on('load', function () {
-        var spinner = document.getElementById('map-loading');
-        if (spinner) spinner.style.display = 'none';
+        const spinner = document.getElementById('map-loading');
+        if (spinner) {
+            spinner.style.display = 'none';
+        }
     });
 
-    // Fallback: Hide spinner after 3 seconds anyway
     setTimeout(function () {
-        var spinner = document.getElementById('map-loading');
-        if (spinner) spinner.style.display = 'none';
+        const spinner = document.getElementById('map-loading');
+        if (spinner) {
+            spinner.style.display = 'none';
+        }
     }, 3000);
 
     tiles.addTo(map);
 
-    // Prepare heatmap data
-    var heatData = [
+    const heatData = [
         {% for loc in top_locs %}
-    {% if loc.lat and loc.lon %}
-    [{{ loc.lat }}, {{ loc.lon }}, {{ loc.count / 10 }}],
+        {% if loc.lat and loc.lon %}
+        [{{ loc.lat }}, {{ loc.lon }}, {{ loc.count / 10 }}],
         {% endif %}
-    {% endfor %}
+        {% endfor %}
     ];
 
-    // Add heatmap layer
     L.heatLayer(heatData, {
         radius: 25,
-        blur: 35,
+        blur: 32,
         maxZoom: 13,
         max: 50,
         gradient: {
-            0.0: '#1A8672',
-            0.5: '#50E8A8',
-            1.0: '#1D5F9A'
+            0.0: '#4f8f90',
+            0.45: '#79d0b4',
+            1.0: '#2b6077'
         }
     }).addTo(map);
 
-    // Also add top 30 markers for reference
     {% for loc in map_markers %}
     L.marker([{{ loc.lat }}, {{ loc.lon }}]).addTo(map)
-        .bindPopup("<b>{{ loc.name }}</b><br>{{ loc.count }} finds");
+        .bindPopup("<strong>{{ loc.name }}</strong><br>{{ loc.count }} finds");
     {% endfor %}
 
-    // Geolocation function
     function locateUser() {
         if (!navigator.geolocation) {
-            alert("Geolocation is not supported by your browser");
+            alert("Geolocation is not supported by your browser.");
             return;
         }
 
         navigator.geolocation.getCurrentPosition(function (position) {
-            var lat = position.coords.latitude;
-            var lon = position.coords.longitude;
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
 
-            // Add marker for user
             L.marker([lat, lon]).addTo(map)
-                .bindPopup("You are here").openPopup();
+                .bindPopup("You are here")
+                .openPopup();
 
-            // Fly to user
             map.flyTo([lat, lon], 15);
         }, function () {
-            alert("Unable to retrieve your location");
+            alert("Unable to retrieve your location.");
         });
     }
 </script>

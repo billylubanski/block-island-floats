@@ -2,112 +2,185 @@
 
 {% block head %}
 <style>
-    .location-header {
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-
-    .location-header h1 {
-        font-size: 2.5rem;
-        margin-bottom: 0.5rem;
-    }
-
     .back-link {
-        color: var(--text-secondary);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin-bottom: 1rem;
+        color: var(--text-2);
         text-decoration: none;
-        display: inline-block;
-        margin-bottom: 1.5rem;
-    }
-
-    .back-link:hover {
-        color: var(--accent);
-    }
-
-    .location-stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin-bottom: 2rem;
-    }
-
-    .location-stat {
-        background: rgba(80, 232, 168, 0.1);
-        padding: 1rem;
-        border-radius: 0.5rem;
-        text-align: center;
-        border: 1px solid var(--accent-glow);
-    }
-
-    .stat-number {
-        font-size: 2rem;
         font-weight: 700;
-        color: var(--accent);
     }
 
-    .stat-label {
-        color: var(--text-secondary);
-        font-size: 0.9rem;
-        margin-top: 0.25rem;
+    .location-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(18rem, 0.8fr);
+        gap: var(--space-5);
+        margin-bottom: var(--space-7);
     }
 
-    /* Photo Gallery */
-    .photo-gallery {
-        margin-bottom: 3rem;
+    .location-hero__main,
+    .location-hero__aside {
+        display: grid;
+        gap: 1rem;
+        align-content: start;
+    }
+
+    .location-hero__main h1 {
+        margin: 0;
+        font-family: "Fraunces", serif;
+        font-size: clamp(2.6rem, 5vw, 4.2rem);
+        line-height: 0.94;
+        letter-spacing: -0.03em;
+    }
+
+    .location-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .stat-strip {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.85rem;
+    }
+
+    .stat-pill {
+        padding: 1rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(193, 214, 203, 0.08);
+    }
+
+    .stat-pill strong {
+        display: block;
+        margin-bottom: 0.2rem;
+        font-size: 1.45rem;
+        line-height: 1.05;
+    }
+
+    .stat-pill span {
+        color: var(--text-2);
+        font-size: 0.86rem;
+        line-height: 1.5;
+    }
+
+    .summary-list {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .summary-list__item {
+        padding-bottom: 0.9rem;
+        border-bottom: 1px solid rgba(193, 214, 203, 0.08);
+    }
+
+    .summary-list__item:last-child {
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+
+    .summary-list__item span {
+        display: block;
+        margin-bottom: 0.25rem;
+        color: var(--text-2);
+        font-size: 0.8rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .summary-list__item strong,
+    .summary-list__item a {
+        font-size: 1rem;
+        font-weight: 800;
+        text-decoration: none;
     }
 
     .gallery-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 1rem;
-        margin-top: 1.5rem;
+        grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+        gap: 0.9rem;
     }
 
     .gallery-item {
         position: relative;
-        aspect-ratio: 1;
         overflow: hidden;
-        border-radius: 0.5rem;
+        aspect-ratio: 1;
+        border: 1px solid rgba(193, 214, 203, 0.08);
+        border-radius: 20px;
         cursor: pointer;
-        border: 1px solid var(--glass-border);
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .gallery-item:hover {
-        transform: scale(1.05);
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-        border-color: var(--accent);
+        background: rgba(255, 255, 255, 0.04);
     }
 
     .gallery-item img {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        background: rgba(255, 255, 255, 0.05);
+        transition: transform 0.3s ease;
     }
 
-    .gallery-item-info {
+    .gallery-item:hover img {
+        transform: scale(1.04);
+    }
+
+    .gallery-item__info {
         position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+        inset: auto 0 0;
         padding: 0.75rem;
-        color: white;
-        font-size: 0.85rem;
+        background: linear-gradient(180deg, transparent, rgba(7, 20, 18, 0.92));
+        color: var(--text-0);
+        font-size: 0.84rem;
+        font-weight: 700;
     }
 
-    /* Lightbox */
+    .recent-finds {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+        gap: 0.9rem;
+    }
+
+    .find-card {
+        display: grid;
+        gap: 0.75rem;
+        padding: 1rem 1.05rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(193, 214, 203, 0.08);
+    }
+
+    .find-card__meta {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+    }
+
+    .find-card h3,
+    .find-card p {
+        margin: 0;
+    }
+
+    .find-card p {
+        color: var(--text-2);
+        line-height: 1.6;
+    }
+
+    .no-images {
+        color: var(--text-2);
+        line-height: 1.7;
+    }
+
     .lightbox {
         display: none;
         position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.95);
-        z-index: 10000;
+        inset: 0;
+        z-index: 1200;
         align-items: center;
         justify-content: center;
+        background: rgba(5, 12, 11, 0.94);
     }
 
     .lightbox.active {
@@ -115,162 +188,266 @@
     }
 
     .lightbox-content {
-        max-width: 90%;
-        max-height: 90%;
         position: relative;
+        width: min(92vw, 72rem);
+        display: grid;
+        justify-items: center;
     }
 
     .lightbox img {
         max-width: 100%;
-        max-height: 90vh;
+        max-height: 82vh;
         object-fit: contain;
+        border-radius: 24px;
+    }
+
+    .lightbox-close,
+    .lightbox-nav {
+        position: absolute;
+        z-index: 2;
+        min-width: 3rem;
+        min-height: 3rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: var(--text-0);
+        background: rgba(255, 255, 255, 0.08);
+        cursor: pointer;
     }
 
     .lightbox-close {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
-        background: rgba(255, 255, 255, 0.2);
-        border: none;
-        color: white;
-        font-size: 2rem;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        line-height: 1;
-    }
-
-    .lightbox-close:hover {
-        background: rgba(255, 255, 255, 0.3);
-    }
-
-    .lightbox-nav {
-        position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
-        background: rgba(255, 255, 255, 0.2);
-        border: none;
-        color: white;
-        font-size: 2rem;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
+        top: 1.2rem;
+        right: 1.2rem;
     }
 
     .lightbox-prev {
-        left: 1rem;
+        left: 1.2rem;
     }
 
     .lightbox-next {
-        right: 1rem;
+        right: 1.2rem;
     }
 
-    .no-images {
-        text-align: center;
-        padding: 3rem;
-        color: var(--text-secondary);
+    .lightbox-nav {
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    @media (max-width: 1040px) {
+        .location-hero {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 760px) {
+        .stat-strip {
+            grid-template-columns: 1fr;
+        }
+
+        .lightbox-prev,
+        .lightbox-next {
+            top: auto;
+            bottom: 1rem;
+            transform: none;
+        }
+
+        .lightbox-prev {
+            left: calc(50% - 3.5rem);
+        }
+
+        .lightbox-next {
+            right: calc(50% - 3.5rem);
+        }
     }
 </style>
 {% endblock %}
 
+{% block page_intro %}
+<a href="{{ url_for('index', valid_only=1) if valid_only else url_for('index') }}" class="back-link">Back to dashboard</a>
+
+<section class="location-hero">
+    <div class="surface location-hero__main">
+        <p class="page-kicker">{{ page_meta.kicker }}</p>
+        <h1>{{ page_meta.title }}</h1>
+        <p class="lead">
+            {{ page_meta.subtitle }}
+            {% if latest_find and latest_find['date_found'] %}
+            The latest dated report landed on {{ latest_find['date_found'] }}.
+            {% endif %}
+        </p>
+
+        <div class="location-actions">
+            {% if page_meta.primary_cta %}
+            <a class="button button--primary" href="{{ page_meta.primary_cta.href }}" target="_blank" rel="noreferrer">
+                {{ page_meta.primary_cta.label }}
+            </a>
+            {% endif %}
+            <a class="button button--ghost" href="{{ url_for('field_mode', valid_only=1) if valid_only else url_for('field_mode') }}">
+                Open field mode
+            </a>
+        </div>
+
+        <div class="stat-strip">
+            <div class="stat-pill">
+                <strong>{{ total_finds }}</strong>
+                <span>Total reported finds</span>
+            </div>
+            <div class="stat-pill">
+                <strong>{{ years_tracked }}</strong>
+                <span>Tracked seasons</span>
+            </div>
+            <div class="stat-pill">
+                <strong>{{ peak_year[0] if peak_year[0] else 'N/A' }}</strong>
+                <span>Peak year{% if peak_year[1] %}: {{ peak_year[1] }} finds{% endif %}</span>
+            </div>
+        </div>
+    </div>
+
+    <aside class="surface location-hero__aside">
+        <div class="section-heading" style="margin-bottom: 0.5rem;">
+            <span class="eyebrow">Quick read</span>
+            <h2>What stands out here</h2>
+            <p>Use the summary before you drop into the full image archive and chronology.</p>
+        </div>
+
+        <div class="summary-list">
+            <div class="summary-list__item">
+                <span>Top finder</span>
+                <strong>{{ top_finder[0] if top_finder[0] else 'Unknown' }}</strong>
+            </div>
+            <div class="summary-list__item">
+                <span>Peak season</span>
+                <strong>{{ peak_year[0] if peak_year[0] else 'Unknown' }}</strong>
+            </div>
+            <div class="summary-list__item">
+                <span>Recent image count</span>
+                <strong>{{ images|length }}</strong>
+            </div>
+            {% if coords %}
+            <div class="summary-list__item">
+                <span>Mapped coordinates</span>
+                <a href="https://maps.google.com/?q={{ coords.lat }},{{ coords.lon }}" target="_blank" rel="noreferrer">
+                    {{ coords.lat }}, {{ coords.lon }}
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </aside>
+</section>
+{% endblock %}
+
 {% block content %}
-<a href="/{% if valid_only %}?valid_only=1{% endif %}" class="back-link">← Back to Dashboard</a>
-
-<div class="location-header">
-    <h1>📍 {{ location_name }}</h1>
-    {% if coords %}
-    <p style="color: var(--text-secondary);">
-        <a href="https://maps.google.com/?q={{ coords.lat }},{{ coords.lon }}" target="_blank"
-            style="color: var(--accent); text-decoration: none;">
-            View on Map →
-        </a>
-    </p>
-    {% endif %}
-</div>
-
-<div class="location-stats">
-    <div class="location-stat">
-        <div class="stat-number">{{ total_finds }}</div>
-        <div class="stat-label">Total Finds</div>
+<section class="surface">
+    <div class="section-heading">
+        <span class="eyebrow">Image archive</span>
+        <h2>Gallery</h2>
+        <p>Photos help you see how the reported finds at this location have surfaced over time.</p>
     </div>
-    <div class="location-stat">
-        <div class="stat-number">{{ peak_year[0] if peak_year[0] else 'N/A' }}</div>
-        <div class="stat-label">Peak Year ({{ peak_year[1] }} finds)</div>
-    </div>
-    <div class="location-stat">
-        <div class="stat-number">{{ top_finder[0][:15] if top_finder[0] else 'N/A' }}</div>
-        <div class="stat-label">Top Finder ({{ top_finder[1] }} finds)</div>
-    </div>
-</div>
 
-<div class="card photo-gallery">
-    <h2>🖼️ Photo Gallery ({{ images|length }})</h2>
-
-    {% if images %}
+    {% if featured_images %}
     <div class="gallery-grid">
-        {% for image in images %}
+        {% for image in featured_images %}
         <div class="gallery-item" onclick="openLightbox({{ loop.index0 }})">
-            <img src="{{ image.url }}" alt="Float #{{ image.float_number }}" loading="lazy">
-            <div class="gallery-item-info">
-                <div>#{{ image.float_number }} - {{ image.year }}</div>
+            <img src="{{ image.url }}" alt="Float {{ image.float_number if image.float_number else 'unknown' }}" loading="lazy">
+            <div class="gallery-item__info">
+                {{ image.year }}{% if image.float_number %} · #{{ image.float_number }}{% endif %}
             </div>
         </div>
         {% endfor %}
     </div>
-    {% else %}
-    <div class="no-images">
-        <p>No images available for this location yet.</p>
-    </div>
-    {% endif %}
-</div>
 
-<div class="card">
-    <h2>📋 All Finds ({{ total_finds }})</h2>
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Year</th>
-                    <th>Date</th>
-                    <th>Float #</th>
-                    <th>Finder</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for find in finds %}
-                <tr>
-                    <td style="font-weight: 600;">{{ find.year }}</td>
-                    <td>{{ find.date_found if find.date_found else '—' }}</td>
-                    <td>#{{ find.float_number }}</td>
-                    <td>{{ find.finder }}</td>
-                </tr>
+    {% if extra_images %}
+    <details class="details-panel" style="margin-top: 1rem;">
+        <summary>Open the rest of the gallery ({{ extra_images|length }} more)</summary>
+        <div class="details-panel__body">
+            <div class="gallery-grid">
+                {% for image in extra_images %}
+                <div class="gallery-item" onclick="openLightbox({{ loop.index0 + featured_images|length }})">
+                    <img src="{{ image.url }}" alt="Float {{ image.float_number if image.float_number else 'unknown' }}" loading="lazy">
+                    <div class="gallery-item__info">
+                        {{ image.year }}{% if image.float_number %} · #{{ image.float_number }}{% endif %}
+                    </div>
+                </div>
                 {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
+            </div>
+        </div>
+    </details>
+    {% endif %}
+    {% else %}
+    <p class="no-images">No location-specific images are available yet. The chronology below still shows the reported archive for this location.</p>
+    {% endif %}
+</section>
 
-<!-- Lightbox -->
+<section class="surface">
+    <div class="section-heading">
+        <span class="eyebrow">Recent chronology</span>
+        <h2>Latest reported finds</h2>
+        <p>The most recent reports give you the freshest read before you open the complete archive.</p>
+    </div>
+
+    <div class="recent-finds">
+        {% for find in recent_finds %}
+        <article class="find-card">
+            <div class="find-card__meta">
+                <span class="pill pill--accent">{{ find.year }}</span>
+                <span class="pill">{{ find.date_found if find.date_found else 'Undated' }}</span>
+            </div>
+            <h3>Float #{{ find.float_number if find.float_number else 'Unknown' }}</h3>
+            <p>{{ find.finder if find.finder else 'Unknown finder' }}</p>
+        </article>
+        {% endfor %}
+    </div>
+
+    {% if older_finds %}
+    <details class="details-panel" style="margin-top: 1rem;">
+        <summary>Open the full chronology ({{ total_finds }} finds)</summary>
+        <div class="details-panel__body">
+            <div class="table-shell">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Year</th>
+                            <th>Date</th>
+                            <th>Float</th>
+                            <th>Finder</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for find in finds %}
+                        <tr>
+                            <td>{{ find.year }}</td>
+                            <td>{{ find.date_found if find.date_found else 'Undated' }}</td>
+                            <td>#{{ find.float_number if find.float_number else 'Unknown' }}</td>
+                            <td>{{ find.finder if find.finder else 'Unknown finder' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </details>
+    {% endif %}
+</section>
+
 <div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
-    <button class="lightbox-close" onclick="closeLightbox(event)">×</button>
-    <button class="lightbox-nav lightbox-prev" onclick="navigateLightbox(-1, event)">‹</button>
-    <button class="lightbox-nav lightbox-next" onclick="navigateLightbox(1, event)">›</button>
+    <button class="lightbox-close" type="button" onclick="closeLightbox(event)">Close</button>
+    <button class="lightbox-nav lightbox-prev" type="button" onclick="navigateLightbox(-1, event)">Prev</button>
+    <button class="lightbox-nav lightbox-next" type="button" onclick="navigateLightbox(1, event)">Next</button>
     <div class="lightbox-content">
         <img id="lightbox-img" src="" alt="">
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
 <script>
-    const images = {{ images| tojson }};
+    const images = {{ images | tojson }};
     let currentIndex = 0;
 
     function openLightbox(index) {
         currentIndex = index;
         const lightbox = document.getElementById('lightbox');
-        const img = document.getElementById('lightbox-img');
-        img.src = images[index].url;
+        const image = document.getElementById('lightbox-img');
+        image.src = images[index].url;
         lightbox.classList.add('active');
         document.body.style.overflow = 'hidden';
     }
@@ -279,7 +456,7 @@
         if (event.target.id === 'lightbox' || event.target.classList.contains('lightbox-close')) {
             const lightbox = document.getElementById('lightbox');
             lightbox.classList.remove('active');
-            document.body.style.overflow = 'auto';
+            document.body.style.overflow = '';
         }
     }
 
@@ -289,13 +466,20 @@
         document.getElementById('lightbox-img').src = images[currentIndex].url;
     }
 
-    // Keyboard navigation
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', (event) => {
         const lightbox = document.getElementById('lightbox');
-        if (lightbox.classList.contains('active')) {
-            if (e.key === 'Escape') closeLightbox({ target: lightbox });
-            if (e.key === 'ArrowLeft') navigateLightbox(-1, e);
-            if (e.key === 'ArrowRight') navigateLightbox(1, e);
+        if (!lightbox.classList.contains('active')) {
+            return;
+        }
+
+        if (event.key === 'Escape') {
+            closeLightbox({ target: lightbox });
+        }
+        if (event.key === 'ArrowLeft') {
+            navigateLightbox(-1, event);
+        }
+        if (event.key === 'ArrowRight') {
+            navigateLightbox(1, event);
         }
     });
 </script>

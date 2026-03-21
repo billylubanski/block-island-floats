@@ -118,13 +118,14 @@ def test_index_route_renders_dashboard_controls(sample_db: Path, capture_templat
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
-    assert 'class="control-bar"' in text
+    assert 'class="utility-rail"' in text
     assert 'id="map-loading"' in text
     assert "<div id=\"map\"" in text
     assert "L.map('map')" in text
     assert "spinner.style.display = 'none'" in text
-    assert "Filter by" in text
-    assert "Still Out There!" in text
+    assert "Year focus" in text
+    assert "Floats still unreported" in text
+    assert "Read the island before you head out" in text
 
     _, context = capture_templates[-1]
     assert context["selected_year"] == "2025"
@@ -138,8 +139,9 @@ def test_about_route_renders_project_copy():
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
-    assert "About the Project" in text
-    assert "What are Glass Floats?" in text
+    assert "Built for hunters who like evidence before mileage" in text
+    assert "What this app is tracking" in text
+    assert "How the experience is organized" in text
 
 
 def test_forecast_route_renders_predictions_and_location_detail(
@@ -171,9 +173,9 @@ def test_forecast_route_renders_predictions_and_location_detail(
     assert location_response.status_code == 200
 
     text = response.get_data(as_text=True)
-    assert "Float Forecast" in text
-    assert "Seasonality Score" in text
-    assert "Top Predicted Locations" in text
+    assert "Float forecast" in text
+    assert "How alive the month looks" in text
+    assert "Top predicted locations" in text
     assert "Rodman&#39;s Hollow" in text
     assert "88.5%" in text
     assert "Partly Cloudy" in text

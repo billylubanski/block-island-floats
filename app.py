@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, url_for
 import requests
 import datetime
 import json
@@ -15,6 +15,7 @@ TRUTHY_VALUES = {'1', 'true', 'yes', 'on'}
 DEFAULT_VALID_ONLY = os.getenv('IGNORE_INVALID_ROWS', '').strip().lower() in TRUTHY_VALUES
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 FIELD_ETIQUETTE_PATH = os.path.join(APP_ROOT, 'data', 'field_etiquette.json')
+REPORT_FIND_URL = 'https://www.blockislandinfo.com/glass-float-project/'
 DEFAULT_FIELD_ETIQUETTE = {
     'title': 'Field Etiquette',
     'intro': 'Official float-hunting guidance for use while you are out on the trail.',
@@ -93,6 +94,29 @@ def build_finds_where_clause(year_param=None, valid_only=False, supports_validat
         clauses.append('COALESCE(is_valid, 1) = 1')
     where = f"WHERE {' AND '.join(clauses)}" if clauses else ''
     return where, params
+
+
+def build_cta(label, href, external=False):
+    cta = {
+        'label': label,
+        'href': href,
+    }
+    if external:
+        cta['external'] = True
+    return cta
+
+
+def build_page_meta(active_nav, mode, kicker, title, subtitle, primary_cta=None):
+    page_meta = {
+        'active_nav': active_nav,
+        'mode': mode,
+        'kicker': kicker,
+        'title': title,
+        'subtitle': subtitle,
+    }
+    if primary_cta:
+        page_meta['primary_cta'] = primary_cta
+    return page_meta
 
 
 @app.context_processor
@@ -268,6 +292,12 @@ def index():
     
     # Get last updated timestamp
     last_updated = get_last_updated()
+    primary_location = top_locs[0] if top_locs else None
+    best_month = best_months[0] if best_months else None
+    best_recovery_year = max(
+        year_recovery_stats,
+        key=lambda row: row['recovery_rate'],
+    ) if year_recovery_stats else None
     
     return render_template('index.html', 
                            total_finds=total_finds,
@@ -279,7 +309,22 @@ def index():
                            unreported_stats=unreported_stats,
                            still_out_there=still_out_there,
                            last_updated=last_updated,
-                           selected_year=selected_year)
+                           selected_year=selected_year,
+                           primary_location=primary_location,
+                           best_month=best_month,
+                           best_recovery_year=best_recovery_year,
+                           page_meta=build_page_meta(
+                               active_nav='dashboard',
+                               mode='dashboard',
+                               kicker='Block Island glass float tracker',
+                               title='Read the island before you head out',
+                               subtitle='Map-led recovery patterns, seasonal activity, and the spots that keep paying off.',
+                               primary_cta=build_cta(
+                                   label='Report a find',
+                                   href=REPORT_FIND_URL,
+                                   external=True,
+                               ),
+                           ))
 
 @app.route('/search')
 def search():
@@ -298,12 +343,48 @@ def search():
         ).fetchall()
     else:
         results = []
+    display_results = []
+    for row in results:
+        location_name = normalize_location(row['location_raw'])
+        display_results.append({
+            'year': row['year'],
+            'float_number': row['float_number'],
+            'finder': row['finder'] or 'Unknown finder',
+            'location_name': location_name,
+            'location_raw': row['location_raw'],
+        })
     conn.close()
-    return render_template('search.html', results=results, query=query)
+    return render_template(
+        'search.html',
+        results=display_results,
+        query=query,
+        result_count=len(display_results),
+        page_meta=build_page_meta(
+            active_nav='search',
+            mode='utility',
+            kicker='Search the archive',
+            title='Trace finders, float numbers, and locations fast',
+            subtitle='Pull signal out of the registry without losing the context behind each reported find.',
+        ),
+    )
 
 @app.route('/about')
 def about():
-    return render_template('about.html')
+    return render_template(
+        'about.html',
+        page_meta=build_page_meta(
+            active_nav='about',
+            mode='story',
+            kicker='Why this tool exists',
+            title='Built for hunters who like evidence before mileage',
+            subtitle='The tracker turns public reports into a practical read on where, when, and how to search respectfully.',
+            primary_cta=build_cta(
+                label='Report a found float',
+                href=REPORT_FIND_URL,
+                external=True,
+            ),
+        ),
+    )
 
 @app.route('/field')
 def field_mode():
@@ -344,7 +425,14 @@ def field_mode():
                           hunting_spots=hunting_spots,
                           last_updated=last_updated,
                           weather=weather,
-                          etiquette=FIELD_ETIQUETTE)
+                          etiquette=FIELD_ETIQUETTE,
+                          page_meta=build_page_meta(
+                              active_nav='field',
+                              mode='utility',
+                              kicker='On-island guide',
+                              title='Field mode',
+                              subtitle='Get oriented fast, sort spots by distance, and move from the trailhead with less friction.',
+                          ))
 
 @app.route('/location/<path:location_name>')
 def location_detail(location_name):
@@ -409,6 +497,12 @@ def location_detail(location_name):
     # Top stats
     peak_year = max(years.items(), key=lambda x: x[1]) if years else (None, 0)
     top_finder = max(finders.items(), key=lambda x: x[1]) if finders else (None, 0)
+    years_tracked = len(years)
+    latest_find = next((find for find in finds if find['date_found']), None)
+    featured_images = images[:12]
+    extra_images = images[12:]
+    recent_finds = finds[:18]
+    older_finds = finds[18:]
     
     conn.close()
     
@@ -417,10 +511,32 @@ def location_detail(location_name):
                           total_finds=total_finds,
                           finds=finds,
                           images=images,
+                          featured_images=featured_images,
+                          extra_images=extra_images,
                           coords=coords,
                           peak_year=peak_year,
                           top_finder=top_finder,
-                          years=sorted(years.items(), reverse=True))
+                          years=sorted(years.items(), reverse=True),
+                          years_tracked=years_tracked,
+                          latest_find=latest_find,
+                          recent_finds=recent_finds,
+                          older_finds=older_finds,
+                          page_meta=build_page_meta(
+                              active_nav='dashboard',
+                              mode='utility',
+                              kicker='Location detail',
+                              title=location_name,
+                              subtitle=(
+                                  f'{total_finds} reported finds across {years_tracked} seasons.'
+                                  if years_tracked
+                                  else f'{total_finds} reported finds.'
+                              ),
+                              primary_cta=build_cta(
+                                  label='Open in Maps',
+                                  href=f'https://maps.google.com/?q={coords["lat"]},{coords["lon"]}',
+                                  external=True,
+                              ) if coords else None,
+                          ))
 
 from ml_predictor import predict_today, get_seasonality_score
 
@@ -437,7 +553,19 @@ def forecast():
     return render_template('forecast.html', 
                           predictions=predictions,
                           seasonality=seasonality,
-                          weather=weather)
+                          weather=weather,
+                          top_prediction=predictions[0] if predictions else None,
+                          page_meta=build_page_meta(
+                              active_nav='forecast',
+                              mode='utility',
+                              kicker='Daily briefing',
+                              title='Float forecast',
+                              subtitle='A compact read on seasonal strength, likely locations, and current field conditions.',
+                              primary_cta=build_cta(
+                                  label='Open field mode',
+                                  href=url_for('field_mode', valid_only=1) if valid_only else url_for('field_mode'),
+                              ),
+                          ))
 
 @app.route('/sw.js')
 def service_worker():
