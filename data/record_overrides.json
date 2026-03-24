@@ -1,0 +1,46 @@
+{
+  "3762": {
+    "finder_override": "Kelly & Ross Colgan",
+    "location_override": "Rodman's Hollow",
+    "date_found_override": "2024-04-30",
+    "validation_waivers": [
+      "invalid_float_number"
+    ],
+    "notes": "Manual review 2026-03-24: legitimate no-number orb found in Rodman's Hollow."
+  },
+  "4138": {
+    "finder_override": "Jeff and Mary Williams",
+    "location_override": "Andy's Way",
+    "validation_waivers": [
+      "invalid_float_number"
+    ],
+    "notes": "Manual review 2026-03-24: legitimate no-number orb on Andy's Way."
+  },
+  "4155": {
+    "finder_override": "Abigail",
+    "location_override": "Nathan Mott Trail",
+    "validation_waivers": [
+      "invalid_float_number"
+    ],
+    "notes": "Manual review 2026-03-24: special orb with no number; finder name is Abigail."
+  },
+  "5737": {
+    "finder_override": "Jennifer Pflanz",
+    "location_override": "Hiking in the woods",
+    "date_found_override": "",
+    "validation_waivers": [
+      "invalid_float_number",
+      "missing_normalized_location"
+    ],
+    "notes": "Manual review 2026-03-24: vague 2017 find location; exact date unknown."
+  },
+  "5739": {
+    "finder_override": "Lauren Chapin",
+    "location_override": "Wakefield, RI",
+    "validation_waivers": [
+      "invalid_float_number",
+      "missing_normalized_location"
+    ],
+    "notes": "Manual review 2026-03-24: off-island special orb with unclear number."
+  }
+}

@@ -1,34 +1,52 @@
 {
-  "refreshed_at": "2026-03-21T20:02:16+00:00",
-  "total_records": 4249,
-  "latest_source_date": "2026-01-11",
+  "refreshed_at": "2026-03-24T17:43:24+00:00",
+  "total_records": 4357,
+  "latest_source_date": "2026-03-12",
   "records_by_year": {
-    "2025": 297,
-    "2024": 346,
-    "2023": 357,
-    "2022": 162,
+    "2025": 294,
+    "2024": 344,
+    "2023": 354,
+    "2022": 163,
     "2021": 341,
-    "2020": 416,
+    "2020": 410,
     "2019": 334,
-    "2018": 389,
+    "2018": 387,
     "2017": 339,
     "2016": 360,
-    "2015": 366,
-    "2014": 321,
-    "2013": 221
+    "2015": 365,
+    "2014": 320,
+    "2013": 221,
+    "2012": 125
   },
-  "missing_dates": 3494,
+  "missing_dates": 3607,
   "missing_urls": 0,
-  "missing_images": 0,
+  "missing_images": 220,
   "validation": {
-    "run_id": "20260321T200209Z",
-    "valid_rows": 3919,
-    "invalid_rows": 330,
-    "suspicious_rows": 37,
-    "flagged_rows": 356
+    "run_id": "20260324T174311Z",
+    "valid_rows": 4357,
+    "invalid_rows": 0,
+    "suspicious_rows": 0,
+    "flagged_rows": 0
   },
   "forecast": {
-    "training_rows": 723,
+    "training_rows": 731,
     "populated_prediction_days": 366
+  },
+  "source_discovery": {
+    "sitemap_urls_seen": 4383,
+    "detail_pages_fetched": 29,
+    "reused_rows": 4354,
+    "new_ids": 4,
+    "changed_ids": 0,
+    "backfilled_ids": 25,
+    "anomaly_counts": {
+      "missing_from_sitemap": 0,
+      "detail_404": 0,
+      "parse_error": 0,
+      "request_error": 0,
+      "disallowed_by_robots": 0,
+      "non_float_event": 3,
+      "implausible_season_year": 0
+    }
   }
 }

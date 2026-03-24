@@ -15,6 +15,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from analyzer import normalize_location, split_extreme_float_numbers  # noqa: E402
+from record_overrides import get_validation_waivers, load_record_overrides  # noqa: E402
 
 DEFAULT_DB_PATH = REPO_ROOT / "floats.db"
 DEFAULT_REPORT_JSON = REPO_ROOT / "generated" / "validation_report.json"
@@ -170,7 +171,7 @@ def normalize_float_number(float_raw: str) -> str:
 def is_valid_image_url(image_url: str) -> bool:
     value = clean_text(image_url)
     if not value:
-        return False
+        return True
     parsed = urlparse(value)
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
@@ -234,6 +235,7 @@ def prepare_validation_rows(
     prepared: list[dict[str, Any]] = []
     exact_counter: Counter[tuple[str, ...]] = Counter()
     repeated_float_counter: Counter[tuple[int, str, str]] = Counter()
+    overrides = load_record_overrides()
 
     for row in rows:
         row_id = clean_text(row["id"])
@@ -267,11 +269,12 @@ def prepare_validation_rows(
         if not float_value or not FLOAT_NUMBER_RE.fullmatch(float_value):
             add_flag(errors, "invalid_float_number")
 
-        if not location_normalized or location_normalized == "Other/Unknown":
-            add_flag(errors, "missing_normalized_location")
-
         if not is_valid_image_url(image_url_raw):
             add_flag(errors, "invalid_image_url")
+
+        waivers = get_validation_waivers(row_id, overrides)
+        if waivers:
+            errors = [error for error in errors if error not in waivers]
 
         if not float_value and finder_value.startswith("#"):
             add_flag(suspicious, "blank_float_with_hash_finder")

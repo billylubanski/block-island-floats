@@ -192,3 +192,119 @@ def test_run_validation_pipeline_flags_extreme_float_number_outlier(tmp_path: Pa
 
     assert outlier_row["is_valid"] == 0
     assert "extreme_float_number_outlier" in outlier_row["validation_errors"]
+
+
+def test_run_validation_pipeline_does_not_flag_blank_image_as_invalid(tmp_path: Path):
+    db_path = tmp_path / "floats.db"
+    report_json = tmp_path / "generated" / "validation_report.json"
+    report_csv = tmp_path / "generated" / "validation_report.csv"
+
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        CREATE TABLE finds (
+            id INTEGER PRIMARY KEY,
+            year INTEGER,
+            float_number TEXT,
+            finder TEXT,
+            location_raw TEXT,
+            location_normalized TEXT,
+            date_found TEXT,
+            url TEXT,
+            image_url TEXT
+        )
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO finds (
+            id, year, float_number, finder, location_raw, location_normalized, date_found, url, image_url
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            1,
+            2025,
+            "12",
+            "Alice",
+            "Clayhead Trail",
+            "Clay Head Trail",
+            "2025-06-01",
+            "https://example.com/1",
+            "",
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    summary = run_validation_pipeline(
+        db_path=db_path,
+        report_json_path=report_json,
+        report_csv_path=report_csv,
+        default_source="test_source",
+        run_id="blank_image_run",
+    )
+
+    assert summary["invalid_rows"] == 0
+
+
+def test_run_validation_pipeline_applies_manual_validation_waiver(
+    tmp_path: Path,
+    monkeypatch,
+):
+    db_path = tmp_path / "floats.db"
+    report_json = tmp_path / "generated" / "validation_report.json"
+    report_csv = tmp_path / "generated" / "validation_report.csv"
+
+    conn = sqlite3.connect(db_path)
+    conn.execute(
+        """
+        CREATE TABLE finds (
+            id INTEGER PRIMARY KEY,
+            year INTEGER,
+            float_number TEXT,
+            finder TEXT,
+            location_raw TEXT,
+            location_normalized TEXT,
+            date_found TEXT,
+            url TEXT,
+            image_url TEXT
+        )
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO finds (
+            id, year, float_number, finder, location_raw, location_normalized, date_found, url, image_url
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            4155,
+            2024,
+            "",
+            "Abigail",
+            "Nathan Mott Trail",
+            "Nathan Mott Park",
+            "2024-09-24",
+            "https://example.com/4155",
+            "https://cdn.example.com/4155.jpg",
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    monkeypatch.setattr(
+        "scripts.validation_pipeline.load_record_overrides",
+        lambda: {"4155": {"validation_waivers": ["invalid_float_number"]}},
+    )
+
+    summary = run_validation_pipeline(
+        db_path=db_path,
+        report_json_path=report_json,
+        report_csv_path=report_csv,
+        default_source="test_source",
+        run_id="override_run",
+    )
+
+    assert summary["invalid_rows"] == 0

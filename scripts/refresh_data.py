@@ -4,11 +4,14 @@ import json
 import re
 import sqlite3
 import sys
+import time
+import xml.etree.ElementTree as ET
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urljoin, urlparse
+from urllib.robotparser import RobotFileParser
 
 import requests
 from bs4 import BeautifulSoup
@@ -19,6 +22,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from analyzer import normalize_location, split_extreme_float_numbers  # noqa: E402
 import ml_predictor  # noqa: E402
+from record_overrides import apply_record_override, load_record_overrides  # noqa: E402
 from scripts.validation_pipeline import (  # noqa: E402
     DEFAULT_REPORT_CSV as VALIDATION_REPORT_CSV,
     DEFAULT_REPORT_JSON as VALIDATION_REPORT_JSON,
@@ -26,10 +30,14 @@ from scripts.validation_pipeline import (  # noqa: E402
 )
 
 BASE_URL = "https://www.blockislandinfo.com/glass-float-project/found-floats/"
+SITE_ROOT = "https://www.blockislandinfo.com/"
+ROBOTS_URL = urljoin(SITE_ROOT, "robots.txt")
+SITEMAP_URL = urljoin(SITE_ROOT, "sitemap.xml")
 DEFAULT_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 "
+        "BI-Float-Tracker/1.0"
     ),
     "Accept-Language": "en-US,en;q=0.9",
 }
@@ -43,11 +51,107 @@ MANIFEST_PATH = GENERATED_DIR / "refresh_manifest.json"
 SUMMARY_PATH = GENERATED_DIR / "refresh_summary.md"
 AUDIT_PATH = GENERATED_DIR / "legacy_row_audit.json"
 FORECAST_PATH = GENERATED_DIR / "forecast_artifact.json"
+SITEMAP_STATE_PATH = GENERATED_DIR / "sitemap_state.json"
+CLEANUP_REPORT_PATH = GENERATED_DIR / "data_cleanup_report.json"
+CLEANUP_SUMMARY_PATH = GENERATED_DIR / "data_cleanup_summary.md"
+MANUAL_REVIEW_PATH = GENERATED_DIR / "manual_review_queue.json"
+MANUAL_REVIEW_SUMMARY_PATH = GENERATED_DIR / "manual_review_summary.md"
 REPORT_DATE_FORMAT = "%B %d, %Y at %I:%M %p %Z"
+DEFAULT_CRAWL_DELAY_SECONDS = 2.0
+REQUEST_TIMEOUT_SECONDS = 30
+MAX_REQUEST_RETRIES = 5
+HISTORICAL_BACKFILL_BATCH_SIZE = 25
+MIN_PLAUSIBLE_SEASON_YEAR = 2010
+PLACEHOLDER_IMAGE_TOKEN = "default_image_2__"
+EVENT_URL_RE = re.compile(r"/event/.+?/(?P<record_id>\d+)/?$")
+SITEMAP_STATE_KEYS = (
+    "url",
+    "sitemap_lastmod",
+    "first_seen_at",
+    "last_seen_at",
+    "last_fetched_at",
+    "fetch_status",
+)
 
 
 class SourceAccessDeniedError(RuntimeError):
     """Raised when the upstream site returns a CDN/WAF access denied page."""
+
+
+class PoliteSession:
+    """Shared HTTP client with crawl-delay pacing and basic retry/backoff."""
+
+    def __init__(
+        self,
+        session: requests.Session,
+        *,
+        min_delay_seconds: float = DEFAULT_CRAWL_DELAY_SECONDS,
+        max_retries: int = MAX_REQUEST_RETRIES,
+    ) -> None:
+        self.session = session
+        self.min_delay_seconds = float(min_delay_seconds)
+        self.max_retries = int(max_retries)
+        self._next_request_at = 0.0
+
+    def set_min_delay_seconds(self, delay_seconds: float) -> None:
+        self.min_delay_seconds = max(DEFAULT_CRAWL_DELAY_SECONDS, float(delay_seconds))
+
+    def _wait_for_turn(self) -> None:
+        now = time.monotonic()
+        if self._next_request_at > now:
+            time.sleep(self._next_request_at - now)
+
+    def _mark_request_complete(self) -> None:
+        self._next_request_at = time.monotonic() + self.min_delay_seconds
+
+    def _retry_delay_seconds(self, attempt: int, response: requests.Response | None = None) -> float:
+        if response is not None:
+            retry_after = response.headers.get("Retry-After", "").strip()
+            if retry_after.isdigit():
+                return max(float(retry_after), self.min_delay_seconds)
+        return min(float(2**attempt), 60.0)
+
+    def get(self, url: str, *, context: str, timeout: int = REQUEST_TIMEOUT_SECONDS) -> requests.Response:
+        last_response: requests.Response | None = None
+        last_error: Exception | None = None
+
+        for attempt in range(self.max_retries):
+            self._wait_for_turn()
+            try:
+                response = self.session.get(url, timeout=timeout)
+            except requests.RequestException as exc:
+                self._mark_request_complete()
+                last_error = exc
+                if attempt == self.max_retries - 1:
+                    raise RuntimeError(f"Failed to fetch {context}: {exc}") from exc
+                time.sleep(self._retry_delay_seconds(attempt))
+                continue
+
+            self._mark_request_complete()
+            last_response = response
+
+            if response.status_code == 403:
+                raise SourceAccessDeniedError(f"Source access denied while fetching {context}.")
+            if is_access_denied_html(response.text):
+                raise SourceAccessDeniedError(f"Source access denied while fetching {context}.")
+
+            if response.status_code == 429:
+                if attempt == self.max_retries - 1:
+                    return response
+                time.sleep(self._retry_delay_seconds(attempt, response=response))
+                continue
+
+            if 500 <= response.status_code < 600:
+                if attempt == self.max_retries - 1:
+                    return response
+                time.sleep(self._retry_delay_seconds(attempt, response=response))
+                continue
+
+            return response
+
+        if last_response is not None:
+            return last_response
+        raise RuntimeError(f"Failed to fetch {context}: {last_error}")
 
 
 def make_session() -> requests.Session:
@@ -58,6 +162,113 @@ def make_session() -> requests.Session:
 
 def iso_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def extract_record_id_from_url(url: str) -> str:
+    match = EVENT_URL_RE.search(urlparse(url).path)
+    return match.group("record_id") if match else ""
+
+
+def normalize_sitemap_state_entry(entry: dict[str, Any] | None = None) -> dict[str, str]:
+    normalized = {key: "" for key in SITEMAP_STATE_KEYS}
+    if not isinstance(entry, dict):
+        return normalized
+
+    for key in SITEMAP_STATE_KEYS:
+        value = entry.get(key, "")
+        normalized[key] = "" if value is None else str(value).strip()
+    return normalized
+
+
+def load_sitemap_state(path: Path = SITEMAP_STATE_PATH) -> dict[str, dict[str, str]]:
+    try:
+        payload = load_json(path, {})
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Sitemap state is invalid JSON: {path}") from exc
+    if not isinstance(payload, dict):
+        return {}
+    return {str(record_id): normalize_sitemap_state_entry(entry) for record_id, entry in payload.items()}
+
+
+def parse_robots_policy(robots_txt: str, *, user_agent: str = "*") -> dict[str, Any]:
+    parser = RobotFileParser()
+    parser.parse((robots_txt or "").splitlines())
+    crawl_delay = parser.crawl_delay(user_agent)
+    if crawl_delay is None:
+        crawl_delay = parser.crawl_delay("*")
+    effective_delay = max(DEFAULT_CRAWL_DELAY_SECONDS, float(crawl_delay or DEFAULT_CRAWL_DELAY_SECONDS))
+    return {
+        "parser": parser,
+        "crawl_delay_seconds": effective_delay,
+    }
+
+
+def fetch_robots_policy(fetcher: PoliteSession) -> dict[str, Any]:
+    response = fetcher.get(ROBOTS_URL, context=ROBOTS_URL)
+    if response.status_code != 200:
+        raise RuntimeError(f"Could not fetch robots.txt: {ROBOTS_URL} (status {response.status_code})")
+    policy = parse_robots_policy(response.text)
+    fetcher.set_min_delay_seconds(policy["crawl_delay_seconds"])
+    return policy
+
+
+def can_fetch_url(robots_policy: dict[str, Any], url: str) -> bool:
+    parser = robots_policy.get("parser")
+    if not isinstance(parser, RobotFileParser):
+        return True
+    return parser.can_fetch("*", url)
+
+
+def parse_sitemap_xml(xml_text: str) -> dict[str, dict[str, str]]:
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError as exc:
+        raise RuntimeError("Could not parse sitemap XML.") from exc
+
+    namespace = ""
+    if root.tag.startswith("{") and "}" in root.tag:
+        namespace = root.tag[1 : root.tag.find("}")]
+    ns = {"sm": namespace} if namespace else {}
+    url_nodes = root.findall("sm:url", ns) if ns else root.findall("url")
+
+    entries: dict[str, dict[str, str]] = {}
+    for url_node in url_nodes:
+        loc_node = url_node.find("sm:loc", ns) if ns else url_node.find("loc")
+        lastmod_node = url_node.find("sm:lastmod", ns) if ns else url_node.find("lastmod")
+        loc_text = (loc_node.text or "").strip() if loc_node is not None else ""
+        if "/event/" not in loc_text:
+            continue
+        record_id = extract_record_id_from_url(loc_text)
+        if not record_id:
+            continue
+        entries[record_id] = {
+            "url": loc_text,
+            "sitemap_lastmod": (lastmod_node.text or "").strip() if lastmod_node is not None else "",
+        }
+
+    return dict(sorted(entries.items(), key=lambda item: numeric_sort_key(item[0]), reverse=True))
+
+
+def discover_sitemap_entries(fetcher: PoliteSession, robots_policy: dict[str, Any]) -> tuple[dict[str, dict[str, str]], int]:
+    if not can_fetch_url(robots_policy, SITEMAP_URL):
+        raise RuntimeError(f"robots.txt disallows sitemap access: {SITEMAP_URL}")
+
+    response = fetcher.get(SITEMAP_URL, context=SITEMAP_URL)
+    if response.status_code != 200:
+        raise RuntimeError(f"Could not fetch sitemap XML: {SITEMAP_URL} (status {response.status_code})")
+
+    all_entries = parse_sitemap_xml(response.text)
+    allowed_entries: dict[str, dict[str, str]] = {}
+    disallowed_count = 0
+    for record_id, entry in all_entries.items():
+        if can_fetch_url(robots_policy, entry["url"]):
+            allowed_entries[record_id] = entry
+        else:
+            disallowed_count += 1
+
+    if not allowed_entries:
+        raise RuntimeError("The sitemap did not yield any allowed event URLs.")
+    return allowed_entries, disallowed_count
 
 
 def numeric_sort_key(value: Any) -> tuple[int, str]:
@@ -143,16 +354,71 @@ def canonicalize_date(date_value: str | None) -> str:
     return ""
 
 
+def normalize_title_text(title: str) -> str:
+    replacements = {
+        "\u2013": "-",
+        "\u2014": "-",
+        "\u2015": "-",
+        "\u2212": "-",
+        "\u2018": "'",
+        "\u2019": "'",
+        "\u201c": '"',
+        "\u201d": '"',
+        "\u2026": "...",
+    }
+    normalized = str(title or "")
+    for source, target in replacements.items():
+        normalized = normalized.replace(source, target)
+    return " ".join(normalized.strip().split())
+
+
 def parse_title(title: str) -> tuple[str, str]:
-    normalized = " ".join((title or "").strip().split())
+    normalized = normalize_title_text(title)
     if not normalized:
         return "", ""
 
-    match = re.match(r"^#?(?P<number>\d+)(?:\s*-\s*|\s+)(?P<finder>.+)$", normalized)
+    match = re.match(
+        r"^(?:number\s+)?#?(?P<number>\d+)(?:\??\s*(?:[-,/:.!]\s*|\s+)(?P<finder>.+))?$",
+        normalized,
+        re.IGNORECASE,
+    )
+    if match:
+        finder = (match.group("finder") or "").lstrip("?- ").strip()
+        return match.group("number"), finder
+
+    match = re.match(r"^(?P<finder>.+?)\s+#(?P<number>\d+)\??$", normalized)
+    if match and "unclear" not in match.group("finder").lower():
+        return match.group("number"), match.group("finder").strip()
+
+    match = re.match(r"^(?P<finder>.+?)\s+(?P<number>\d{1,4})\??$", normalized)
+    if match:
+        finder = match.group("finder").strip()
+        lowered_finder = finder.lower()
+        if not lowered_finder.startswith(("number ", "no number")) and "unclear" not in lowered_finder:
+            return match.group("number"), finder
+
+    match = re.match(r"^number\s+(?P<number>\d+)(?:\s*[-,/:.!]\s*|\s+)(?P<finder>.+)$", normalized, re.IGNORECASE)
     if match:
         return match.group("number"), match.group("finder").strip()
 
     return "", normalized
+
+
+def is_placeholder_image_url(image_url: str) -> bool:
+    return PLACEHOLDER_IMAGE_TOKEN in str(image_url or "")
+
+
+def compose_title(float_number: str, finder: str, fallback_title: str = "") -> str:
+    float_number = str(float_number or "").strip()
+    finder = " ".join(str(finder or "").split())
+    fallback_title = " ".join(str(fallback_title or "").split())
+    if not float_number:
+        return fallback_title
+    if not finder:
+        return fallback_title if fallback_title and parse_title(fallback_title)[0] == float_number else float_number
+    if fallback_title and parse_title(fallback_title) == (float_number, finder):
+        return fallback_title
+    return f"{float_number} {finder}".strip()
 
 
 def absolute_url(url: str) -> str:
@@ -522,12 +788,11 @@ def scrape_records(
     return scrape_records_with_playwright(cached_by_year=cached_by_year)
 
 
-def extract_date_from_detail_html(html: str) -> str:
+def extract_json_ld_candidates(html: str) -> list[dict[str, Any]]:
     soup = BeautifulSoup(html, "html.parser")
-    saw_json_ld = False
+    candidates: list[dict[str, Any]] = []
 
     for script in soup.find_all("script", attrs={"type": "application/ld+json"}):
-        saw_json_ld = True
         raw = script.string or script.get_text(strip=True)
         if not raw:
             continue
@@ -536,16 +801,31 @@ def extract_date_from_detail_html(html: str) -> str:
         except json.JSONDecodeError:
             continue
 
-        candidates = payload if isinstance(payload, list) else [payload]
-        for candidate in candidates:
-            if isinstance(candidate, dict):
-                date_value = canonicalize_date(candidate.get("startDate"))
-                if date_value:
-                    return date_value
+        items = payload if isinstance(payload, list) else [payload]
+        for item in items:
+            if isinstance(item, dict):
+                candidates.append(item)
 
-    if saw_json_ld:
+    return candidates
+
+
+def extract_date_from_detail_html(html: str) -> str:
+    json_ld_candidates = extract_json_ld_candidates(html)
+    for candidate in json_ld_candidates:
+        date_value = canonicalize_date(candidate.get("startDate"))
+        if date_value:
+            return date_value
+
+    if json_ld_candidates:
         return ""
 
+    dates_match = re.search(r'var\s+dates\s*=\s*"([^"]+)"', html)
+    if dates_match:
+        date_value = canonicalize_date(dates_match.group(1))
+        if date_value:
+            return date_value
+
+    soup = BeautifulSoup(html, "html.parser")
     text = soup.get_text(" ", strip=True)
     month_match = re.search(
         r"Date Found:\s*([A-Z][a-z]+ \d{1,2}, \d{4})",
@@ -565,6 +845,403 @@ def fetch_detail_date(session: requests.Session, url: str) -> str:
     return extract_date_from_detail_html(html)
 
 
+def extract_event_data_from_html(html: str) -> dict[str, Any] | None:
+    patterns = (
+        r"var\s+data\s*=\s*(\{.*?\});\s*var\s+dates",
+        r"var\s+data\s*=\s*(\{.*?\});",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, html, re.DOTALL)
+        if not match:
+            continue
+        try:
+            payload = json.loads(match.group(1))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            return payload
+    return None
+
+
+def extract_detail_year(event_data: dict[str, Any] | None) -> str:
+    if not isinstance(event_data, dict):
+        return ""
+    categories = event_data.get("categories", [])
+    if not isinstance(categories, list):
+        return ""
+    for category in categories:
+        if not isinstance(category, dict):
+            continue
+        match = re.search(r"\b(20\d{2})\b", str(category.get("catName", "")).strip())
+        if match:
+            return match.group(1)
+    return ""
+
+
+def resolve_detail_year(event_data: dict[str, Any] | None, *, date_found: str = "") -> tuple[str, str]:
+    year = extract_detail_year(event_data)
+    if not year:
+        return "", "non_float_event"
+
+    if not year.isdigit():
+        return "", "non_float_event"
+
+    year_value = int(year)
+    max_reasonable_year = datetime.now(timezone.utc).year + 1
+    if MIN_PLAUSIBLE_SEASON_YEAR <= year_value <= max_reasonable_year:
+        return year, ""
+
+    if date_found:
+        normalized_year = date_found.split("-", 1)[0].strip()
+        if normalized_year.isdigit():
+            return normalized_year, "implausible_season_year"
+
+    return "", "implausible_season_year"
+
+
+def extract_location_from_json_ld(candidate: dict[str, Any]) -> str:
+    location = candidate.get("location")
+    if isinstance(location, dict):
+        return str(location.get("name", "")).strip()
+    return ""
+
+
+def extract_image_from_json_ld(candidates: list[dict[str, Any]]) -> str:
+    for candidate in candidates:
+        image = candidate.get("image")
+        if isinstance(image, str) and image.strip():
+            return image.strip()
+        if isinstance(image, list):
+            for value in image:
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+    return ""
+
+
+def extract_image_from_meta(soup: BeautifulSoup) -> str:
+    for attrs in (
+        {"property": "og:image"},
+        {"name": "og:image"},
+        {"property": "twitter:image"},
+        {"name": "twitter:image"},
+    ):
+        tag = soup.find("meta", attrs=attrs)
+        if tag:
+            value = str(tag.get("content", "")).strip()
+            if value:
+                return value
+    return ""
+
+
+def extract_text_from_html_fragment(fragment: Any) -> str:
+    if not fragment:
+        return ""
+    text = BeautifulSoup(str(fragment), "html.parser").get_text(" ", strip=True)
+    return " ".join(text.split())
+
+
+def extract_location_from_description(description_html: Any) -> str:
+    text = extract_text_from_html_fragment(description_html)
+    if not text:
+        return ""
+
+    sentences = [segment.strip(" -") for segment in re.split(r"(?<=[.!?])\s+", text) if segment.strip()]
+    location_tokens = (" near ", " on ", " in ", " under ", " behind ", " at ", " by ", " between ", " off ", " amongst ")
+
+    for sentence in sentences:
+        candidate = sentence
+        candidate = re.sub(r"^while [^,]+,\s*", "", candidate, flags=re.IGNORECASE)
+        candidate = re.sub(
+            r"^(?:i|we)\s+found(?:\s+(?:an\s+orb|the\s+orb|it))?\s+",
+            "",
+            candidate,
+            flags=re.IGNORECASE,
+        )
+        candidate = re.sub(r"^found(?:\s+(?:an\s+orb|the\s+orb|it))?\s+", "", candidate, flags=re.IGNORECASE)
+        lowered = f" {candidate.lower()} "
+        if any(token in lowered for token in location_tokens):
+            return candidate.strip().rstrip(".!?")
+
+    if len(text) <= 120:
+        return text.rstrip(".!?")
+    return ""
+
+
+def parse_detail_record_result_from_html(html: str, url: str) -> dict[str, Any]:
+    record_id = extract_record_id_from_url(url)
+    event_data = extract_event_data_from_html(html)
+    json_ld_candidates = extract_json_ld_candidates(html)
+    soup = BeautifulSoup(html, "html.parser")
+
+    data_record_id = ""
+    if isinstance(event_data, dict):
+        data_record_id = str(event_data.get("recid", "")).strip()
+    if data_record_id and record_id and data_record_id != record_id:
+        return {
+            "record": None,
+            "rejection_reason": "parse_error",
+            "warning": "",
+        }
+    record_id = data_record_id or record_id
+
+    title = ""
+    if isinstance(event_data, dict):
+        title = str(event_data.get("title", "")).strip()
+    if not title:
+        title = next((str(candidate.get("name", "")).strip() for candidate in json_ld_candidates if candidate.get("name")), "")
+    if not title and soup.title:
+        title = soup.title.get_text(" ", strip=True).split("|", 1)[0].strip()
+
+    location = ""
+    if isinstance(event_data, dict):
+        location = str(event_data.get("location", "")).strip()
+    if not location:
+        location = next((extract_location_from_json_ld(candidate) for candidate in json_ld_candidates if extract_location_from_json_ld(candidate)), "")
+    if not location and isinstance(event_data, dict):
+        location = extract_location_from_description(event_data.get("description"))
+
+    image = ""
+    if isinstance(event_data, dict):
+        for key in ("image", "imageUrl", "image_url", "thumb", "img"):
+            value = event_data.get(key)
+            if isinstance(value, str) and value.strip():
+                image = value.strip()
+                break
+    if not image:
+        image = extract_image_from_json_ld(json_ld_candidates)
+    if not image:
+        image = extract_image_from_meta(soup)
+
+    date_found = extract_date_from_detail_html(html)
+    year, anomaly_key = resolve_detail_year(event_data, date_found=date_found)
+    record = normalize_record(
+        {
+            "id": record_id,
+            "year": year,
+            "title": title,
+            "url": url,
+            "image": image,
+            "location": location,
+            "date_found": date_found,
+        }
+    )
+    if not record["id"] or not record["year"] or not record["title"]:
+        return {
+            "record": None,
+            "rejection_reason": anomaly_key or "parse_error",
+            "warning": "",
+        }
+    return {
+        "record": record,
+        "rejection_reason": "",
+        "warning": anomaly_key,
+    }
+
+
+def parse_detail_record_from_html(html: str, url: str) -> dict[str, str] | None:
+    result = parse_detail_record_result_from_html(html, url)
+    record = result.get("record")
+    return record if isinstance(record, dict) else None
+
+
+def record_is_complete(record: dict[str, str]) -> bool:
+    return all(record.get(key, "").strip() for key in CANONICAL_KEYS)
+
+
+def should_bootstrap_existing_state(
+    previous_entry: dict[str, str] | None,
+    existing_record: dict[str, str] | None,
+    sitemap_entry: dict[str, str],
+) -> bool:
+    if not previous_entry or not existing_record:
+        return False
+    if previous_entry.get("sitemap_lastmod", "").strip():
+        return False
+    if previous_entry.get("fetch_status", "").strip() not in {"", "bootstrap"}:
+        return False
+    existing_url = existing_record.get("url", "").strip()
+    return not existing_url or existing_url == sitemap_entry["url"]
+
+
+def backfill_sort_key(
+    record_id: str,
+    previous_state: dict[str, dict[str, str]],
+    order_positions: dict[str, int],
+) -> tuple[int, str, int]:
+    previous_entry = normalize_sitemap_state_entry(previous_state.get(record_id))
+    last_fetched_at = previous_entry.get("last_fetched_at", "")
+    return (0 if not last_fetched_at else 1, last_fetched_at, order_positions.get(record_id, 0))
+
+
+def select_sitemap_fetch_ids(
+    sitemap_entries: dict[str, dict[str, str]],
+    existing_by_id: dict[str, dict[str, str]],
+    previous_state: dict[str, dict[str, str]],
+    *,
+    backfill_batch_size: int = HISTORICAL_BACKFILL_BATCH_SIZE,
+) -> dict[str, list[str]]:
+    ordered_ids = list(sitemap_entries)
+    order_positions = {record_id: position for position, record_id in enumerate(ordered_ids)}
+    new_ids: list[str] = []
+    changed_ids: list[str] = []
+    incomplete_ids: list[str] = []
+
+    for record_id in ordered_ids:
+        existing_record = existing_by_id.get(record_id)
+        previous_entry = previous_state.get(record_id)
+        sitemap_entry = sitemap_entries[record_id]
+
+        if existing_record is None:
+            new_ids.append(record_id)
+            continue
+
+        if previous_entry and not should_bootstrap_existing_state(previous_entry, existing_record, sitemap_entry) and (
+            previous_entry.get("url", "") != sitemap_entry["url"]
+            or previous_entry.get("sitemap_lastmod", "") != sitemap_entry["sitemap_lastmod"]
+        ):
+            changed_ids.append(record_id)
+            continue
+
+        if not record_is_complete(existing_record):
+            incomplete_ids.append(record_id)
+
+    incomplete_ids = sorted(
+        incomplete_ids,
+        key=lambda record_id: backfill_sort_key(record_id, previous_state, order_positions),
+    )
+    backfill_ids = incomplete_ids[:backfill_batch_size]
+    fetch_ids = new_ids + changed_ids + [record_id for record_id in backfill_ids if record_id not in changed_ids]
+    return {
+        "fetch_ids": fetch_ids,
+        "new_ids": new_ids,
+        "changed_ids": changed_ids,
+        "backfill_ids": backfill_ids,
+    }
+
+
+def fetch_detail_page_result(fetcher: PoliteSession, url: str) -> dict[str, Any]:
+    try:
+        response = fetcher.get(url, context=url)
+    except SourceAccessDeniedError:
+        raise
+    except RuntimeError:
+        return {"status_code": 0, "body": ""}
+    return {"status_code": int(response.status_code), "body": response.text}
+
+
+def apply_sitemap_updates(
+    existing_by_id: dict[str, dict[str, str]],
+    sitemap_entries: dict[str, dict[str, str]],
+    previous_state: dict[str, dict[str, str]],
+    fetch_detail_page: Any,
+    *,
+    refreshed_at: str | None = None,
+    backfill_batch_size: int = HISTORICAL_BACKFILL_BATCH_SIZE,
+    disallowed_count: int = 0,
+) -> tuple[list[dict[str, str]], dict[str, dict[str, str]], dict[str, Any]]:
+    refreshed_at = refreshed_at or iso_now()
+    canonical_by_id = {record_id: normalize_record(record) for record_id, record in existing_by_id.items()}
+    next_state = {record_id: normalize_sitemap_state_entry(entry) for record_id, entry in previous_state.items()}
+    scheduling = select_sitemap_fetch_ids(
+        sitemap_entries,
+        existing_by_id,
+        previous_state,
+        backfill_batch_size=backfill_batch_size,
+    )
+
+    source_discovery = {
+        "sitemap_urls_seen": len(sitemap_entries),
+        "detail_pages_fetched": 0,
+        "reused_rows": 0,
+        "new_ids": len(scheduling["new_ids"]),
+        "changed_ids": len(scheduling["changed_ids"]),
+        "backfilled_ids": len(scheduling["backfill_ids"]),
+        "anomaly_counts": {
+            "missing_from_sitemap": 0,
+            "detail_404": 0,
+            "parse_error": 0,
+            "request_error": 0,
+            "disallowed_by_robots": int(disallowed_count),
+            "non_float_event": 0,
+            "implausible_season_year": 0,
+        },
+    }
+
+    for record_id, sitemap_entry in sitemap_entries.items():
+        previous_entry = next_state.get(record_id, normalize_sitemap_state_entry(previous_state.get(record_id)))
+        fetch_status = previous_entry.get("fetch_status", "")
+        if not fetch_status:
+            fetch_status = "bootstrap" if record_id in existing_by_id else "discovered"
+        next_state[record_id] = {
+            "url": sitemap_entry["url"],
+            "sitemap_lastmod": sitemap_entry["sitemap_lastmod"],
+            "first_seen_at": previous_entry.get("first_seen_at", "") or refreshed_at,
+            "last_seen_at": refreshed_at,
+            "last_fetched_at": previous_entry.get("last_fetched_at", ""),
+            "fetch_status": fetch_status,
+        }
+
+    missing_from_sitemap_ids = [
+        record_id for record_id in existing_by_id if record_id not in sitemap_entries
+    ]
+    source_discovery["anomaly_counts"]["missing_from_sitemap"] = len(missing_from_sitemap_ids)
+    for record_id in missing_from_sitemap_ids:
+        previous_entry = next_state.get(record_id, normalize_sitemap_state_entry(previous_state.get(record_id)))
+        next_state[record_id] = {
+            "url": previous_entry.get("url", "") or existing_by_id[record_id].get("url", ""),
+            "sitemap_lastmod": previous_entry.get("sitemap_lastmod", ""),
+            "first_seen_at": previous_entry.get("first_seen_at", ""),
+            "last_seen_at": previous_entry.get("last_seen_at", ""),
+            "last_fetched_at": previous_entry.get("last_fetched_at", ""),
+            "fetch_status": "missing_from_sitemap",
+        }
+
+    fetched_ids = set(scheduling["fetch_ids"])
+    for record_id in scheduling["fetch_ids"]:
+        sitemap_entry = sitemap_entries[record_id]
+        result = fetch_detail_page(sitemap_entry["url"])
+        source_discovery["detail_pages_fetched"] += 1
+        next_state[record_id]["last_fetched_at"] = refreshed_at
+
+        status_code = int(result.get("status_code", 0))
+        body = str(result.get("body", "") or "")
+        if status_code == 404:
+            next_state[record_id]["fetch_status"] = "http_404"
+            source_discovery["anomaly_counts"]["detail_404"] += 1
+            continue
+        if status_code != 200:
+            next_state[record_id]["fetch_status"] = f"http_{status_code}" if status_code else "request_error"
+            source_discovery["anomaly_counts"]["request_error"] += 1
+            continue
+
+        detail_result = parse_detail_record_result_from_html(body, sitemap_entry["url"])
+        record = detail_result.get("record")
+        rejection_reason = str(detail_result.get("rejection_reason", "") or "parse_error")
+        warning = str(detail_result.get("warning", "") or "")
+        if not record:
+            next_state[record_id]["fetch_status"] = rejection_reason
+            source_discovery["anomaly_counts"][rejection_reason] = (
+                source_discovery["anomaly_counts"].get(rejection_reason, 0) + 1
+            )
+            continue
+
+        canonical_by_id[record_id] = record
+        next_state[record_id]["url"] = record["url"]
+        next_state[record_id]["fetch_status"] = "ok"
+        if warning:
+            source_discovery["anomaly_counts"][warning] = source_discovery["anomaly_counts"].get(warning, 0) + 1
+
+    source_discovery["reused_rows"] = sum(
+        1 for record_id in sitemap_entries if record_id in existing_by_id and record_id not in fetched_ids
+    )
+    for record_id in sitemap_entries:
+        if record_id in existing_by_id and record_id not in fetched_ids:
+            current_status = next_state[record_id].get("fetch_status", "")
+            if current_status in {"", "bootstrap"}:
+                next_state[record_id]["fetch_status"] = "cached"
+    return sort_records(list(canonical_by_id.values())), next_state, source_discovery
+
+
 def load_existing_canonical_records() -> dict[str, dict[str, str]]:
     existing_records = load_json(CANONICAL_JSON_PATH, [])
     if not existing_records:
@@ -572,7 +1249,11 @@ def load_existing_canonical_records() -> dict[str, dict[str, str]]:
         for snapshot_path in sorted(SCRAPED_DATA_DIR.glob("floats_*.json")):
             snapshot_records.extend(load_json(snapshot_path, []))
         existing_records = snapshot_records
-    return {str(record["id"]): normalize_record(record) for record in existing_records}
+    record_overrides = load_record_overrides()
+    return {
+        str(record["id"]): normalize_record(apply_record_override(record, record_overrides.get(str(record["id"]))))
+        for record in existing_records
+    }
 
 
 def enrich_records_with_details(
@@ -614,6 +1295,94 @@ def enrich_records_with_details(
     return sort_records([normalize_record(record) for record in enriched])
 
 
+def duplicate_group_key(record: dict[str, str]) -> tuple[str, str, str] | None:
+    year = str(record.get("year", "")).strip()
+    float_number, _ = parse_title(record.get("title", ""))
+    location_normalized = normalize_location(record.get("location", ""))
+    if not year or not float_number or not location_normalized or location_normalized == "Other/Unknown":
+        return None
+    return year, float_number, location_normalized
+
+
+def choose_best_duplicate_record(records: list[dict[str, str]]) -> dict[str, str]:
+    def score(record: dict[str, str]) -> tuple[int, int, int, int, int]:
+        _, finder = parse_title(record.get("title", ""))
+        image = record.get("image", "")
+        image_score = 2 if image and not is_placeholder_image_url(image) else 1 if image else 0
+        finder_score = 1 if finder and finder.lower() not in {"not specified"} else 0
+        return (
+            1 if record.get("date_found", "") else 0,
+            image_score,
+            finder_score,
+            len(record.get("location", "")),
+            int(record.get("id", "0")) if str(record.get("id", "")).isdigit() else 0,
+        )
+
+    return max(records, key=score)
+
+
+def merge_duplicate_group(records: list[dict[str, str]]) -> dict[str, str]:
+    representative = dict(choose_best_duplicate_record(records))
+    float_number, representative_finder = parse_title(representative.get("title", ""))
+
+    finder_candidates = []
+    for record in records:
+        _, finder = parse_title(record.get("title", ""))
+        if finder and finder.lower() not in {"not specified"}:
+            finder_candidates.append(finder)
+    finder = max(finder_candidates, key=lambda value: (len(value), value), default=representative_finder)
+
+    location_candidates = [record.get("location", "").strip() for record in records if record.get("location", "").strip()]
+    image_candidates = [record.get("image", "").strip() for record in records if record.get("image", "").strip()]
+    actual_images = [image for image in image_candidates if not is_placeholder_image_url(image)]
+    dated_candidates = [record.get("date_found", "").strip() for record in records if record.get("date_found", "").strip()]
+
+    representative["title"] = compose_title(float_number, finder, representative.get("title", ""))
+    if location_candidates:
+        representative["location"] = max(location_candidates, key=lambda value: (len(value), value))
+    if actual_images:
+        representative["image"] = max(actual_images, key=len)
+    elif image_candidates and not representative.get("image", "").strip():
+        representative["image"] = max(image_candidates, key=len)
+    if dated_candidates:
+        representative["date_found"] = max(dated_candidates)
+
+    return normalize_record(representative)
+
+
+def merge_duplicate_records(records: list[dict[str, str]]) -> tuple[list[dict[str, str]], list[dict[str, Any]]]:
+    grouped: dict[tuple[str, str, str], list[dict[str, str]]] = {}
+    passthrough: list[dict[str, str]] = []
+
+    for record in sort_records(records):
+        key = duplicate_group_key(record)
+        if key is None:
+            passthrough.append(normalize_record(record))
+            continue
+        grouped.setdefault(key, []).append(normalize_record(record))
+
+    merged_records = list(passthrough)
+    merge_report: list[dict[str, Any]] = []
+    for (year, float_number, location_normalized), group in grouped.items():
+        if len(group) == 1:
+            merged_records.extend(group)
+            continue
+
+        merged = merge_duplicate_group(group)
+        merged_records.append(merged)
+        merge_report.append(
+            {
+                "year": year,
+                "float_number": float_number,
+                "location_normalized": location_normalized,
+                "kept_id": merged["id"],
+                "merged_ids": sorted((record["id"] for record in group), key=numeric_sort_key),
+            }
+        )
+
+    return sort_records(merged_records), merge_report
+
+
 def write_per_year_snapshots(records: list[dict[str, str]]) -> None:
     by_year: dict[str, list[dict[str, str]]] = {}
     for record in records:
@@ -624,7 +1393,13 @@ def write_per_year_snapshots(records: list[dict[str, str]]) -> None:
         write_json(SCRAPED_DATA_DIR / f"floats_{year}.json", sort_records(year_records))
 
 
-def rebuild_database(records: list[dict[str, str]], db_path: Path) -> None:
+def rebuild_database(
+    records: list[dict[str, str]],
+    db_path: Path,
+    *,
+    sitemap_state: dict[str, dict[str, str]] | None = None,
+    record_overrides: dict[str, dict[str, Any]] | None = None,
+) -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -645,6 +1420,10 @@ def rebuild_database(records: list[dict[str, str]], db_path: Path) -> None:
             validation_errors TEXT DEFAULT '[]',
             confidence_score REAL DEFAULT 1.0,
             source TEXT DEFAULT '',
+            source_lastmod TEXT DEFAULT '',
+            source_first_seen_at TEXT DEFAULT '',
+            source_last_seen_at TEXT DEFAULT '',
+            source_fetch_status TEXT DEFAULT '',
             suspicious_flags TEXT DEFAULT '[]'
         )
         """
@@ -653,6 +1432,15 @@ def rebuild_database(records: list[dict[str, str]], db_path: Path) -> None:
     rows = []
     for record in sort_records(records):
         float_number, finder = parse_title(record["title"])
+        override = (record_overrides or {}).get(record["id"], {})
+        if "float_number_override" in override:
+            float_number = str(override.get("float_number_override", "")).strip()
+        if "finder_override" in override:
+            finder = str(override.get("finder_override", "")).strip()
+        source_entry = normalize_sitemap_state_entry((sitemap_state or {}).get(record["id"]))
+        location_normalized = normalize_location(record["location"])
+        if "location_normalized_override" in override:
+            location_normalized = str(override.get("location_normalized_override", "")).strip()
         rows.append(
             (
                 int(record["id"]),
@@ -660,11 +1448,15 @@ def rebuild_database(records: list[dict[str, str]], db_path: Path) -> None:
                 float_number,
                 finder,
                 record["location"],
-                normalize_location(record["location"]),
+                location_normalized,
                 record["date_found"],
                 record["url"],
                 record["image"],
                 "blockislandinfo.com",
+                source_entry["sitemap_lastmod"],
+                source_entry["first_seen_at"],
+                source_entry["last_seen_at"],
+                source_entry["fetch_status"],
             )
         )
 
@@ -680,9 +1472,13 @@ def rebuild_database(records: list[dict[str, str]], db_path: Path) -> None:
             date_found,
             url,
             image_url,
-            source
+            source,
+            source_lastmod,
+            source_first_seen_at,
+            source_last_seen_at,
+            source_fetch_status
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         rows,
     )
@@ -721,6 +1517,7 @@ def build_manifest(
     records: list[dict[str, str]],
     validation_summary: dict[str, Any] | None = None,
     forecast_summary: dict[str, Any] | None = None,
+    source_discovery: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     counts_by_year = Counter(record["year"] for record in records)
     valid_dates = [record["date_found"] for record in records if record["date_found"]]
@@ -747,7 +1544,269 @@ def build_manifest(
             "training_rows": forecast_summary.get("training_rows", 0),
             "populated_prediction_days": forecast_summary.get("populated_prediction_days", 0),
         }
+    if source_discovery:
+        manifest["source_discovery"] = {
+            "sitemap_urls_seen": source_discovery.get("sitemap_urls_seen", 0),
+            "detail_pages_fetched": source_discovery.get("detail_pages_fetched", 0),
+            "reused_rows": source_discovery.get("reused_rows", 0),
+            "new_ids": source_discovery.get("new_ids", 0),
+            "changed_ids": source_discovery.get("changed_ids", 0),
+            "backfilled_ids": source_discovery.get("backfilled_ids", 0),
+            "anomaly_counts": dict(source_discovery.get("anomaly_counts", {})),
+        }
     return manifest
+
+
+def build_cleanup_report(
+    records: list[dict[str, str]],
+    *,
+    validation_report: dict[str, Any] | None = None,
+    duplicate_merge_report: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    by_year: dict[str, dict[str, int]] = {}
+    placeholder_rows: list[dict[str, str]] = []
+    blank_location_rows: list[dict[str, str]] = []
+    blank_image_rows: list[dict[str, str]] = []
+    bucketed_unknown_counts: Counter[str] = Counter()
+
+    for record in sort_records(records):
+        year = record["year"] or "unknown"
+        bucket = by_year.setdefault(
+            year,
+            {
+                "total": 0,
+                "missing_dates": 0,
+                "blank_images": 0,
+                "placeholder_images": 0,
+                "blank_locations": 0,
+            },
+        )
+        bucket["total"] += 1
+        if not record["date_found"]:
+            bucket["missing_dates"] += 1
+        if not record["image"]:
+            bucket["blank_images"] += 1
+            blank_image_rows.append(record)
+        elif is_placeholder_image_url(record["image"]):
+            bucket["placeholder_images"] += 1
+            placeholder_rows.append(record)
+        if not record["location"]:
+            bucket["blank_locations"] += 1
+            blank_location_rows.append(record)
+        else:
+            normalized_location = normalize_location(record["location"])
+            if normalized_location == "Other/Unknown":
+                bucketed_unknown_counts[record["location"]] += 1
+
+    flagged_records = []
+    validation_summary = {}
+    if isinstance(validation_report, dict):
+        flagged_records = validation_report.get("flagged_records", [])
+        validation_summary = validation_report.get("summary", {})
+
+    unresolved_title_rows: list[dict[str, Any]] = []
+    hash_only_rows: list[dict[str, Any]] = []
+
+    for row in flagged_records if isinstance(flagged_records, list) else []:
+        validation_errors = row.get("validation_errors", [])
+        suspicious_flags = row.get("suspicious_flags", [])
+        if "invalid_float_number" in validation_errors and len(unresolved_title_rows) < 25:
+            unresolved_title_rows.append(
+                {
+                    "id": str(row.get("id", "")),
+                    "year": str(row.get("year", "")),
+                    "finder": str(row.get("finder", "")),
+                    "url": str(row.get("url", "")),
+                }
+            )
+        if "blank_float_with_hash_finder" in suspicious_flags and len(hash_only_rows) < 25:
+            hash_only_rows.append(
+                {
+                    "id": str(row.get("id", "")),
+                    "year": str(row.get("year", "")),
+                    "finder": str(row.get("finder", "")),
+                    "url": str(row.get("url", "")),
+                }
+            )
+
+    return {
+        "generated_at": iso_now(),
+        "totals": {
+            "records": len(records),
+            "missing_dates": sum(1 for record in records if not record["date_found"]),
+            "blank_images": len(blank_image_rows),
+            "placeholder_images": len(placeholder_rows),
+            "blank_locations": len(blank_location_rows),
+            "bucketed_unknown_locations": sum(bucketed_unknown_counts.values()),
+            "merged_duplicate_groups": len(duplicate_merge_report or []),
+        },
+        "by_year": {year: by_year[year] for year in sorted(by_year, reverse=True)},
+        "validation": {
+            "summary": validation_summary,
+            "top_bucketed_unknown_locations": bucketed_unknown_counts.most_common(50),
+            "unresolved_title_rows": unresolved_title_rows,
+            "hash_only_title_rows": hash_only_rows,
+        },
+        "examples": {
+            "recent_blank_location_rows": blank_location_rows[:25],
+            "recent_blank_image_rows": blank_image_rows[:25],
+            "recent_placeholder_image_rows": placeholder_rows[:25],
+        },
+        "duplicate_merges": duplicate_merge_report or [],
+    }
+
+
+def write_cleanup_summary(cleanup_report: dict[str, Any]) -> None:
+    totals = cleanup_report.get("totals", {})
+    validation = cleanup_report.get("validation", {})
+    by_year = cleanup_report.get("by_year", {})
+    unknown_locations = validation.get("top_bucketed_unknown_locations", [])
+    title_rows = validation.get("unresolved_title_rows", [])
+    recent_blank_locations = cleanup_report.get("examples", {}).get("recent_blank_location_rows", [])
+
+    lines = [
+        "# Data Cleanup Summary",
+        "",
+        f"- Generated at: {cleanup_report.get('generated_at', '')}",
+        f"- Records reviewed: {totals.get('records', 0)}",
+        f"- Missing dates: {totals.get('missing_dates', 0)}",
+        f"- Blank images: {totals.get('blank_images', 0)}",
+        f"- Placeholder images (treated as complete/no-photo posts): {totals.get('placeholder_images', 0)}",
+        f"- Blank locations: {totals.get('blank_locations', 0)}",
+        f"- Bucketed unknown/off-island locations: {totals.get('bucketed_unknown_locations', 0)}",
+        f"- Merged duplicate groups: {totals.get('merged_duplicate_groups', 0)}",
+        "",
+        "## Can Fill",
+        "",
+        "- Placeholder-image rows stay classified as complete entries rather than missing-image holes.",
+        "- Title parsing now recovers obvious numeric-only and hash-prefixed float numbers during DB rebuild.",
+        "- Vague, off-island, and unknown locations are bucketed into `Other/Unknown` for modeling exclusion.",
+        f"- Remaining unresolved title rows for manual review: {len(title_rows)}",
+        "",
+        "## Probably Source Missing",
+        "",
+    ]
+    for year, bucket in by_year.items():
+        if bucket["missing_dates"] or bucket["blank_images"] or bucket["placeholder_images"]:
+            lines.append(
+                f"- {year}: dates {bucket['missing_dates']}, blank images {bucket['blank_images']}, placeholder images {bucket['placeholder_images']}"
+            )
+
+    lines.extend(
+        [
+            "",
+            "## Manual Review",
+            "",
+        ]
+    )
+    for location_raw, count in unknown_locations[:15]:
+        label = location_raw or "(blank)"
+        lines.append(f"- Bucketed location `{label}`: {count}")
+
+    if recent_blank_locations:
+        lines.extend(
+            [
+                "",
+                "## Blank Location Examples",
+                "",
+            ]
+        )
+        for record in recent_blank_locations[:10]:
+            lines.append(f"- {record['year']} #{record['id']}: {record['title']} ({record['url']})")
+
+    CLEANUP_SUMMARY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CLEANUP_SUMMARY_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def build_manual_review_queue(validation_report: dict[str, Any] | None = None) -> dict[str, Any]:
+    flagged_records = []
+    if isinstance(validation_report, dict):
+        flagged_records = validation_report.get("flagged_records", [])
+
+    unresolved_titles: list[dict[str, Any]] = []
+    duplicate_groups: dict[tuple[str, str, str], list[dict[str, Any]]] = {}
+
+    for row in flagged_records if isinstance(flagged_records, list) else []:
+        validation_errors = row.get("validation_errors", [])
+        suspicious_flags = row.get("suspicious_flags", [])
+
+        if "invalid_float_number" in validation_errors:
+            unresolved_titles.append(
+                {
+                    "id": str(row.get("id", "")),
+                    "year": str(row.get("year", "")),
+                    "finder": str(row.get("finder", "")),
+                    "location_raw": str(row.get("location_raw", "")),
+                    "url": str(row.get("url", "")),
+                }
+            )
+
+        if "duplicate_float_year_location" in suspicious_flags:
+            key = (
+                str(row.get("year", "")),
+                str(row.get("float_number", "")),
+                str(row.get("location_normalized", "")),
+            )
+            duplicate_groups.setdefault(key, []).append(
+                {
+                    "id": str(row.get("id", "")),
+                    "finder": str(row.get("finder", "")),
+                    "location_raw": str(row.get("location_raw", "")),
+                    "date_found": str(row.get("date_found", "")),
+                    "url": str(row.get("url", "")),
+                }
+            )
+
+    grouped_duplicates = [
+        {
+            "year": year,
+            "float_number": float_number,
+            "location_normalized": location_normalized,
+            "records": records,
+        }
+        for (year, float_number, location_normalized), records in sorted(duplicate_groups.items())
+    ]
+
+    return {
+        "generated_at": iso_now(),
+        "counts": {
+            "unresolved_titles": len(unresolved_titles),
+            "duplicate_groups": len(grouped_duplicates),
+        },
+        "unresolved_titles": unresolved_titles,
+        "duplicate_groups": grouped_duplicates,
+    }
+
+
+def write_manual_review_summary(manual_review_queue: dict[str, Any]) -> None:
+    counts = manual_review_queue.get("counts", {})
+    lines = [
+        "# Manual Review Queue",
+        "",
+        f"- Generated at: {manual_review_queue.get('generated_at', '')}",
+        f"- Unresolved titles: {counts.get('unresolved_titles', 0)}",
+        f"- Duplicate groups: {counts.get('duplicate_groups', 0)}",
+        "",
+        "## Titles",
+        "",
+    ]
+    for row in manual_review_queue.get("unresolved_titles", [])[:15]:
+        lines.append(f"- {row['year']} #{row['id']}: {row['finder']} ({row['url']})")
+
+    lines.extend(
+        [
+            "",
+            "## Duplicate Groups",
+            "",
+        ]
+    )
+    for group in manual_review_queue.get("duplicate_groups", [])[:15]:
+        lines.append(
+            f"- {group['year']} float {group['float_number']} at {group['location_normalized']}: {len(group['records'])} records"
+        )
+
+    MANUAL_REVIEW_SUMMARY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    MANUAL_REVIEW_SUMMARY_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def write_summary(manifest: dict[str, Any], legacy_rows: list[dict[str, Any]]) -> None:
@@ -781,6 +1840,10 @@ def write_summary(manifest: dict[str, Any], legacy_rows: list[dict[str, Any]]) -
                 f"- Flagged rows: {validation['flagged_rows']}",
                 f"- Validation report JSON: {VALIDATION_REPORT_JSON}",
                 f"- Validation report CSV: {VALIDATION_REPORT_CSV}",
+                f"- Cleanup report JSON: {CLEANUP_REPORT_PATH}",
+                f"- Cleanup summary: {CLEANUP_SUMMARY_PATH}",
+                f"- Manual review queue: {MANUAL_REVIEW_PATH}",
+                f"- Manual review summary: {MANUAL_REVIEW_SUMMARY_PATH}",
             ]
         )
     forecast = manifest.get("forecast")
@@ -795,6 +1858,32 @@ def write_summary(manifest: dict[str, Any], legacy_rows: list[dict[str, Any]]) -
                 f"- Artifact JSON: {FORECAST_PATH}",
             ]
         )
+    source_discovery = manifest.get("source_discovery")
+    if source_discovery:
+        lines.extend(
+            [
+                "",
+                "## Source Discovery",
+                "",
+                f"- Sitemap URLs seen: {source_discovery['sitemap_urls_seen']}",
+                f"- Detail pages fetched: {source_discovery['detail_pages_fetched']}",
+                f"- Reused rows: {source_discovery['reused_rows']}",
+                f"- New IDs: {source_discovery['new_ids']}",
+                f"- Changed IDs: {source_discovery['changed_ids']}",
+                f"- Backfilled IDs: {source_discovery['backfilled_ids']}",
+            ]
+        )
+        anomaly_counts = source_discovery.get("anomaly_counts", {})
+        if anomaly_counts:
+            lines.extend(
+                [
+                    "",
+                    "## Source Anomalies",
+                    "",
+                ]
+            )
+            for key, count in sorted(anomaly_counts.items()):
+                lines.append(f"- {key}: {count}")
     SUMMARY_PATH.parent.mkdir(parents=True, exist_ok=True)
     SUMMARY_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -834,11 +1923,44 @@ def validate_forecast_artifact(manifest: dict[str, Any], forecast_path: Path = F
     return errors
 
 
+def validate_sitemap_state(
+    records: list[dict[str, str]],
+    sitemap_state_path: Path = SITEMAP_STATE_PATH,
+) -> list[str]:
+    if not sitemap_state_path.exists():
+        return [f"Sitemap state is missing: {sitemap_state_path}"]
+
+    try:
+        sitemap_state = load_json(sitemap_state_path, {})
+    except json.JSONDecodeError:
+        return [f"Sitemap state is invalid JSON: {sitemap_state_path}"]
+
+    if not isinstance(sitemap_state, dict):
+        return [f"Sitemap state payload is invalid: {sitemap_state_path}"]
+
+    errors: list[str] = []
+    required_ids = {record["id"] for record in records}
+    missing_ids = sorted(required_ids - {str(record_id) for record_id in sitemap_state}, key=numeric_sort_key)
+    if missing_ids:
+        errors.append(f"Sitemap state is missing canonical ids: {len(missing_ids)} missing.")
+
+    for record_id, entry in sitemap_state.items():
+        if not isinstance(entry, dict):
+            errors.append(f"Sitemap state entry is invalid for id {record_id}.")
+            continue
+        missing_keys = [key for key in SITEMAP_STATE_KEYS if key not in entry]
+        if missing_keys:
+            errors.append(f"Sitemap state entry {record_id} is missing keys: {', '.join(missing_keys)}")
+
+    return errors
+
+
 def validate_outputs(
     records: list[dict[str, str]],
     db_path: Path = DB_PATH,
     manifest_path: Path = MANIFEST_PATH,
     forecast_path: Path = FORECAST_PATH,
+    sitemap_state_path: Path = SITEMAP_STATE_PATH,
 ) -> list[str]:
     errors: list[str] = []
 
@@ -873,6 +1995,7 @@ def validate_outputs(
         if manifest.get("latest_source_date", "") != latest_date:
             errors.append("Refresh manifest latest_source_date does not match canonical JSON.")
         errors.extend(validate_forecast_artifact(manifest, forecast_path=forecast_path))
+    errors.extend(validate_sitemap_state(records, sitemap_state_path=sitemap_state_path))
 
     for year in {record["year"] for record in records}:
         snapshot_path = SCRAPED_DATA_DIR / f"floats_{year}.json"
@@ -887,10 +2010,22 @@ def validate_outputs(
 
 def refresh_data() -> int:
     existing_by_id = load_existing_canonical_records()
-    cached_by_year = group_records_by_year(list(existing_by_id.values()))
+    record_overrides = load_record_overrides()
     session = make_session()
     try:
-        all_records = scrape_records(session, cached_by_year=cached_by_year)
+        fetcher = PoliteSession(session)
+        robots_policy = fetch_robots_policy(fetcher)
+        sitemap_entries, disallowed_count = discover_sitemap_entries(fetcher, robots_policy)
+        previous_sitemap_state = load_sitemap_state()
+        canonical_records, sitemap_state, source_discovery = apply_sitemap_updates(
+            existing_by_id,
+            sitemap_entries,
+            previous_sitemap_state,
+            lambda url: fetch_detail_page_result(fetcher, url),
+            refreshed_at=iso_now(),
+            backfill_batch_size=HISTORICAL_BACKFILL_BATCH_SIZE,
+            disallowed_count=disallowed_count,
+        )
     except SourceAccessDeniedError as exc:
         print(f"ERROR: {exc}")
         return 1
@@ -898,19 +2033,15 @@ def refresh_data() -> int:
         print(f"ERROR: {exc}")
         return 1
 
-    if not all_records:
+    if not canonical_records:
         print("ERROR: The source site returned zero records. Existing artifacts were left unchanged.")
         return 1
 
-    canonical_records = enrich_records_with_details(
-        records=all_records,
-        existing_by_id=existing_by_id,
-        session=session,
-    )
-    if not canonical_records:
-        print("ERROR: Canonical record generation returned zero records. Existing artifacts were left unchanged.")
-        return 1
-
+    canonical_records = [
+        normalize_record(apply_record_override(record, record_overrides.get(record["id"])))
+        for record in canonical_records
+    ]
+    canonical_records, duplicate_merge_report = merge_duplicate_records(canonical_records)
     canonical_records, dropped_outliers = exclude_extreme_float_number_records(canonical_records)
     if dropped_outliers:
         dropped_labels = ", ".join(
@@ -923,8 +2054,14 @@ def refresh_data() -> int:
     legacy_rows = get_legacy_rows(DB_PATH, canonical_ids)
 
     write_json(CANONICAL_JSON_PATH, canonical_records)
+    write_json(SITEMAP_STATE_PATH, sitemap_state)
     write_per_year_snapshots(canonical_records)
-    rebuild_database(canonical_records, DB_PATH)
+    rebuild_database(
+        canonical_records,
+        DB_PATH,
+        sitemap_state=sitemap_state,
+        record_overrides=record_overrides,
+    )
     validation_summary = run_validation_pipeline(
         db_path=DB_PATH,
         report_json_path=VALIDATION_REPORT_JSON,
@@ -946,8 +2083,20 @@ def refresh_data() -> int:
         canonical_records,
         validation_summary=validation_summary,
         forecast_summary=forecast_summary,
+        source_discovery=source_discovery,
     )
     write_json(MANIFEST_PATH, manifest)
+    validation_report = load_json(VALIDATION_REPORT_JSON, {})
+    cleanup_report = build_cleanup_report(
+        canonical_records,
+        validation_report=validation_report,
+        duplicate_merge_report=duplicate_merge_report,
+    )
+    write_json(CLEANUP_REPORT_PATH, cleanup_report)
+    write_cleanup_summary(cleanup_report)
+    manual_review_queue = build_manual_review_queue(validation_report)
+    write_json(MANUAL_REVIEW_PATH, manual_review_queue)
+    write_manual_review_summary(manual_review_queue)
 
     audit_payload = {
         "generated_at": iso_now(),
@@ -966,6 +2115,7 @@ def refresh_data() -> int:
     print(
         f"Refreshed {len(canonical_records)} records across {len(manifest['records_by_year'])} years. "
         f"Latest source date: {manifest['latest_source_date'] or 'Unknown'}. "
+        f"Fetched {source_discovery['detail_pages_fetched']} detail pages. "
         f"Invalid rows: {validation_summary['invalid_rows']}, "
         f"suspicious rows: {validation_summary['suspicious_rows']}."
     )

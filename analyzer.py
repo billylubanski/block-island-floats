@@ -47,12 +47,33 @@ def get_all_finds():
     conn.close()
     return [row[0] for row in data]
 
+def _normalize_location_text(loc):
+    text = "" if loc is None else str(loc)
+    replacements = {
+        "â€™": "'",
+        "â€˜": "'",
+        "â€œ": '"',
+        "â€�": '"',
+        "’": "'",
+        "‘": "'",
+        "“": '"',
+        "”": '"',
+        "–": "-",
+        "—": "-",
+        "…": "...",
+        "\xa0": " ",
+    }
+    for source, target in replacements.items():
+        text = text.replace(source, target)
+    text = text.lower().strip()
+    return " ".join(text.split())
+
 def normalize_location(loc):
     if loc is None:
         return "Other/Unknown"
 
-    # Lowercase and strip
-    loc = str(loc).lower().strip()
+    # Lowercase and normalize punctuation/spacing
+    loc = _normalize_location_text(loc)
     if not loc:
         return "Other/Unknown"
     
@@ -70,10 +91,14 @@ def normalize_location(loc):
         'greenaway': "Greenway Trail",
         'settlers': "Settler's Rock",
         'settler': "Settler's Rock",
+        'the point': "North Point",
+        'poiny': "North Point",
+        'north end': "North Point",
         'north light': "North Lighthouse",
         'northern light': "North Lighthouse",
         's.e. light': "Southeast Lighthouse",
         'southeast light': "Southeast Lighthouse",
+        'southeast point': "Southeast Lighthouse",
         'se light': "Southeast Lighthouse",
         'south east light': "Southeast Lighthouse",
         'mohegan': "Mohegan Bluffs",
@@ -106,8 +131,10 @@ def normalize_location(loc):
         'old mill': "Old Mill Road",
         'payne': "Payne's Farm/Road",
         'dickens': "Lewis-Dickens Farm",
+        'dicken': "Lewis-Dickens Farm",
         'lewis': "Lewis-Dickens Farm",
         'win dodge': "Win Dodge Preserve",
+        'wind dodge': "Win Dodge Preserve",
         'winn dodge': "Win Dodge Preserve",
         'win-dodge': "Win Dodge Preserve",
         'windodge': "Win Dodge Preserve",
@@ -152,7 +179,10 @@ def normalize_location(loc):
         'negus': "Negus Park",
         'pilot': "Pilot Hill Road",
         'ocean view': "Ocean View Pavilion",
+        'pavilion': "Pavilion (General)",
+        'gazebo': "Gazebo (General)",
         'beacon hill': "Beacon Hill Road",
+        'adrian': "Adrian Mitchell Trail",
         'snake hole': "Snake Hole Road",
         'salt pond': "Great Salt Pond",
         'pots': "Pots and Kettles",
@@ -223,7 +253,8 @@ def normalize_location(loc):
         'cow': "Cow Cove",
         'grove': "Grove Point",
         'indian': "Indian Cemetery",
-        'king': "King's Lot",
+        "king's lot": "King's Lot",
+        'kings lot': "King's Lot",
         'mazzur': "Mazzur Trail",
         'peckham': "Peckham Farm",
         'ocean view hotel': "Ocean View Hotel",
@@ -261,6 +292,7 @@ def normalize_location(loc):
         'depot': "Old Harbor",
         'ferry landing': "Old Harbor",
         'boat basin': "Boat Basin",
+        'boat dock': "Boat Basin",
         'great salt': "Great Salt Pond",
         'gsp': "Great Salt Pond",
         'new harbor': "New Harbor",
@@ -269,6 +301,26 @@ def normalize_location(loc):
         'ball obrien': "Ball O'Brien Park",
         'sisters': "Three Sisters",
         'merrow': "Merrow Hill",
+        'historical society': "Block Island Historical Society",
+        'captain nick': "Captain Nick's",
+        'dunn bridge': "Dunn Bridge",
+        'old dunn': "Dunn Bridge",
+        'tea room pond': "Tea Room Pond",
+        'fresh pound': "Fresh Pond",
+        'wild life refuge': "Wildlife Refuge",
+        'wildlife refuge': "Wildlife Refuge",
+        'lakeside dr': "Lakeshore Drive",
+        'ocean ave': "Ocean Avenue",
+        'tennis court': "Tennis Courts",
+        'skate park': "Skate Park",
+        'ragged sailor': "Ragged Sailor",
+        'strings and things': "Strings and Things",
+        'chamber of commerce': "Chamber of Commerce",
+        'darius inn': "The Darius Inn",
+        'bluestone': "Bluestone",
+        'daffodil': "Daffodil Walk",
+        'sahara': "Sahara's Field",
+        'toy boat': "Toy Boat Race",
         'gift': "Gift/Private Property",
         'private': "Gift/Private Property",
         'home': "Gift/Private Property",
@@ -278,6 +330,9 @@ def normalize_location(loc):
         'tree': "Tree (General)",
         'bush': "Bush (General)",
         'wall': "Stone Wall (General)",
+        'bridge': "Bridge (General)",
+        'pond': "Pond (General)",
+        'park': "Park (General)",
         'road': "Road (General)",
         'path': "Path (General)",
         'trail': "Trail (General)",
@@ -304,7 +359,14 @@ def normalize_location(loc):
         'longwood': "Longwood Cove",
         'north point': "North Point",
         'green gables': "Green Gables",
+        'haunted forest': "Haunted Forest",
         'hanted': "Haunted Forest",
+        'take a putt': "Sit Your Butt or Take a Putt",
+        'block rock': "Black Rock Beach",
+        'bed pillow': "Gift/Private Property",
+        'orb fairy': "Gift/Private Property",
+        'flower walk': "Daffodil Walk",
+        'logwood': "Longwood Cove",
         'pettit': "Pettit Lot",
         'vale': "The Vale",
     }
