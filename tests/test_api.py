@@ -46,9 +46,13 @@ def insert_find(path: Path, **values) -> None:
 def clear_weather_cache():
     app_module.weather_cache["data"] = None
     app_module.weather_cache["timestamp"] = None
+    app_module.tide_cache["data"] = None
+    app_module.tide_cache["timestamp"] = None
     yield
     app_module.weather_cache["data"] = None
     app_module.weather_cache["timestamp"] = None
+    app_module.tide_cache["data"] = None
+    app_module.tide_cache["timestamp"] = None
 
 
 @pytest.fixture(autouse=True)
@@ -121,6 +125,85 @@ def sample_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return db_path
 
 
+def sample_forecast_briefing() -> dict[str, object]:
+    return {
+        "date": "2026-07-01",
+        "activity_score": 7.2,
+        "activity_label": "Active",
+        "confidence_band": "low",
+        "conditions": {
+            "weather": {
+                "temp": 68,
+                "condition": "Partly Cloudy",
+                "wind": 9,
+                "wind_direction": "SW",
+                "precip_chance": 20,
+                "emoji": "WEATHER",
+                "timestamp": "09:30 AM",
+                "updated_at": "2026-07-01T09:30:00Z",
+            },
+            "tide": {
+                "stage": "rising",
+                "height_now": 1.8,
+                "daily_range": 3.1,
+                "nearest_event": {
+                    "type": "high",
+                    "hours_away": 1.5,
+                },
+                "updated_at": "2026-07-01T09:15:00Z",
+            },
+            "calendar": {
+                "weekday_name": "Wednesday",
+                "moon_phase": "full",
+                "is_long_weekend": False,
+                "is_holiday": False,
+            },
+        },
+        "zones": [
+            {
+                "label": "Rodman's Hollow",
+                "location_href": "/location/Rodman%27s%20Hollow",
+                "field_href": "/field",
+                "signal_label": "Best signal",
+                "support_count": 23,
+                "dated_support_count": 12,
+                "actual_years": [2024, 2025],
+                "supporting_spots": [
+                    {"name": "Rodman's Hollow"},
+                    {"name": "Meadow Hill Trail"},
+                ],
+                "reason_tags": ["Strong july history", "Recent finds nearby"],
+                "reason_texts": ["Recent reports support this zone."],
+                "score": 0.224,
+                "primary_spot": "Rodman's Hollow",
+            },
+            {
+                "label": "Clay Head Trail",
+                "location_href": "/location/Clay%20Head%20Trail",
+                "field_href": "/field",
+                "signal_label": "Useful fallback",
+                "support_count": 18,
+                "dated_support_count": 9,
+                "actual_years": [2024, 2025],
+                "supporting_spots": [{"name": "Clay Head Trail"}],
+                "reason_tags": ["Strong july history"],
+                "reason_texts": ["Seasonal support is doing most of the work here."],
+                "score": 0.184,
+                "primary_spot": "Clay Head Trail",
+            },
+        ],
+        "lead_change_summary": "Lead zone rotated from Clay Head Trail to Rodman's Hollow.",
+        "disclaimer": "This briefing is directional.",
+        "feature_freshness": {
+            "artifact_generated_at": "2026-07-01T08:00:00Z",
+            "weather_updated_at": "2026-07-01T09:30:00Z",
+            "tide_updated_at": "2026-07-01T09:15:00Z",
+            "historical_weather_available": False,
+        },
+        "selected_model": "kernel_seasonal",
+    }
+
+
 def test_index_route_renders_dashboard_controls(sample_db: Path, capture_templates):
     with app_module.app.test_client() as client:
         response = client.get("/?year=2025")
@@ -180,6 +263,7 @@ def test_favicon_route_returns_icon():
 
 def test_field_route_renders_json_backed_official_guidance(sample_db: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(app_module, "get_weather_data", lambda: None)
+    monkeypatch.setattr(app_module, "build_daily_forecast_briefing", lambda target_date=None: sample_forecast_briefing())
 
     with app_module.app.test_client() as client:
         response = client.get("/field")
@@ -194,6 +278,7 @@ def test_field_route_renders_json_backed_official_guidance(sample_db: Path, monk
 
 def test_field_route_renders_fallback_guidance_payload(sample_db: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(app_module, "get_weather_data", lambda: None)
+    monkeypatch.setattr(app_module, "build_daily_forecast_briefing", lambda target_date=None: sample_forecast_briefing())
     monkeypatch.setattr(app_module, "FIELD_ETIQUETTE", copy.deepcopy(app_module.DEFAULT_FIELD_ETIQUETTE))
 
     with app_module.app.test_client() as client:
@@ -262,21 +347,8 @@ def test_forecast_route_renders_predictions_and_location_detail(
     sample_db: Path,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    predictions = [
-        {"location": "Rodman's Hollow", "probability": 88.5},
-        {"location": "Clay Head Trail", "probability": 52.0},
-    ]
-    weather = {
-        "temp": 68,
-        "condition": "Partly Cloudy",
-        "wind": 9,
-        "emoji": "WEATHER",
-        "timestamp": "09:30 AM",
-    }
-
-    monkeypatch.setattr(app_module, "predict_today", lambda: predictions)
-    monkeypatch.setattr(app_module, "get_seasonality_score", lambda: 7.5)
-    monkeypatch.setattr(app_module, "get_weather_data", lambda: weather)
+    briefing = sample_forecast_briefing()
+    monkeypatch.setattr(app_module, "build_daily_forecast_briefing", lambda target_date=None: briefing)
     encoded_location = quote("Rodman's Hollow", safe="")
 
     with app_module.app.test_client() as client:
@@ -287,59 +359,87 @@ def test_forecast_route_renders_predictions_and_location_detail(
     assert location_response.status_code == 200
 
     text = response.get_data(as_text=True)
-    assert "Float forecast" in text
-    assert "How alive the month looks" in text
-    assert "Top predicted locations" in text
+    assert "Forecast briefing" in text
+    assert "Top places to bias your first loop" in text
     assert "Rodman&#39;s Hollow" in text
-    assert "88.5%" in text
+    assert "7.2/10" in text
     assert "Partly Cloudy" in text
     assert "9 mph" in text
+    assert "% probability" not in text
 
 
 def test_forecast_route_handles_empty_predictions(sample_db: Path, monkeypatch: pytest.MonkeyPatch):
-    weather = {
-        "temp": 68,
-        "condition": "Partly Cloudy",
-        "wind": 9,
-        "emoji": "WEATHER",
-        "timestamp": "09:30 AM",
-    }
-
-    monkeypatch.setattr(app_module, "predict_today", lambda: [])
-    monkeypatch.setattr(app_module, "get_seasonality_score", lambda: 0)
-    monkeypatch.setattr(app_module, "get_weather_data", lambda: weather)
+    briefing = sample_forecast_briefing()
+    briefing["zones"] = []
+    monkeypatch.setattr(app_module, "build_daily_forecast_briefing", lambda target_date=None: briefing)
 
     with app_module.app.test_client() as client:
         response = client.get("/forecast")
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
-    assert "Float forecast" in text
+    assert "Forecast briefing" in text
+    assert "No zones available" in text
 
 
 def test_forecast_helpers_read_generated_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     forecast_path = tmp_path / "forecast_artifact.json"
     artifact = {
+        "version": 2,
         "generated_at": "2026-03-21T00:00:00Z",
         "source": {
             "total_records": 10,
             "latest_source_date": "2026-01-11",
             "training_rows": 10,
+            "cluster_training_rows": 10,
+            "actual_years": [2025, 2026],
         },
         "seasonality_by_month": {str(month): float(month) for month in range(1, 13)},
-        "predictions_by_day": {str(day): [] for day in range(1, 367)},
+        "activity_index_by_day": {str(day): 0.0 for day in range(1, 367)},
+        "cluster_profiles": {
+            "Rodman's Hollow": {
+                "label": "Rodman's Hollow",
+                "lat": 41.155,
+                "lon": -71.585,
+                "tags": ["trail"],
+                "support_count": 10,
+                "dated_support_count": 6,
+                "actual_years": [2025, 2026],
+                "supporting_spots": [{"name": "Rodman's Hollow", "count": 10}],
+                "best_months": ["July"],
+                "feature_coverage": {"calendar_rows": 6, "historical_weather_rows": 0, "tide_rows": 0, "recency_rows": 6},
+                "calendar_affinity": {},
+            }
+        },
+        "seasonal_priors_by_day": {str(day): {} for day in range(1, 367)},
+        "evaluation": {
+            "targets": {"exact_location": {}, "cluster": {"kernel_seasonal": {"top3_accuracy": 0.14, "log_loss": 1.2}}},
+            "selection": {"primary_model": "kernel_seasonal", "gating_reason": "Kernel remains primary.", "eligible_models": ["kernel_seasonal"]},
+        },
+        "feature_sources": {
+            "calendar": {"available": True},
+            "recency": {"available": True},
+            "historical_weather": {"available": False},
+            "live_weather": {"available": True},
+            "tide": {"available": True},
+        },
     }
-    artifact["predictions_by_day"]["182"] = [
-        {"location": "Rodman's Hollow", "probability": 88.5},
-        {"location": "Clay Head Trail", "probability": 52.0},
-    ]
+    artifact["activity_index_by_day"]["182"] = 6.4
+    artifact["seasonal_priors_by_day"]["182"] = {"Rodman's Hollow": 1.0}
     forecast_path.write_text(app_module.json.dumps(artifact), encoding="utf-8")
 
     monkeypatch.setattr(app_module, "FORECAST_ARTIFACT_PATH", str(forecast_path))
+    monkeypatch.setattr(app_module, "DB_NAME", str(tmp_path / "missing.db"))
     monkeypatch.setattr(app_module, "get_today", lambda: datetime.date(2026, 7, 1))
+    monkeypatch.setattr(app_module, "get_weather_context", lambda: None)
+    monkeypatch.setattr(app_module, "get_tide_context", lambda: None)
 
-    assert app_module.predict_today() == artifact["predictions_by_day"]["182"]
-    assert app_module.get_seasonality_score() == 7.0
+    with app_module.app.test_request_context("/forecast"):
+        briefing = app_module.build_daily_forecast_briefing()
+
+    assert briefing["zones"][0]["label"] == "Rodman's Hollow"
+    assert briefing["activity_score"] == 6.4
+    assert app_module.get_seasonality_score() == 6.4
 
 
 def test_forecast_route_handles_invalid_forecast_artifact(
@@ -352,15 +452,16 @@ def test_forecast_route_handles_invalid_forecast_artifact(
 
     monkeypatch.setattr(app_module, "FORECAST_ARTIFACT_PATH", str(forecast_path))
     monkeypatch.setattr(app_module, "get_today", lambda: datetime.date(2026, 7, 1))
-    monkeypatch.setattr(app_module, "get_weather_data", lambda: None)
+    monkeypatch.setattr(app_module, "get_weather_context", lambda: None)
+    monkeypatch.setattr(app_module, "get_tide_context", lambda: None)
 
     with app_module.app.test_client() as client:
         response = client.get("/forecast")
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
-    assert "Float forecast" in text
-    assert "No predictions available" in text
+    assert "Forecast briefing" in text
+    assert "No zones available" in text
 
 
 def test_get_weather_data_converts_noaa_response(monkeypatch: pytest.MonkeyPatch):

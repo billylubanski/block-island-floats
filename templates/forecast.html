@@ -2,110 +2,229 @@
 
 {% block head %}
 <style>
-    .forecast-overview {
+    .forecast-hero {
+        position: relative;
+        overflow: hidden;
         display: grid;
-        grid-template-columns: minmax(0, 1.05fr) minmax(18rem, 0.95fr);
-        gap: var(--space-5);
+        gap: 1.4rem;
+        background:
+            radial-gradient(circle at top right, rgba(121, 208, 180, 0.22), transparent 38%),
+            linear-gradient(180deg, rgba(12, 30, 27, 0.96), rgba(8, 21, 18, 0.98));
     }
 
-    .forecast-score {
+    .forecast-hero::after {
+        content: "";
+        position: absolute;
+        inset: auto -10% -35% auto;
+        width: 22rem;
+        height: 22rem;
+        border-radius: 50%;
+        background: rgba(234, 223, 207, 0.05);
+        filter: blur(10px);
+        pointer-events: none;
+    }
+
+    .forecast-hero__top,
+    .forecast-zones,
+    .forecast-support-grid {
+        position: relative;
+        z-index: 1;
+    }
+
+    .forecast-hero__top {
         display: grid;
-        gap: 1rem;
+        grid-template-columns: minmax(0, 1.15fr) minmax(19rem, 0.85fr);
+        gap: 1.25rem;
     }
 
-    .forecast-score__value {
-        display: grid;
-        gap: 0.35rem;
-    }
-
-    .forecast-score__value strong {
-        font-size: clamp(3rem, 7vw, 4.5rem);
-        line-height: 0.9;
-        font-weight: 800;
-        letter-spacing: -0.04em;
-    }
-
-    .forecast-score__value span {
-        color: var(--text-2);
-        font-weight: 700;
-    }
-
-    .forecast-support {
+    .forecast-scoreboard {
         display: grid;
         gap: 1rem;
         align-content: start;
     }
 
-    .forecast-topline {
+    .forecast-scoreboard__meta {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+    }
+
+    .forecast-scoreboard__value {
         display: grid;
         gap: 0.35rem;
     }
 
-    .forecast-topline strong {
-        font-size: 1.15rem;
+    .forecast-scoreboard__value strong {
+        font-size: clamp(3.4rem, 8vw, 5.1rem);
+        line-height: 0.9;
+        letter-spacing: -0.05em;
+        font-weight: 800;
     }
 
-    .forecast-ranking {
-        display: grid;
-        gap: 0.8rem;
+    .forecast-scoreboard__value span {
+        color: var(--text-2);
+        font-weight: 700;
     }
 
-    .forecast-row {
+    .forecast-lead {
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: 1rem;
+        gap: 0.7rem;
+        align-content: start;
+        padding: 1.05rem;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(193, 214, 203, 0.08);
+    }
+
+    .forecast-lead__row {
+        display: flex;
         align-items: center;
-        padding: 1rem;
-        border-radius: 18px;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .forecast-lead__title {
+        display: grid;
+        gap: 0.35rem;
+    }
+
+    .forecast-lead__title strong {
+        font-size: 1.25rem;
+    }
+
+    .forecast-context-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.85rem;
+    }
+
+    .forecast-context-card {
+        display: grid;
+        gap: 0.45rem;
+        min-height: 100%;
+        padding: 0.95rem 1rem;
+        border-radius: 20px;
         border: 1px solid rgba(193, 214, 203, 0.08);
         background: rgba(255, 255, 255, 0.03);
     }
 
-    .forecast-row__rank {
+    .forecast-context-card h3 {
+        margin: 0;
+        font-size: 0.95rem;
+    }
+
+    .forecast-context-card p,
+    .forecast-context-card span {
+        margin: 0;
+        color: var(--text-2);
+        line-height: 1.55;
+    }
+
+    .forecast-zones {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .forecast-zone {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 1rem;
+        align-items: start;
+        padding: 1rem;
+        border-radius: 22px;
+        border: 1px solid rgba(193, 214, 203, 0.08);
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .forecast-zone__rank {
         color: var(--accent-strong);
-        font-size: 0.8rem;
         font-weight: 800;
+        font-size: 0.84rem;
         letter-spacing: 0.08em;
         text-transform: uppercase;
     }
 
-    .forecast-row__main {
+    .forecast-zone__body {
         display: grid;
-        gap: 0.25rem;
+        gap: 0.8rem;
     }
 
-    .forecast-row__main a {
-        font-size: 1.02rem;
+    .forecast-zone__heading {
+        display: grid;
+        gap: 0.35rem;
+    }
+
+    .forecast-zone__heading a {
+        font-size: 1.15rem;
         font-weight: 800;
         text-decoration: none;
     }
 
-    .forecast-row__main span {
-        color: var(--text-2);
-        font-size: 0.9rem;
-        line-height: 1.55;
+    .forecast-zone__meta {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
     }
 
-    .forecast-row__value {
-        font-size: 1.1rem;
-        font-weight: 800;
+    .forecast-zone__tags,
+    .forecast-zone__spots {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
     }
 
-    .forecast-disclaimer {
+    .forecast-zone__detail {
         margin: 0;
-        color: var(--text-3);
-        font-size: 0.88rem;
+        color: var(--text-2);
+        line-height: 1.6;
+    }
+
+    .forecast-zone__cta {
+        justify-self: start;
+    }
+
+    .forecast-zone__signal {
+        color: var(--text-1);
+        font-size: 0.9rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .forecast-support-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .forecast-support {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .forecast-support p {
+        margin: 0;
+        color: var(--text-2);
         line-height: 1.65;
     }
 
+    .forecast-freshness {
+        display: grid;
+        gap: 0.45rem;
+        color: var(--text-2);
+        font-size: 0.9rem;
+    }
+
     @media (max-width: 980px) {
-        .forecast-overview {
+        .forecast-hero__top,
+        .forecast-context-grid,
+        .forecast-support-grid {
             grid-template-columns: 1fr;
         }
     }
 
     @media (max-width: 720px) {
-        .forecast-row {
+        .forecast-zone {
             grid-template-columns: 1fr;
         }
     }
@@ -113,100 +232,196 @@
 {% endblock %}
 
 {% block content %}
-<section class="surface">
+<section class="surface forecast-hero">
     <div class="utility-rail">
         <div class="utility-rail__group">
             <span class="pill pill--accent">Today</span>
-            {% if top_prediction %}
-            <span class="pill">Best read: {{ top_prediction.location }}</span>
-            {% endif %}
+            <span class="pill">Confidence: {{ briefing.confidence_band|capitalize }}</span>
+            <span class="pill">Primary spine: {{ briefing.selected_model.replace('_', ' ') }}</span>
         </div>
         <div class="utility-rail__summary">
-            Treat the score as directional guidance, then confirm the call against the map and recent location history.
+            {{ briefing.disclaimer }}
         </div>
     </div>
-</section>
 
-<section class="forecast-overview">
-    <section class="surface forecast-score">
-        <div class="section-heading">
-            <span class="eyebrow">Seasonality</span>
-            <h2>How alive the month looks</h2>
-            <p>The seasonality score reflects how often floats have historically surfaced at this point in the calendar.</p>
-        </div>
-
-        <div class="forecast-score__value">
-            <strong>{{ seasonality }}/10</strong>
-            <span>Current activity level</span>
-        </div>
-
-        <div class="progress-track">
-            <div class="progress-fill" style="width: {{ seasonality * 10 }}%;"></div>
-        </div>
-
-        <p class="forecast-disclaimer">
-            Treat this as a directional read, not a guarantee. The score is strongest when paired with the map and location history.
-        </p>
-    </section>
-
-    <aside class="surface forecast-support">
-        <div class="section-heading" style="margin-bottom: 0;">
-            <span class="eyebrow">Best next move</span>
-            <h2>What to prioritize first</h2>
-            <p>Use the top prediction as the first stop, then fall back to the rest of the ranking if conditions change.</p>
-        </div>
-
-        {% if top_prediction %}
-        <div class="forecast-topline">
-            <strong>{{ top_prediction.location }}</strong>
-            <span class="pill pill--accent">{{ top_prediction.probability }}% probability</span>
-        </div>
-        {% endif %}
-
-        {% if weather %}
-        <div class="weather-widget">
-            <div class="weather-main">
-                <div class="weather-icon">{{ weather.emoji }}</div>
-                <div class="weather-temp">{{ weather.temp }} F</div>
+    <div class="forecast-hero__top">
+        <div class="forecast-scoreboard">
+            <div class="section-heading">
+                <span class="eyebrow">Daily read</span>
+                <h2>Where to start first</h2>
+                <p>{{ briefing.lead_change_summary }}</p>
             </div>
-            <div class="weather-details">
-                <div class="weather-condition">{{ weather.condition }}</div>
-                <div class="weather-meta">
-                    <span>Wind {{ weather.wind }} mph</span>
+
+            <div class="forecast-scoreboard__meta">
+                <span class="pill pill--accent">{{ briefing.activity_label }}</span>
+                {% if lead_zone %}
+                <span class="pill">Lead zone: {{ lead_zone.label }}</span>
+                {% endif %}
+            </div>
+
+            <div class="forecast-scoreboard__value">
+                <strong>{{ briefing.activity_score }}/10</strong>
+                <span>Island-wide activity score</span>
+            </div>
+
+            <div class="progress-track">
+                <div class="progress-fill" style="width: {{ briefing.activity_score * 10 }}%;"></div>
+            </div>
+        </div>
+
+        <aside class="forecast-lead">
+            <div class="section-heading" style="margin-bottom: 0;">
+                <span class="eyebrow">Best next move</span>
+                <h2>Use a zone, not a single spot</h2>
+                <p>The call below is the strongest starting area, with supporting named spots shown as backups rather than guarantees.</p>
+            </div>
+
+            {% if lead_zone %}
+            <div class="forecast-lead__row">
+                <div class="forecast-lead__title">
+                    <strong>{{ lead_zone.label }}</strong>
+                    <span>{{ lead_zone.signal_label }}</span>
                 </div>
+                <a class="button button--primary" href="{{ lead_zone.field_href }}">Open field mode</a>
             </div>
-        </div>
-        {% endif %}
-    </aside>
+            <div class="forecast-zone__tags">
+                {% for tag in lead_zone.reason_tags %}
+                <span class="pill">{{ tag }}</span>
+                {% endfor %}
+            </div>
+            <p class="forecast-zone__detail">
+                {{ lead_zone.dated_support_count }} dated finds across {{ lead_zone.actual_years|length }} actual years support this zone.
+            </p>
+            {% else %}
+            <div class="empty-state">
+                <h3>No briefing available</h3>
+                <p>The forecast artifact does not contain enough zone support right now.</p>
+            </div>
+            {% endif %}
+        </aside>
+    </div>
+
+    <div class="forecast-context-grid">
+        <article class="forecast-context-card">
+            <h3>Weather</h3>
+            {% if briefing.conditions.weather %}
+            <span>{{ briefing.conditions.weather.emoji }} {{ briefing.conditions.weather.condition }}</span>
+            <p>{{ briefing.conditions.weather.temp }} F, wind {{ briefing.conditions.weather.wind }} mph{% if briefing.conditions.weather.wind_direction %} {{ briefing.conditions.weather.wind_direction }}{% endif %}.</p>
+            {% if briefing.conditions.weather.precip_chance is not none %}
+            <p>Precipitation chance: {{ briefing.conditions.weather.precip_chance }}%.</p>
+            {% endif %}
+            {% else %}
+            <p>Live weather context is unavailable right now.</p>
+            {% endif %}
+        </article>
+
+        <article class="forecast-context-card">
+            <h3>Tide</h3>
+            {% if briefing.conditions.tide %}
+            <p>{{ briefing.conditions.tide.stage|capitalize }} tide, height {{ briefing.conditions.tide.height_now }} ft.</p>
+            {% if briefing.conditions.tide.nearest_event %}
+            <p>Nearest {{ briefing.conditions.tide.nearest_event.type }} in {{ briefing.conditions.tide.nearest_event.hours_away }} hours.</p>
+            {% endif %}
+            <p>Daily range: {{ briefing.conditions.tide.daily_range }} ft.</p>
+            {% else %}
+            <p>Live tide context is unavailable right now.</p>
+            {% endif %}
+        </article>
+
+        <article class="forecast-context-card">
+            <h3>Calendar</h3>
+            <p>{{ briefing.conditions.calendar.weekday_name }}, {{ briefing.date }}</p>
+            <p>Moon: {{ briefing.conditions.calendar.moon_phase.replace('_', ' ') }}.</p>
+            {% if briefing.conditions.calendar.is_long_weekend %}
+            <p>Long-weekend timing is active.</p>
+            {% elif briefing.conditions.calendar.is_holiday %}
+            <p>Federal holiday timing is active.</p>
+            {% else %}
+            <p>Standard calendar timing today.</p>
+            {% endif %}
+        </article>
+    </div>
 </section>
 
 <section class="surface">
     <div class="section-heading">
-        <span class="eyebrow">Ranked list</span>
-        <h2>Top predicted locations</h2>
-        <p>These are the best-supported spots for today's hunt based on the model's historical pattern read.</p>
+        <span class="eyebrow">Ranked zones</span>
+        <h2>Top places to bias your first loop</h2>
+        <p>These are the highest-support hunt zones for today. Use the lead call first, then fall through the list if access, weather, or crowding changes the plan.</p>
     </div>
 
-    {% if predictions %}
-    <div class="forecast-ranking">
-        {% for pred in predictions %}
-        <article class="forecast-row">
-            <div class="forecast-row__rank">#{{ loop.index }}</div>
-            <div class="forecast-row__main">
-                <a href="{{ url_for('location_detail', location_name=pred.location) }}">
-                    {{ pred.location }}
-                </a>
-                <span>Historical patterns put this location near the top of the board for the current season.</span>
+    {% if briefing.zones %}
+    <div class="forecast-zones">
+        {% for zone in briefing.zones %}
+        <article class="forecast-zone">
+            <div class="forecast-zone__rank">#{{ loop.index }}</div>
+            <div class="forecast-zone__body">
+                <div class="forecast-zone__heading">
+                    <a href="{{ zone.location_href }}">{{ zone.label }}</a>
+                    <span>{{ zone.support_count }} total reports mapped here.</span>
+                </div>
+
+                <div class="forecast-zone__meta">
+                    <span class="pill pill--accent">{{ zone.signal_label }}</span>
+                    <span class="pill">{{ zone.dated_support_count }} dated finds</span>
+                    <span class="pill">{{ zone.actual_years|length }} actual years</span>
+                </div>
+
+                <div class="forecast-zone__tags">
+                    {% for tag in zone.reason_tags %}
+                    <span class="pill">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+
+                <div class="forecast-zone__spots">
+                    {% for spot in zone.supporting_spots %}
+                    <span class="pill">{{ spot.name }}</span>
+                    {% endfor %}
+                </div>
+
+                <p class="forecast-zone__detail">
+                    {% if zone.reason_texts %}
+                    {{ zone.reason_texts|join(' ') }}
+                    {% else %}
+                    Seasonal support is doing most of the work here, so treat this as a starting zone and verify it against the map.
+                    {% endif %}
+                </p>
+
+                <a class="button button--ghost forecast-zone__cta" href="{{ zone.field_href }}">Use in field mode</a>
             </div>
-            <div class="forecast-row__value">{{ pred.probability }}%</div>
+            <div class="forecast-zone__signal">{{ zone.score|round(3) }} signal</div>
         </article>
         {% endfor %}
     </div>
     {% else %}
     <div class="empty-state">
-        <h3>No predictions available</h3>
-        <p>The forecast model did not return a ranked list right now. Check back later.</p>
+        <h3>No zones available</h3>
+        <p>The forecast artifact does not currently contain enough support to rank mapped zones.</p>
     </div>
     {% endif %}
+</section>
+
+<section class="forecast-support-grid">
+    <section class="surface forecast-support">
+        <div class="section-heading" style="margin-bottom: 0;">
+            <span class="eyebrow">Why this is not a guarantee</span>
+            <h2>Confidence stays bounded on purpose</h2>
+        </div>
+        <p>{{ briefing.disclaimer }}</p>
+        <p>The current system prefers broader zones over exact spot calls because the dated archive is still thin relative to the number of named locations people report.</p>
+    </section>
+
+    <section class="surface forecast-support">
+        <div class="section-heading" style="margin-bottom: 0;">
+            <span class="eyebrow">Freshness</span>
+            <h2>How current the inputs are</h2>
+        </div>
+        <div class="forecast-freshness">
+            <span>Artifact built: {{ briefing.feature_freshness.artifact_generated_at or 'Unknown' }}</span>
+            <span>Live weather: {{ briefing.feature_freshness.weather_updated_at or 'Unavailable' }}</span>
+            <span>Live tide: {{ briefing.feature_freshness.tide_updated_at or 'Unavailable' }}</span>
+            <span>Historical weather enrichment: {{ 'Available' if briefing.feature_freshness.historical_weather_available else 'Not configured' }}</span>
+        </div>
+    </section>
 </section>
 {% endblock %}

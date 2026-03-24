@@ -71,14 +71,48 @@ def sample_records() -> list[dict[str, str]]:
 
 def sample_forecast_artifact(*, total_records: int = 2, latest_source_date: str = "2026-06-12") -> dict[str, object]:
     return {
+        "version": 2,
         "generated_at": "2026-03-21T00:00:00Z",
         "source": {
             "total_records": total_records,
             "latest_source_date": latest_source_date,
             "training_rows": 2,
+            "cluster_training_rows": 2,
+            "actual_years": [2025, 2026],
         },
         "seasonality_by_month": {str(month): 0 for month in range(1, 13)},
-        "predictions_by_day": {str(day): [] for day in range(1, 367)},
+        "activity_index_by_day": {str(day): 0 for day in range(1, 367)},
+        "cluster_profiles": {
+            "Rodman's Hollow": {
+                "label": "Rodman's Hollow",
+                "lat": 41.155,
+                "lon": -71.585,
+                "tags": ["trail"],
+                "support_count": 2,
+                "dated_support_count": 2,
+                "actual_years": [2025, 2026],
+                "primary_spot": "Rodman's Hollow",
+                "supporting_spots": [{"name": "Rodman's Hollow", "count": 2}],
+                "best_months": ["June"],
+                "feature_coverage": {"calendar_rows": 2, "historical_weather_rows": 0, "tide_rows": 0, "recency_rows": 2},
+                "calendar_affinity": {},
+            }
+        },
+        "seasonal_priors_by_day": {str(day): {} for day in range(1, 367)},
+        "evaluation": {
+            "targets": {
+                "exact_location": {},
+                "cluster": {"kernel_seasonal": {"top1_accuracy": 0.1, "top3_accuracy": 0.2, "log_loss": 1.1, "calibration_gap": 0.05}},
+            },
+            "selection": {"primary_model": "kernel_seasonal", "gating_reason": "Kernel remains primary.", "eligible_models": ["kernel_seasonal"]},
+        },
+        "feature_sources": {
+            "calendar": {"available": True},
+            "recency": {"available": True},
+            "historical_weather": {"available": False},
+            "live_weather": {"available": True},
+            "tide": {"available": True},
+        },
     }
 
 
@@ -876,6 +910,7 @@ def test_validate_outputs_detects_json_db_drift(tmp_path: Path, monkeypatch: pyt
     db_path = tmp_path / "floats.db"
     manifest_path = tmp_path / "refresh_manifest.json"
     forecast_path = tmp_path / "forecast_artifact.json"
+    evaluation_path = tmp_path / "forecast_evaluation.json"
     sitemap_state_path = tmp_path / "sitemap_state.json"
     snapshot_dir = tmp_path / "scraped_data"
 
@@ -893,7 +928,9 @@ def test_validate_outputs_detects_json_db_drift(tmp_path: Path, monkeypatch: pyt
     conn.close()
 
     write_json(manifest_path, build_manifest(records))
-    write_json(forecast_path, sample_forecast_artifact())
+    artifact = sample_forecast_artifact()
+    write_json(forecast_path, artifact)
+    write_json(evaluation_path, artifact["evaluation"])
     write_json(sitemap_state_path, sample_sitemap_state(records))
     monkeypatch.setattr("scripts.refresh_data.SCRAPED_DATA_DIR", snapshot_dir)
     write_per_year_snapshots(records)
@@ -903,6 +940,7 @@ def test_validate_outputs_detects_json_db_drift(tmp_path: Path, monkeypatch: pyt
         db_path=db_path,
         manifest_path=manifest_path,
         forecast_path=forecast_path,
+        evaluation_path=evaluation_path,
         sitemap_state_path=sitemap_state_path,
     )
     assert any("drift detected" in error.lower() for error in errors)
@@ -926,6 +964,7 @@ def test_validate_outputs_requires_forecast_artifact(tmp_path: Path, monkeypatch
         db_path=db_path,
         manifest_path=manifest_path,
         forecast_path=tmp_path / "missing.json",
+        evaluation_path=tmp_path / "missing-eval.json",
         sitemap_state_path=sitemap_state_path,
     )
     assert any("forecast artifact is missing" in error.lower() for error in errors)
@@ -936,13 +975,16 @@ def test_validate_outputs_passes_with_forecast_artifact(tmp_path: Path, monkeypa
     db_path = tmp_path / "floats.db"
     manifest_path = tmp_path / "refresh_manifest.json"
     forecast_path = tmp_path / "forecast_artifact.json"
+    evaluation_path = tmp_path / "forecast_evaluation.json"
     sitemap_state_path = tmp_path / "sitemap_state.json"
     snapshot_dir = tmp_path / "scraped_data"
     sitemap_state = sample_sitemap_state(records)
 
     rebuild_database(records, db_path)
     write_json(manifest_path, build_manifest(records))
-    write_json(forecast_path, sample_forecast_artifact())
+    artifact = sample_forecast_artifact()
+    write_json(forecast_path, artifact)
+    write_json(evaluation_path, artifact["evaluation"])
     write_json(sitemap_state_path, sitemap_state)
     monkeypatch.setattr("scripts.refresh_data.SCRAPED_DATA_DIR", snapshot_dir)
     write_per_year_snapshots(records)
@@ -953,6 +995,7 @@ def test_validate_outputs_passes_with_forecast_artifact(tmp_path: Path, monkeypa
         db_path=db_path,
         manifest_path=manifest_path,
         forecast_path=forecast_path,
+        evaluation_path=evaluation_path,
         sitemap_state_path=sitemap_state_path,
     ) == []
 
@@ -962,11 +1005,14 @@ def test_validate_outputs_requires_sitemap_state(tmp_path: Path, monkeypatch: py
     db_path = tmp_path / "floats.db"
     manifest_path = tmp_path / "refresh_manifest.json"
     forecast_path = tmp_path / "forecast_artifact.json"
+    evaluation_path = tmp_path / "forecast_evaluation.json"
     snapshot_dir = tmp_path / "scraped_data"
 
     rebuild_database(records, db_path)
     write_json(manifest_path, build_manifest(records))
-    write_json(forecast_path, sample_forecast_artifact())
+    artifact = sample_forecast_artifact()
+    write_json(forecast_path, artifact)
+    write_json(evaluation_path, artifact["evaluation"])
     monkeypatch.setattr("scripts.refresh_data.SCRAPED_DATA_DIR", snapshot_dir)
     write_per_year_snapshots(records)
 
@@ -975,6 +1021,7 @@ def test_validate_outputs_requires_sitemap_state(tmp_path: Path, monkeypatch: py
         db_path=db_path,
         manifest_path=manifest_path,
         forecast_path=forecast_path,
+        evaluation_path=evaluation_path,
         sitemap_state_path=tmp_path / "missing_sitemap_state.json",
     )
     assert any("sitemap state is missing" in error.lower() for error in errors)
@@ -988,12 +1035,15 @@ def test_validate_outputs_rejects_sitemap_state_missing_required_keys(
     db_path = tmp_path / "floats.db"
     manifest_path = tmp_path / "refresh_manifest.json"
     forecast_path = tmp_path / "forecast_artifact.json"
+    evaluation_path = tmp_path / "forecast_evaluation.json"
     sitemap_state_path = tmp_path / "sitemap_state.json"
     snapshot_dir = tmp_path / "scraped_data"
 
     rebuild_database(records, db_path)
     write_json(manifest_path, build_manifest(records))
-    write_json(forecast_path, sample_forecast_artifact())
+    artifact = sample_forecast_artifact()
+    write_json(forecast_path, artifact)
+    write_json(evaluation_path, artifact["evaluation"])
     invalid_state = sample_sitemap_state(records)
     invalid_state["6000"] = {"url": "https://example.com/6000"}
     write_json(sitemap_state_path, invalid_state)
@@ -1005,6 +1055,7 @@ def test_validate_outputs_rejects_sitemap_state_missing_required_keys(
         db_path=db_path,
         manifest_path=manifest_path,
         forecast_path=forecast_path,
+        evaluation_path=evaluation_path,
         sitemap_state_path=sitemap_state_path,
     )
     assert any("missing keys" in error.lower() for error in errors)

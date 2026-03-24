@@ -21,7 +21,8 @@
 ## Testing Guidelines
 - `pytest.ini` constrains automated collection to `tests/`.
 - Keep `tests/test_*.py` deterministic and fixture-driven; do not rely on live HTTP or a manually started local server.
-- Prefer Flask test-client assertions and monkeypatched dependencies over background servers or print-only scripts.
+- Prefer Flask test-client assertions and monkeypatched dependencies over print-only scripts.
+- Browser-backed smoke tests are allowed when they start their own ephemeral local server, stub third-party assets, and are gated behind `RUN_UI_SMOKE=1`.
 - Put opt-in checks under `scripts/manual_checks/`; examples include `scripts/manual_checks/verify_ids.py`, `scripts/manual_checks/verify_location.py`, and `scripts/manual_checks/verify_requests.py`.
 - For UI changes, capture screenshots of `/` and `/search` and note any data filters used.
 

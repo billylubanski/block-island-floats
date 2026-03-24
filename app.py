@@ -7,6 +7,15 @@ import os
 from collections import Counter, defaultdict
 from functools import lru_cache
 from analyzer import normalize_location, analyze_dates, analyze_unreported_floats, get_year_recovery_stats
+from forecasting import (
+    build_cluster_lookup,
+    build_daily_forecast_briefing as compose_daily_forecast_briefing,
+    build_recent_activity_snapshot,
+    build_spot_forecast_lookup,
+    empty_forecast_artifact,
+    fetch_live_tide_context,
+    fetch_live_weather_context,
+)
 from locations import LOCATIONS
 from utils import get_last_updated
 
@@ -86,21 +95,6 @@ def load_field_etiquette():
 
 
 FIELD_ETIQUETTE = load_field_etiquette()
-
-
-def _empty_forecast_artifact():
-    return {
-        'generated_at': '',
-        'source': {
-            'total_records': 0,
-            'latest_source_date': '',
-            'training_rows': 0,
-        },
-        'seasonality_by_month': {str(month): 0 for month in range(1, 13)},
-        'predictions_by_day': {str(day): [] for day in range(1, 367)},
-    }
-
-
 @lru_cache(maxsize=4)
 def _load_forecast_artifact_cached(path, mtime_ns):
     try:
@@ -108,7 +102,7 @@ def _load_forecast_artifact_cached(path, mtime_ns):
             return json.load(forecast_file)
     except (OSError, json.JSONDecodeError) as exc:
         print(f"Warning: using empty forecast artifact: {exc}")
-        return _empty_forecast_artifact()
+        return empty_forecast_artifact()
 
 
 def clear_forecast_cache():
@@ -119,7 +113,7 @@ def load_forecast_artifact():
     try:
         mtime_ns = os.stat(FORECAST_ARTIFACT_PATH).st_mtime_ns
     except OSError:
-        return _empty_forecast_artifact()
+        return empty_forecast_artifact()
     return _load_forecast_artifact_cached(FORECAST_ARTIFACT_PATH, mtime_ns)
 
 
@@ -190,10 +184,14 @@ def _get_location_counts_cached(selected_year, db_mtime):
     where_clause, where_params = build_finds_where_clause(year_param=year_param)
 
     conn = get_db_connection()
-    all_locs = conn.execute(
-        f'SELECT location_raw FROM finds {where_clause}',
-        where_params,
-    ).fetchall()
+    try:
+        all_locs = conn.execute(
+            f'SELECT location_raw FROM finds {where_clause}',
+            where_params,
+        ).fetchall()
+    except sqlite3.Error:
+        conn.close()
+        return tuple()
     conn.close()
 
     loc_counts = Counter(normalize_location(row['location_raw']) for row in all_locs)
@@ -349,6 +347,77 @@ def get_weather_data():
         
     return None
 
+
+tide_cache = {
+    'data': None,
+    'timestamp': None,
+}
+
+
+def get_weather_context():
+    """Fetch richer NWS weather context for the forecast briefing."""
+    global weather_cache
+
+    now = datetime.datetime.now()
+    if (
+        weather_cache['data']
+        and weather_cache['timestamp']
+        and (now - weather_cache['timestamp']).total_seconds() < 900
+        and weather_cache['data'].get('summary')
+    ):
+        return weather_cache['data']
+
+    weather = fetch_live_weather_context(now=now, request_get=requests.get)
+    if weather:
+        weather_cache['data'] = weather
+        weather_cache['timestamp'] = now
+        return weather
+    return get_weather_data()
+
+
+def get_tide_context():
+    global tide_cache
+
+    now = datetime.datetime.now()
+    if (
+        tide_cache['data']
+        and tide_cache['timestamp']
+        and (now - tide_cache['timestamp']).total_seconds() < 1800
+    ):
+        return tide_cache['data']
+
+    tide = fetch_live_tide_context(target_time=now, request_get=requests.get)
+    if tide:
+        tide_cache['data'] = tide
+        tide_cache['timestamp'] = now
+    return tide
+
+
+def build_daily_forecast_briefing(target_date=None):
+    target = target_date or get_today()
+    artifact = load_forecast_artifact()
+    location_counts = get_location_counts()
+    location_to_cluster = build_cluster_lookup(location_counts)
+    recent_activity = build_recent_activity_snapshot(
+        DB_NAME,
+        target_date=target,
+        location_to_cluster=location_to_cluster,
+    )
+    briefing = compose_daily_forecast_briefing(
+        artifact,
+        target_date=target,
+        weather_context=get_weather_context(),
+        tide_context=get_tide_context(),
+        recent_activity=recent_activity,
+    )
+
+    for zone in briefing.get('zones', []):
+        primary_spot = zone.get('primary_spot') or zone.get('label')
+        zone['location_href'] = url_for('location_detail', location_name=primary_spot)
+        zone['field_href'] = url_for('field_mode')
+
+    return briefing
+
 @app.route('/')
 def index():
     conn = get_db_connection()
@@ -490,17 +559,22 @@ def about():
 def field_mode():
     """Mobile-optimized field mode for on-island hunting"""
     hunting_spots = build_mapped_spots(get_location_counts())
-    
-    # Get last updated
+    briefing = build_daily_forecast_briefing()
+    forecast_lookup = build_spot_forecast_lookup(briefing)
+    for spot in hunting_spots:
+        badge = forecast_lookup.get(spot['name'])
+        if badge:
+            spot['forecast_rank'] = badge['rank']
+            spot['forecast_zone'] = badge['zone_label']
+
     last_updated = get_last_updated()
-    
-    # Get current weather
     weather = get_weather_data()
-    
+
     return render_template('field.html',
                           hunting_spots=hunting_spots,
                           last_updated=last_updated,
                           weather=weather,
+                          forecast_briefing=briefing,
                           etiquette=FIELD_ETIQUETTE,
                           page_meta=build_page_meta(
                               active_nav='field',
@@ -612,47 +686,37 @@ def location_detail(location_name):
 
 def predict_today():
     artifact = load_forecast_artifact()
-    predictions_by_day = artifact.get('predictions_by_day', {})
-    if not isinstance(predictions_by_day, dict):
-        return []
-
     day_key = str(get_today().timetuple().tm_yday)
-    predictions = predictions_by_day.get(day_key, [])
-    return predictions if isinstance(predictions, list) else []
+    priors = artifact.get('seasonal_priors_by_day', {}).get(day_key, {})
+    return [
+        {'zone': label, 'score': score}
+        for label, score in sorted(priors.items(), key=lambda item: (-float(item[1]), item[0]))[:3]
+    ]
 
 
 def get_seasonality_score():
     artifact = load_forecast_artifact()
-    seasonality_by_month = artifact.get('seasonality_by_month', {})
-    if not isinstance(seasonality_by_month, dict):
-        return 0
-
-    score = seasonality_by_month.get(str(get_today().month), 0)
+    day_key = str(get_today().timetuple().tm_yday)
+    activity = artifact.get('activity_index_by_day', {}).get(day_key, 0)
     try:
-        return float(score)
+        return float(activity)
     except (TypeError, ValueError):
-        return 0
+        return 0.0
 
 @app.route('/forecast')
 def forecast():
-    """Show float forecast for today"""
-    predictions = predict_today()
-    seasonality = get_seasonality_score()
-    
-    # Get weather for context
-    weather = get_weather_data()
-    
+    """Show the daily zone briefing."""
+    briefing = build_daily_forecast_briefing()
+
     return render_template('forecast.html', 
-                          predictions=predictions,
-                          seasonality=seasonality,
-                          weather=weather,
-                          top_prediction=predictions[0] if predictions else None,
+                          briefing=briefing,
+                          lead_zone=briefing['zones'][0] if briefing.get('zones') else None,
                           page_meta=build_page_meta(
                               active_nav='forecast',
                               mode='utility',
                               kicker='Daily briefing',
-                              title='Float forecast',
-                              subtitle='A compact read on seasonal strength, likely locations, and current field conditions.',
+                              title='Forecast briefing',
+                              subtitle='A broader read on where to start, how much support is underneath the call, and what live conditions are doing.',
                               primary_cta=build_cta(
                                   label='Open field mode',
                                   href=url_for('field_mode'),

@@ -129,6 +129,7 @@ def test_build_forecast_artifact_ignores_blank_dates_for_seasonality(tmp_path):
     )
 
     assert artifact['source']['training_rows'] == 12
+    assert artifact['version'] == 2
     assert artifact['seasonality_by_month']['7'] == 5.0
 
 
@@ -155,10 +156,17 @@ def test_build_forecast_artifact_preserves_normalized_prediction_locations(tmp_p
         latest_source_date='2025-07-12',
         generated_at='2026-03-21T00:00:00Z',
     )
-    predictions = artifact['predictions_by_day']['182']
+    day_priors = artifact['seasonal_priors_by_day']['182']
+    profile_names = {
+        spot['name']
+        for profile in artifact['cluster_profiles'].values()
+        if profile['dated_support_count'] > 0
+        for spot in profile['supporting_spots']
+    }
 
-    assert predictions
-    assert {prediction['location'] for prediction in predictions} <= {"Rodman's Hollow", "Clay Head Trail"}
+    assert day_priors
+    assert profile_names <= {"Rodman's Hollow", "Clay Head Trail"}
+    assert artifact['evaluation']['selection']['primary_model'] != 'current_random_forest'
 
 
 def test_build_forecast_artifact_returns_empty_predictions_when_training_data_is_insufficient(tmp_path):
@@ -185,7 +193,8 @@ def test_build_forecast_artifact_returns_empty_predictions_when_training_data_is
         generated_at='2026-03-21T00:00:00Z',
     )
 
-    assert all(predictions == [] for predictions in artifact['predictions_by_day'].values())
+    assert all(predictions == {} for predictions in artifact['seasonal_priors_by_day'].values())
+    assert artifact['evaluation']['selection']['primary_model'] == 'kernel_seasonal'
 
 
 def test_build_forecast_artifact_includes_day_366(tmp_path):
@@ -213,8 +222,9 @@ def test_build_forecast_artifact_includes_day_366(tmp_path):
         generated_at='2026-03-21T00:00:00Z',
     )
 
-    assert '366' in artifact['predictions_by_day']
-    assert isinstance(artifact['predictions_by_day']['366'], list)
+    assert '366' in artifact['seasonal_priors_by_day']
+    assert isinstance(artifact['seasonal_priors_by_day']['366'], dict)
+    assert '366' in artifact['activity_index_by_day']
 
 
 def test_index_uses_unique_float_counts_for_all_years_unreported(tmp_path, monkeypatch, capture_templates):

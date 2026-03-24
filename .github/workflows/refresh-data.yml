@@ -37,7 +37,7 @@ jobs:
         run: python scripts/refresh_data.py refresh
 
       - name: Run tests
-        run: python -m pytest -q
+        run: RUN_UI_SMOKE=1 python -m pytest -q
 
       - name: Validate generated data
         run: python scripts/refresh_data.py validate

@@ -51,6 +51,8 @@ MANIFEST_PATH = GENERATED_DIR / "refresh_manifest.json"
 SUMMARY_PATH = GENERATED_DIR / "refresh_summary.md"
 AUDIT_PATH = GENERATED_DIR / "legacy_row_audit.json"
 FORECAST_PATH = GENERATED_DIR / "forecast_artifact.json"
+FORECAST_EVALUATION_PATH = GENERATED_DIR / "forecast_evaluation.json"
+FORECAST_EVALUATION_SUMMARY_PATH = GENERATED_DIR / "forecast_evaluation_summary.md"
 SITEMAP_STATE_PATH = GENERATED_DIR / "sitemap_state.json"
 CLEANUP_REPORT_PATH = GENERATED_DIR / "data_cleanup_report.json"
 CLEANUP_SUMMARY_PATH = GENERATED_DIR / "data_cleanup_summary.md"
@@ -1499,17 +1501,25 @@ def get_legacy_rows(db_path: Path, canonical_ids: set[str]) -> list[dict[str, An
     return legacy_rows
 
 
-def build_forecast_summary(forecast_artifact: dict[str, Any]) -> dict[str, int]:
-    predictions_by_day = forecast_artifact.get("predictions_by_day", {})
-    populated_prediction_days = 0
-    if isinstance(predictions_by_day, dict):
-        populated_prediction_days = sum(1 for predictions in predictions_by_day.values() if predictions)
+def build_forecast_summary(forecast_artifact: dict[str, Any]) -> dict[str, Any]:
+    seasonal_priors_by_day = forecast_artifact.get("seasonal_priors_by_day", {})
+    populated_zone_days = 0
+    if isinstance(seasonal_priors_by_day, dict):
+        populated_zone_days = sum(1 for predictions in seasonal_priors_by_day.values() if predictions)
 
     source = forecast_artifact.get("source", {})
     training_rows = source.get("training_rows", 0) if isinstance(source, dict) else 0
+    cluster_training_rows = source.get("cluster_training_rows", 0) if isinstance(source, dict) else 0
+    primary_model = (
+        forecast_artifact.get("evaluation", {})
+        .get("selection", {})
+        .get("primary_model", "")
+    )
     return {
         "training_rows": int(training_rows),
-        "populated_prediction_days": int(populated_prediction_days),
+        "cluster_training_rows": int(cluster_training_rows),
+        "populated_zone_days": int(populated_zone_days),
+        "primary_model": primary_model,
     }
 
 
@@ -1542,7 +1552,9 @@ def build_manifest(
     if forecast_summary:
         manifest["forecast"] = {
             "training_rows": forecast_summary.get("training_rows", 0),
-            "populated_prediction_days": forecast_summary.get("populated_prediction_days", 0),
+            "cluster_training_rows": forecast_summary.get("cluster_training_rows", 0),
+            "populated_zone_days": forecast_summary.get("populated_zone_days", 0),
+            "primary_model": forecast_summary.get("primary_model", ""),
         }
     if source_discovery:
         manifest["source_discovery"] = {
@@ -1854,8 +1866,12 @@ def write_summary(manifest: dict[str, Any], legacy_rows: list[dict[str, Any]]) -
                 "## Forecast Artifact",
                 "",
                 f"- Training rows: {forecast['training_rows']}",
-                f"- Populated prediction days: {forecast['populated_prediction_days']}/366",
+                f"- Cluster training rows: {forecast.get('cluster_training_rows', 0)}",
+                f"- Populated zone days: {forecast.get('populated_zone_days', 0)}/366",
+                f"- Primary model: {forecast.get('primary_model', 'Unknown')}",
                 f"- Artifact JSON: {FORECAST_PATH}",
+                f"- Evaluation JSON: {FORECAST_EVALUATION_PATH}",
+                f"- Evaluation summary: {FORECAST_EVALUATION_SUMMARY_PATH}",
             ]
         )
     source_discovery = manifest.get("source_discovery")
@@ -1888,7 +1904,36 @@ def write_summary(manifest: dict[str, Any], legacy_rows: list[dict[str, Any]]) -
     SUMMARY_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def validate_forecast_artifact(manifest: dict[str, Any], forecast_path: Path = FORECAST_PATH) -> list[str]:
+def write_forecast_evaluation_summary(evaluation: dict[str, Any]) -> None:
+    cluster_metrics = evaluation.get("targets", {}).get("cluster", {}) if isinstance(evaluation, dict) else {}
+    selection = evaluation.get("selection", {}) if isinstance(evaluation, dict) else {}
+
+    lines = [
+        "# Forecast Evaluation Summary",
+        "",
+        f"- Primary model: {selection.get('primary_model', 'Unknown')}",
+        f"- Gating reason: {selection.get('gating_reason', 'Unavailable')}",
+    ]
+
+    if cluster_metrics:
+        lines.extend(["", "## Cluster Backtests", ""])
+        for model_name, metrics in cluster_metrics.items():
+            lines.append(
+                f"- {model_name}: top-1 {metrics.get('top1_accuracy', 0)}, "
+                f"top-3 {metrics.get('top3_accuracy', 0)}, "
+                f"log loss {metrics.get('log_loss', 0)}, "
+                f"calibration gap {metrics.get('calibration_gap', 0)}"
+            )
+
+    FORECAST_EVALUATION_SUMMARY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    FORECAST_EVALUATION_SUMMARY_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def validate_forecast_artifact(
+    manifest: dict[str, Any],
+    forecast_path: Path = FORECAST_PATH,
+    evaluation_path: Path = FORECAST_EVALUATION_PATH,
+) -> list[str]:
     expected_months = {str(month) for month in range(1, 13)}
     expected_days = {str(day) for day in range(1, 367)}
 
@@ -1901,6 +1946,8 @@ def validate_forecast_artifact(manifest: dict[str, Any], forecast_path: Path = F
         return [f"Forecast artifact is invalid JSON: {forecast_path}"]
 
     errors: list[str] = []
+    if forecast_artifact.get("version") != 2:
+        errors.append("Forecast artifact version must be 2.")
     source = forecast_artifact.get("source", {})
     if not isinstance(source, dict):
         errors.append("Forecast artifact source payload is missing or invalid.")
@@ -1914,11 +1961,41 @@ def validate_forecast_artifact(manifest: dict[str, Any], forecast_path: Path = F
     if not isinstance(seasonality_by_month, dict) or set(seasonality_by_month) != expected_months:
         errors.append("Forecast artifact seasonality_by_month must contain months 1..12.")
 
-    predictions_by_day = forecast_artifact.get("predictions_by_day", {})
-    if not isinstance(predictions_by_day, dict) or set(predictions_by_day) != expected_days:
-        errors.append("Forecast artifact predictions_by_day must contain days 1..366.")
-    elif any(not isinstance(predictions, list) for predictions in predictions_by_day.values()):
-        errors.append("Forecast artifact predictions_by_day entries must be lists.")
+    activity_index_by_day = forecast_artifact.get("activity_index_by_day", {})
+    if not isinstance(activity_index_by_day, dict) or set(activity_index_by_day) != expected_days:
+        errors.append("Forecast artifact activity_index_by_day must contain days 1..366.")
+
+    seasonal_priors_by_day = forecast_artifact.get("seasonal_priors_by_day", {})
+    if not isinstance(seasonal_priors_by_day, dict) or set(seasonal_priors_by_day) != expected_days:
+        errors.append("Forecast artifact seasonal_priors_by_day must contain days 1..366.")
+    elif any(not isinstance(priors, dict) for priors in seasonal_priors_by_day.values()):
+        errors.append("Forecast artifact seasonal_priors_by_day entries must be objects.")
+
+    cluster_profiles = forecast_artifact.get("cluster_profiles", {})
+    if not isinstance(cluster_profiles, dict):
+        errors.append("Forecast artifact cluster_profiles payload is missing or invalid.")
+
+    feature_sources = forecast_artifact.get("feature_sources", {})
+    if not isinstance(feature_sources, dict):
+        errors.append("Forecast artifact feature_sources payload is missing or invalid.")
+
+    evaluation = forecast_artifact.get("evaluation", {})
+    if not isinstance(evaluation, dict):
+        errors.append("Forecast artifact evaluation payload is missing or invalid.")
+    else:
+        selection = evaluation.get("selection", {})
+        if not isinstance(selection, dict) or not selection.get("primary_model"):
+            errors.append("Forecast artifact evaluation.selection.primary_model is missing.")
+        targets = evaluation.get("targets", {})
+        if not isinstance(targets, dict) or not isinstance(targets.get("cluster", {}), dict):
+            errors.append("Forecast artifact evaluation.targets.cluster is missing or invalid.")
+
+    if not evaluation_path.exists():
+        errors.append(f"Forecast evaluation JSON is missing: {evaluation_path}")
+    else:
+        evaluation_payload = load_json(evaluation_path, {})
+        if evaluation_payload != evaluation:
+            errors.append("Forecast evaluation JSON does not match artifact evaluation payload.")
 
     return errors
 
@@ -1960,6 +2037,7 @@ def validate_outputs(
     db_path: Path = DB_PATH,
     manifest_path: Path = MANIFEST_PATH,
     forecast_path: Path = FORECAST_PATH,
+    evaluation_path: Path = FORECAST_EVALUATION_PATH,
     sitemap_state_path: Path = SITEMAP_STATE_PATH,
 ) -> list[str]:
     errors: list[str] = []
@@ -1994,7 +2072,13 @@ def validate_outputs(
         latest_date = max(valid_dates) if valid_dates else ""
         if manifest.get("latest_source_date", "") != latest_date:
             errors.append("Refresh manifest latest_source_date does not match canonical JSON.")
-        errors.extend(validate_forecast_artifact(manifest, forecast_path=forecast_path))
+        errors.extend(
+            validate_forecast_artifact(
+                manifest,
+                forecast_path=forecast_path,
+                evaluation_path=evaluation_path,
+            )
+        )
     errors.extend(validate_sitemap_state(records, sitemap_state_path=sitemap_state_path))
 
     for year in {record["year"] for record in records}:
@@ -2077,6 +2161,8 @@ def refresh_data() -> int:
         generated_at=iso_now(),
     )
     write_json(FORECAST_PATH, forecast_artifact)
+    write_json(FORECAST_EVALUATION_PATH, forecast_artifact.get("evaluation", {}))
+    write_forecast_evaluation_summary(forecast_artifact.get("evaluation", {}))
 
     forecast_summary = build_forecast_summary(forecast_artifact)
     manifest = build_manifest(

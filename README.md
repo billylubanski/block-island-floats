@@ -45,6 +45,9 @@ pytest -q
 
 - Automated test collection is limited to `tests/` via `pytest.ini`.
 - `tests/test_*.py` should stay deterministic and network-free.
+- Browser-backed UI smoke tests live in `tests/test_ui_smoke.py`, start their own local server, and stub third-party assets so they stay network-free.
+- Install Chromium once locally if you want the Playwright smoke checks to run instead of skip: `python -m playwright install chromium`
+- Enable the browser smoke layer with `$env:RUN_UI_SMOKE='1'`, then run `pytest -q -m ui`.
 - Manual probes live under `scripts/manual_checks/` and are opt-in only.
 
 ## Data Refresh

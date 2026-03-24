@@ -69,6 +69,23 @@
     <p class="field-last-updated">Last updated: {{ last_updated }}</p>
 </section>
 
+{% if forecast_briefing and forecast_briefing.zones %}
+<section class="surface field-forecast-strip">
+    <div class="section-heading" style="margin-bottom: 0;">
+        <span class="eyebrow">Forecast handoff</span>
+        <h2>Start with {{ forecast_briefing.zones[0].label }}</h2>
+        <p>{{ forecast_briefing.lead_change_summary }}</p>
+    </div>
+    <div class="field-forecast-strip__meta">
+        <span class="pill pill--accent">{{ forecast_briefing.activity_label }} read</span>
+        <span class="pill">Confidence: {{ forecast_briefing.confidence_band|capitalize }}</span>
+        {% for tag in forecast_briefing.zones[0].reason_tags %}
+        <span class="pill">{{ tag }}</span>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
 <section class="surface">
     <div class="spots-header">
         <div>
@@ -84,11 +101,19 @@
         {% for spot in hunting_spots %}
         <div class="spot-card" data-lat="{{ spot.lat }}" data-lon="{{ spot.lon }}">
             <div class="spot-header">
-                <h3 class="spot-name">{{ spot.name }}</h3>
+                <div class="spot-title">
+                    <h3 class="spot-name">{{ spot.name }}</h3>
+                    {% if spot.forecast_rank %}
+                    <span class="pill pill--accent">Forecast zone #{{ spot.forecast_rank }}</span>
+                    {% endif %}
+                </div>
                 <span class="spot-distance">--</span>
             </div>
             <div class="spot-stats">
                 <div class="spot-stat">{{ spot.count }} finds reported</div>
+                {% if spot.forecast_zone %}
+                <div class="spot-stat">Supports {{ spot.forecast_zone }}</div>
+                {% endif %}
             </div>
             <div class="nav-buttons">
                 <a href="https://maps.google.com/?q={{ spot.lat }},{{ spot.lon }}" class="nav-btn" target="_blank" rel="noreferrer">
