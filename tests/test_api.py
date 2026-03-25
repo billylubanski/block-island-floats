@@ -236,9 +236,10 @@ def test_about_route_renders_project_copy():
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
-    assert "How the Block Island hunt started" in text
-    assert "How the official project works" in text
+    assert "Use the tracker when location choice starts to matter" in text
+    assert "Project background and mechanics" in text
     assert "Use each source for the right job" in text
+    assert "Official links to keep open" in text
     assert "Open Greenway guide" in text
     assert "2011" in text
     assert "2023" not in text
@@ -297,6 +298,7 @@ def test_search_route_includes_official_report_links(sample_db: Path):
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
+    assert text.count("Showing up to 50 matches.") == 1
     assert "Open location detail" in text
     assert "Open official report" in text
     assert "Register Floats" in text
@@ -340,7 +342,7 @@ def test_location_detail_renders_recent_find_official_report_links(sample_db: Pa
     text = response.get_data(as_text=True)
     assert "Open official report" in text
     assert app_module.OFFICIAL_LINKS["register"] in text
-    assert "This page groups finds by location." in text
+    assert "Open the original report below" in text
 
 
 def test_forecast_route_renders_predictions_and_location_detail(
@@ -360,7 +362,9 @@ def test_forecast_route_renders_predictions_and_location_detail(
 
     text = response.get_data(as_text=True)
     assert "Forecast briefing" in text
-    assert "Top places to bias your first loop" in text
+    assert "Top zones for a first loop" in text
+    assert text.count("Directional only.") == 1
+    assert "Why confidence stays bounded" in text
     assert "Rodman&#39;s Hollow" in text
     assert "7.2/10" in text
     assert "Partly Cloudy" in text

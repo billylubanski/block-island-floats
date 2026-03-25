@@ -704,13 +704,13 @@
                 </form>
             </div>
 
-            <div class="utility-rail__summary">
+        <div class="utility-rail__summary">
                 {% if selected_year != 'all' %}
-                Showing <strong>{{ total_finds }}</strong> finds reported in <strong>{{ selected_year }}</strong>.
+                Showing <strong>{{ total_finds }}</strong> finds from <strong>{{ selected_year }}</strong>.
                 {% else %}
-                Showing <strong>{{ total_finds }}</strong> finds across the full tracked archive.
+                Showing <strong>{{ total_finds }}</strong> finds across the archive.
                 {% endif %}
-                Use the map and ranking below as the practical starting read.
+                Start with the map.
             </div>
         </div>
 
@@ -722,9 +722,9 @@
             </p>
             <p class="hero-note">
                 {% if primary_location %}
-                Start with {{ primary_location.name }} as the historical anchor, then use the map to work outward.
+                Start with {{ primary_location.name }}.
                 {% else %}
-                Use the map and supporting reads below to narrow where to start.
+                Use the map to narrow a first loop.
                 {% endif %}
             </p>
         </div>
@@ -751,7 +751,7 @@
         <div class="section-heading">
             <span class="eyebrow">Recovery map</span>
             <h2>See where the archive keeps clustering</h2>
-            <p>The live map is the fastest way to balance proven hot spots with on-island proximity.</p>
+            <p>Balance proven clusters with your position.</p>
         </div>
         <div class="dashboard-map">
             <div class="dashboard-map__frame">
@@ -793,7 +793,7 @@
                         <div class="map-explorer__header">
                             <div>
                                 <strong id="map-focus-heading">Top mapped clusters</strong>
-                                <span id="map-focus-subtitle">Jump the map with the rail, or geolocate to re-rank by proximity.</span>
+                                <span id="map-focus-subtitle">Jump the map, or geolocate to sort by proximity.</span>
                             </div>
                         </div>
                         <div class="map-focus-list" id="map-focus-list">
@@ -838,7 +838,7 @@
         <div class="section-heading">
             <span class="eyebrow">Best starting points</span>
             <h2>Top hunting grounds</h2>
-            <p>Historical density gives you a grounded first pass before you improvise in the field.</p>
+            <p>Historical density for a first pass.</p>
         </div>
 
         <div class="rank-list">
@@ -865,7 +865,7 @@
         <div class="section-heading">
             <span class="eyebrow">Seasonal read</span>
             <h2>Best times to hunt</h2>
-            <p>These months show the most reported momentum from the portion of the archive with dates attached.</p>
+            <p>Peak months from dated reports.</p>
         </div>
 
         <div class="season-list">
@@ -892,7 +892,7 @@
     <div class="section-heading">
         <span class="eyebrow">Year-by-year trend</span>
         <h2>Recovery by season</h2>
-        <p>Use the long view to judge how much of each annual drop has historically surfaced.</p>
+        <p>See how much of each drop has surfaced.</p>
     </div>
 
     <div class="recovery-list">

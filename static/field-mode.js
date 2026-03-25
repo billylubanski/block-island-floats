@@ -117,11 +117,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const getUserLocation = () => {
         if (!navigator.geolocation) {
-            statusEl.textContent = 'Geolocation is not supported on this device.';
+            statusEl.textContent = 'Geolocation is unavailable on this device.';
             return;
         }
 
-        statusEl.textContent = 'Getting your location...';
+        statusEl.textContent = 'Getting location...';
         loadingEl.classList.add('active');
 
         navigator.geolocation.getCurrentPosition(
@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadingEl.classList.remove('active');
             },
             (error) => {
-                statusEl.textContent = 'Could not get location.';
+                statusEl.textContent = 'Location unavailable.';
                 loadingEl.classList.remove('active');
                 console.error('Geolocation error:', error);
             },

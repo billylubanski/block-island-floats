@@ -197,6 +197,10 @@
         gap: 1rem;
     }
 
+    .forecast-support-grid > .details-panel {
+        align-self: start;
+    }
+
     .forecast-support {
         display: grid;
         gap: 0.8rem;
@@ -240,7 +244,11 @@
             <span class="pill">Primary spine: {{ briefing.selected_model.replace('_', ' ') }}</span>
         </div>
         <div class="utility-rail__summary">
-            {{ briefing.disclaimer }}
+            {% if briefing.confidence_band == 'low' %}
+            Directional only.
+            {% else %}
+            Starting order only.
+            {% endif %}
         </div>
     </div>
 
@@ -272,8 +280,8 @@
         <aside class="forecast-lead">
             <div class="section-heading" style="margin-bottom: 0;">
                 <span class="eyebrow">Best next move</span>
-                <h2>Use a zone, not a single spot</h2>
-                <p>The call below is the strongest starting area, with supporting named spots shown as backups rather than guarantees.</p>
+                <h2>Start with the zone</h2>
+                <p>Work inside the lead area, then use backups if conditions change.</p>
             </div>
 
             {% if lead_zone %}
@@ -290,12 +298,12 @@
                 {% endfor %}
             </div>
             <p class="forecast-zone__detail">
-                {{ lead_zone.dated_support_count }} dated finds across {{ lead_zone.actual_years|length }} actual years support this zone.
+                {{ lead_zone.dated_support_count }} dated finds across {{ lead_zone.actual_years|length }} seasons.
             </p>
             {% else %}
             <div class="empty-state">
                 <h3>No briefing available</h3>
-                <p>The forecast artifact does not contain enough zone support right now.</p>
+                <p>Not enough zone support is available right now.</p>
             </div>
             {% endif %}
         </aside>
@@ -308,10 +316,10 @@
             <span>{{ briefing.conditions.weather.emoji }} {{ briefing.conditions.weather.condition }}</span>
             <p>{{ briefing.conditions.weather.temp }} F, wind {{ briefing.conditions.weather.wind }} mph{% if briefing.conditions.weather.wind_direction %} {{ briefing.conditions.weather.wind_direction }}{% endif %}.</p>
             {% if briefing.conditions.weather.precip_chance is not none %}
-            <p>Precipitation chance: {{ briefing.conditions.weather.precip_chance }}%.</p>
+            <p>Rain chance: {{ briefing.conditions.weather.precip_chance }}%.</p>
             {% endif %}
             {% else %}
-            <p>Live weather context is unavailable right now.</p>
+            <p>Live weather unavailable.</p>
             {% endif %}
         </article>
 
@@ -324,7 +332,7 @@
             {% endif %}
             <p>Daily range: {{ briefing.conditions.tide.daily_range }} ft.</p>
             {% else %}
-            <p>Live tide context is unavailable right now.</p>
+            <p>Live tide unavailable.</p>
             {% endif %}
         </article>
 
@@ -337,7 +345,7 @@
             {% elif briefing.conditions.calendar.is_holiday %}
             <p>Federal holiday timing is active.</p>
             {% else %}
-            <p>Standard calendar timing today.</p>
+            <p>Standard calendar timing.</p>
             {% endif %}
         </article>
     </div>
@@ -346,8 +354,8 @@
 <section class="surface">
     <div class="section-heading">
         <span class="eyebrow">Ranked zones</span>
-        <h2>Top places to bias your first loop</h2>
-        <p>These are the highest-support hunt zones for today. Use the lead call first, then fall through the list if access, weather, or crowding changes the plan.</p>
+        <h2>Top zones for a first loop</h2>
+        <p>Use the lead call first, then fall through the list as conditions change.</p>
     </div>
 
     {% if briefing.zones %}
@@ -358,7 +366,7 @@
             <div class="forecast-zone__body">
                 <div class="forecast-zone__heading">
                     <a href="{{ zone.location_href }}">{{ zone.label }}</a>
-                    <span>{{ zone.support_count }} total reports mapped here.</span>
+                    <span>{{ zone.support_count }} reports mapped here.</span>
                 </div>
 
                 <div class="forecast-zone__meta">
@@ -381,9 +389,9 @@
 
                 <p class="forecast-zone__detail">
                     {% if zone.reason_texts %}
-                    {{ zone.reason_texts|join(' ') }}
+                    {{ zone.reason_texts[0] }}
                     {% else %}
-                    Seasonal support is doing most of the work here, so treat this as a starting zone and verify it against the map.
+                    Seasonality is carrying most of this call.
                     {% endif %}
                 </p>
 
@@ -396,21 +404,12 @@
     {% else %}
     <div class="empty-state">
         <h3>No zones available</h3>
-        <p>The forecast artifact does not currently contain enough support to rank mapped zones.</p>
+        <p>There is not enough support to rank mapped zones.</p>
     </div>
     {% endif %}
 </section>
 
 <section class="forecast-support-grid">
-    <section class="surface forecast-support">
-        <div class="section-heading" style="margin-bottom: 0;">
-            <span class="eyebrow">Why this is not a guarantee</span>
-            <h2>Confidence stays bounded on purpose</h2>
-        </div>
-        <p>{{ briefing.disclaimer }}</p>
-        <p>The current system prefers broader zones over exact spot calls because the dated archive is still thin relative to the number of named locations people report.</p>
-    </section>
-
     <section class="surface forecast-support">
         <div class="section-heading" style="margin-bottom: 0;">
             <span class="eyebrow">Freshness</span>
@@ -423,5 +422,15 @@
             <span>Historical weather enrichment: {{ 'Available' if briefing.feature_freshness.historical_weather_available else 'Not configured' }}</span>
         </div>
     </section>
+
+    <details class="details-panel">
+        <summary>Why confidence stays bounded</summary>
+        <div class="details-panel__body">
+            <div class="forecast-support">
+                <p>The model ranks broader zones because dated support is still thin across many named spots.</p>
+                <p>Check the map, access, and live conditions before you commit to a loop.</p>
+            </div>
+        </div>
+    </details>
 </section>
 {% endblock %}

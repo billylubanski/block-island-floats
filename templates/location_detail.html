@@ -290,7 +290,7 @@
         <p class="lead">
             {{ page_meta.subtitle }}
             {% if latest_find and latest_find['date_found'] %}
-            The latest dated report landed on {{ latest_find['date_found'] }}.
+            Latest dated report: {{ latest_find['date_found'] }}.
             {% endif %}
         </p>
 
@@ -325,7 +325,7 @@
         <div class="section-heading" style="margin-bottom: 0.5rem;">
             <span class="eyebrow">Quick read</span>
             <h2>What stands out here</h2>
-            <p>Use the summary before you drop into the full image archive and chronology.</p>
+            <p>Scan this before the gallery and chronology.</p>
         </div>
 
         <div class="summary-list">
@@ -359,7 +359,7 @@
     <div class="section-heading">
         <span class="eyebrow">Image archive</span>
         <h2>Gallery</h2>
-        <p>Photos help you see how the reported finds at this location have surfaced over time.</p>
+        <p>Recent photos from this location.</p>
     </div>
 
     {% if featured_images %}
@@ -368,7 +368,7 @@
         <div class="gallery-item" onclick="openLightbox({{ loop.index0 }})">
             <img src="{{ image.url }}" alt="Float {{ image.float_number if image.float_number else 'unknown' }}" loading="lazy">
             <div class="gallery-item__info">
-                {{ image.year }}{% if image.float_number %} · #{{ image.float_number }}{% endif %}
+                {{ image.year }}{% if image.float_number %} - #{{ image.float_number }}{% endif %}
             </div>
         </div>
         {% endfor %}
@@ -383,7 +383,7 @@
                 <div class="gallery-item" onclick="openLightbox({{ loop.index0 + featured_images|length }})">
                     <img src="{{ image.url }}" alt="Float {{ image.float_number if image.float_number else 'unknown' }}" loading="lazy">
                     <div class="gallery-item__info">
-                        {{ image.year }}{% if image.float_number %} · #{{ image.float_number }}{% endif %}
+                        {{ image.year }}{% if image.float_number %} - #{{ image.float_number }}{% endif %}
                     </div>
                 </div>
                 {% endfor %}
@@ -392,7 +392,7 @@
     </details>
     {% endif %}
     {% else %}
-    <p class="no-images">No location-specific images are available yet. The chronology below still shows the reported archive for this location.</p>
+    <p class="no-images">No location images yet. Use the chronology below.</p>
     {% endif %}
 </section>
 
@@ -400,10 +400,10 @@
     <div class="section-heading">
         <span class="eyebrow">Recent chronology</span>
         <h2>Latest reported finds</h2>
-        <p>The most recent reports give you the freshest read before you open the complete archive.</p>
+        <p>Newest reports first.</p>
     </div>
 
-    <p class="official-note">This page groups finds by location. When a specific report matters, open the original official post below, or use <a class="utility-link" href="{{ official_links.register }}" target="_blank" rel="noreferrer">Register Floats</a> to re-register a find with a photo and story.</p>
+    <p class="official-note">Open the original report below, or use <a class="utility-link" href="{{ official_links.register }}" target="_blank" rel="noreferrer">Register Floats</a> to add a photo and story.</p>
 
     <div class="recent-finds">
         {% for find in recent_finds %}

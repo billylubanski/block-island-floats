@@ -35,7 +35,7 @@ OFFICIAL_LINKS = {
 REPORT_FIND_URL = OFFICIAL_LINKS['register']
 DEFAULT_FIELD_ETIQUETTE = {
     'title': 'Field Etiquette',
-    'intro': 'Official float-hunting guidance for use while you are out on the trail.',
+    'intro': 'Official trail guidance for the hunt.',
     'rules_heading': 'Hunt respectfully',
     'rules': [
         'Stay on established trails.',
@@ -485,9 +485,9 @@ def index():
                            page_meta=build_page_meta(
                                active_nav='dashboard',
                                mode='dashboard',
-                               kicker='Block Island glass float tracker',
+                               kicker='Dashboard',
                                title='Read the island before you head out',
-                               subtitle='Map-led recovery patterns, seasonal activity, and the spots that keep paying off.',
+                               subtitle='See hotspots, seasonality, and open counts before you head out.',
                                primary_cta=build_cta(
                                    label='Report a find',
                                    href=REPORT_FIND_URL,
@@ -531,9 +531,9 @@ def search():
         page_meta=build_page_meta(
             active_nav='search',
             mode='utility',
-            kicker='Search the archive',
+            kicker='Search',
             title='Trace finders, float numbers, and locations fast',
-            subtitle='Pull signal out of the registry without losing the context behind each reported find.',
+            subtitle='Find a float, finder, or place and jump to the useful context.',
         ),
     )
 
@@ -544,9 +544,9 @@ def about():
         page_meta=build_page_meta(
             active_nav='about',
             mode='story',
-            kicker='Why this tool exists',
+            kicker='Guide',
             title='Built for hunters who like evidence before mileage',
-            subtitle='The tracker turns public reports into a practical read on where, when, and how to search respectfully.',
+            subtitle='Use the tracker for archive signal and the official site for rules, registration, and finder posts.',
             primary_cta=build_cta(
                 label='Report a found float',
                 href=REPORT_FIND_URL,
@@ -579,9 +579,9 @@ def field_mode():
                           page_meta=build_page_meta(
                               active_nav='field',
                               mode='utility',
-                              kicker='On-island guide',
+                              kicker='Field',
                               title='Field mode',
-                              subtitle='Get oriented fast, sort spots by distance, and move from the trailhead with less friction.',
+                              subtitle='Sort mapped spots by distance and move with the map.',
                           ))
 
 @app.route('/location/<path:location_name>')
@@ -670,12 +670,12 @@ def location_detail(location_name):
                           page_meta=build_page_meta(
                               active_nav='dashboard',
                               mode='utility',
-                              kicker='Location detail',
+                              kicker='Location',
                               title=location_name,
                               subtitle=(
-                                  f'{total_finds} reported finds across {years_tracked} seasons.'
+                                  f'{total_finds} reports across {years_tracked} seasons.'
                                   if years_tracked
-                                  else f'{total_finds} reported finds.'
+                                  else f'{total_finds} reports.'
                               ),
                               primary_cta=build_cta(
                                   label='Open in Maps',
@@ -714,9 +714,9 @@ def forecast():
                           page_meta=build_page_meta(
                               active_nav='forecast',
                               mode='utility',
-                              kicker='Daily briefing',
+                              kicker='Forecast',
                               title='Forecast briefing',
-                              subtitle='A broader read on where to start, how much support is underneath the call, and what live conditions are doing.',
+                              subtitle="See today's lead zone, support, and live conditions.",
                               primary_cta=build_cta(
                                   label='Open field mode',
                                   href=url_for('field_mode'),

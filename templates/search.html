@@ -114,9 +114,9 @@
 {% block content %}
 <section class="surface">
     <div class="section-heading">
-        <span class="eyebrow">Query surface</span>
+        <span class="eyebrow">Search</span>
         <h2>Search by finder, location, or float number</h2>
-        <p>Use the archive as a quick locator, then jump into the location page when you need the larger pattern.</p>
+        <p>Find the report, then open the location view if you need more context.</p>
     </div>
 
     <div class="utility-rail">
@@ -134,7 +134,7 @@
         </form>
 
         <div class="utility-rail__summary">
-            The first 50 matches are shown so the search stays usable on mobile and in the field.
+            Showing up to 50 matches.
         </div>
     </div>
 </section>
@@ -145,7 +145,6 @@
         <div class="section-heading" style="margin-bottom: 0;">
             <span class="eyebrow">Results</span>
             <h2>{{ result_count }} match{{ '' if result_count == 1 else 'es' }} for "{{ query }}"</h2>
-            <p>The results below are capped at the first 50 matches so the page stays usable in the field.</p>
         </div>
         <a class="button button--ghost" href="{{ url_for('search') }}">
             Clear search
@@ -153,7 +152,7 @@
     </div>
 
     <div class="result-callout">
-        <p>If you already registered a float and want to add a photo or finder story later, the official project supports re-registering it through <a class="utility-link" href="{{ official_links.register }}" target="_blank" rel="noreferrer">Register Floats</a>.</p>
+        <p>Need to add a photo or story later? Re-register it through <a class="utility-link" href="{{ official_links.register }}" target="_blank" rel="noreferrer">Register Floats</a>.</p>
     </div>
 
     {% if results %}
@@ -198,16 +197,16 @@
     {% else %}
     <div class="empty-state">
         <h3>No matching reports</h3>
-        <p>Try a broader location name, part of a finder name, or the float number without punctuation.</p>
+        <p>Try a broader place name, part of a finder name, or a float number.</p>
     </div>
     {% endif %}
 </section>
 {% else %}
 <section class="surface surface--soft">
     <div class="section-heading" style="margin-bottom: 0;">
-        <span class="eyebrow">How to use it</span>
-        <h2>Search is the fast route, location detail is the deeper read</h2>
-        <p>Start with a query to confirm a float, finder, or place name, then move into the corresponding location page when you want the broader trail context. Use the official report link when you need the original finder post or want to re-register a float with a photo and story.</p>
+        <span class="eyebrow">Quick use</span>
+        <h2>Search first, then open location detail</h2>
+        <p>Use search for the quick lookup, then open the location page for the fuller pattern.</p>
     </div>
 </section>
 {% endif %}

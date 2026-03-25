@@ -236,14 +236,16 @@ def test_forecast_page_smoke_renders_zone_briefing(live_ui_server, ui_page):
         "Confidence: Low",
         "Primary spine: kernel seasonal",
     ]
+    assert page.locator(".utility-rail__summary").inner_text().strip() == "Directional only."
     assert page.locator(".forecast-zone__heading a").all_inner_texts() == [
         "Rodman's Hollow",
         "Clay Head Trail",
     ]
 
     body_text = page.locator("body").inner_text()
-    assert "Top places to bias your first loop" in body_text
-    assert "Use a zone, not a single spot" in body_text
+    assert "Top zones for a first loop" in body_text
+    assert "Start with the zone" in body_text
+    assert "Why confidence stays bounded" in body_text
     assert "% probability" not in body_text
     assert "probability" not in body_text.lower()
     assert errors == []
