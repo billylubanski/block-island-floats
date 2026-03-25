@@ -311,6 +311,41 @@ def test_parse_detail_record_falls_back_to_description_for_location():
     }
 
 
+def test_parse_detail_record_decodes_html_entities_in_title_and_location():
+    html = """
+    <html>
+      <head>
+        <script>
+          var data = {
+            "recid": "5693",
+            "title": "403&#8211; Charlotte Jacobson (10 y.o.)",
+            "location": "Tom &amp; Huck's path",
+            "image": "https://cdn.example.com/5693.jpg",
+            "categories": [{"catName":"2025"}]
+          };
+          var dates = "2025-10-22";
+        </script>
+      </head>
+      <body></body>
+    </html>
+    """
+
+    record = parse_detail_record_from_html(
+        html,
+        "https://www.blockislandinfo.com/event/403%26%238211%3b-charlotte-jacobson-(10-y-o-)/5693/",
+    )
+
+    assert record == {
+        "id": "5693",
+        "year": "2025",
+        "title": "403– Charlotte Jacobson (10 y.o.)",
+        "url": "https://www.blockislandinfo.com/event/403%26%238211%3b-charlotte-jacobson-(10-y-o-)/5693/",
+        "image": "https://cdn.example.com/5693.jpg",
+        "location": "Tom & Huck's path",
+        "date_found": "2025-10-22",
+    }
+
+
 def test_parse_robots_policy_reads_crawl_delay_and_disallow_rules():
     policy = parse_robots_policy("User-agent: *\nDisallow: /plugins/\nAllow: /\nCrawl-delay: 5\n")
     assert policy["crawl_delay_seconds"] == 5.0
@@ -367,16 +402,20 @@ def test_build_manifest_includes_source_discovery():
     manifest = build_manifest(
         sample_records(),
         source_discovery={
+            "refresh_scope": "full",
             "sitemap_urls_seen": 10,
             "detail_pages_fetched": 2,
             "reused_rows": 8,
             "new_ids": 1,
             "changed_ids": 1,
             "backfilled_ids": 1,
+            "forced_refetch_ids": 6,
             "anomaly_counts": {"detail_404": 1},
         },
     )
+    assert manifest["source_discovery"]["refresh_scope"] == "full"
     assert manifest["source_discovery"]["sitemap_urls_seen"] == 10
+    assert manifest["source_discovery"]["forced_refetch_ids"] == 6
     assert manifest["source_discovery"]["anomaly_counts"] == {"detail_404": 1}
 
 
@@ -710,6 +749,7 @@ def test_select_sitemap_fetch_ids_uses_new_changed_and_capped_backfill():
         "new_ids": ["6"],
         "changed_ids": ["2"],
         "backfill_ids": ["5", "4"],
+        "forced_refetch_ids": [],
     }
 
 
@@ -753,6 +793,7 @@ def test_select_sitemap_fetch_ids_treats_bootstrap_state_as_cached():
         "new_ids": [],
         "changed_ids": [],
         "backfill_ids": [],
+        "forced_refetch_ids": [],
     }
 
 
@@ -789,6 +830,71 @@ def test_select_sitemap_fetch_ids_rotates_backfill_to_oldest_unfetched_rows():
     )
 
     assert scheduling["backfill_ids"] == ["2", "1"]
+    assert scheduling["forced_refetch_ids"] == []
+
+
+def test_select_sitemap_fetch_ids_full_refresh_fetches_all_records():
+    existing_by_id = {
+        "3": normalize_record(
+            {
+                "id": "3",
+                "year": "2025",
+                "title": "3 Finder",
+                "url": "https://example.com/3",
+                "image": "",
+                "location": "Loc 3",
+                "date_found": "",
+            }
+        ),
+        "2": normalize_record(
+            {
+                "id": "2",
+                "year": "2025",
+                "title": "2 Finder",
+                "url": "https://example.com/2",
+                "image": "https://cdn.example.com/2.jpg",
+                "location": "Loc 2",
+                "date_found": "2025-06-02",
+            }
+        ),
+        "1": normalize_record(
+            {
+                "id": "1",
+                "year": "2025",
+                "title": "1 Finder",
+                "url": "https://example.com/1",
+                "image": "https://cdn.example.com/1.jpg",
+                "location": "Loc 1",
+                "date_found": "2025-06-01",
+            }
+        ),
+    }
+    sitemap_entries = {
+        "4": {"url": "https://example.com/4", "sitemap_lastmod": "2026-03-25T00:00:00Z"},
+        "3": {"url": "https://example.com/3", "sitemap_lastmod": "2026-03-24T00:00:00Z"},
+        "2": {"url": "https://example.com/2", "sitemap_lastmod": "2026-03-23T00:00:00Z"},
+        "1": {"url": "https://example.com/1", "sitemap_lastmod": "2026-03-24T00:00:00Z"},
+    }
+    previous_state = {
+        "3": {"url": "https://example.com/3", "sitemap_lastmod": "2026-03-24T00:00:00Z"},
+        "2": {"url": "https://example.com/2", "sitemap_lastmod": "2026-03-20T00:00:00Z"},
+        "1": {"url": "https://example.com/1", "sitemap_lastmod": "2026-03-24T00:00:00Z"},
+    }
+
+    scheduling = select_sitemap_fetch_ids(
+        sitemap_entries,
+        existing_by_id,
+        previous_state,
+        full_refresh=True,
+    )
+
+    assert scheduling == {
+        "fetch_ids": ["4", "3", "2", "1"],
+        "new_ids": ["4"],
+        "changed_ids": ["2"],
+        "backfill_ids": ["3"],
+        "forced_refetch_ids": ["1"],
+    }
 
 
 def test_apply_sitemap_updates_keeps_existing_rows_on_404_and_tracks_missing_urls():
@@ -826,7 +932,63 @@ def test_apply_sitemap_updates_keeps_existing_rows_on_404_and_tracks_missing_url
     assert source_discovery["detail_pages_fetched"] == 2
     assert source_discovery["new_ids"] == 1
     assert source_discovery["backfilled_ids"] == 1
+    assert source_discovery["forced_refetch_ids"] == 0
+    assert source_discovery["refresh_scope"] == "incremental"
     assert source_discovery["anomaly_counts"]["detail_404"] == 1
+
+
+def test_apply_sitemap_updates_full_refresh_reports_forced_refetches():
+    existing_records = {
+        "6000": normalize_record(
+            {
+                "id": "6000",
+                "year": "2025",
+                "title": "120 Kim L.",
+                "url": "https://www.blockislandinfo.com/event/120-kim-l/6000/",
+                "image": "https://cdn.example.com/6000.jpg",
+                "location": "Rodman's Hollow",
+                "date_found": "2025-06-10",
+            }
+        ),
+    }
+    sitemap_entries = {
+        "6000": {
+            "url": "https://www.blockislandinfo.com/event/120-kim-l/6000/",
+            "sitemap_lastmod": "2026-03-24T00:00:00Z",
+        },
+        "5741": {
+            "url": "https://www.blockislandinfo.com/event/138-k-frost/5741/",
+            "sitemap_lastmod": "2026-03-24T02:45:48Z",
+        },
+    }
+
+    records, _, source_discovery = apply_sitemap_updates(
+        existing_records,
+        sitemap_entries,
+        previous_state={
+            "6000": {
+                "url": "https://www.blockislandinfo.com/event/120-kim-l/6000/",
+                "sitemap_lastmod": "2026-03-24T00:00:00Z",
+                "last_fetched_at": "2026-03-20T00:00:00Z",
+                "fetch_status": "ok",
+            }
+        },
+        fetch_detail_page=lambda url: (
+            {"status_code": 200, "body": ""}
+            if extract_record_id_from_url(url) == "6000"
+            else {"status_code": 200, "body": load_fixture("event_detail_embedded_data.html")}
+        ),
+        refreshed_at="2026-03-24T03:00:00Z",
+        full_refresh=True,
+    )
+
+    assert {record["id"] for record in records} == {"6000", "5741"}
+    assert source_discovery["detail_pages_fetched"] == 2
+    assert source_discovery["reused_rows"] == 0
+    assert source_discovery["new_ids"] == 1
+    assert source_discovery["backfilled_ids"] == 0
+    assert source_discovery["forced_refetch_ids"] == 1
+    assert source_discovery["refresh_scope"] == "full"
 
 
 def test_apply_sitemap_updates_marks_existing_rows_missing_from_sitemap():

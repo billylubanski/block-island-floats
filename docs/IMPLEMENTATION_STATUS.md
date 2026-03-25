@@ -8,6 +8,7 @@ Last updated: 2026-03-21
 - The repo intentionally tracks the current canonical dataset and generated artifacts: `all_floats_final.json`, `floats.db`, `scraped_data/`, and committed refresh outputs under `generated/`.
 - Forecast predictions now train in memory from the current SQLite database on first use; there is no committed model binary.
 - `scripts/refresh_data.py` is the supported entrypoint for rebuilding artifacts and validation reports.
+- The refresh pipeline supports both incremental runs and an opt-in full historical refetch; `scripts/start_full_refresh.ps1` is the supported detached launcher for the long-running full rebuild.
 - The dashboard already includes the "Still Out There!" stat card; older docs describing it as a manual follow-up are stale.
 
 ## Testing And Verification

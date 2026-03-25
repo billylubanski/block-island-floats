@@ -42,5 +42,9 @@
       "missing_normalized_location"
     ],
     "notes": "Manual review 2026-03-24: off-island special orb with unclear number."
+  },
+  "5693": {
+    "title_override": "403 - Charlotte Jacobson (10 y.o.)",
+    "notes": "Manual review 2026-03-24: decode upstream HTML entity in title so float number parses correctly."
   }
 }

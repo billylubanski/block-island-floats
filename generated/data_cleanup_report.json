@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-03-24T17:43:24+00:00",
+  "generated_at": "2026-03-25T01:37:49+00:00",
   "totals": {
     "records": 4357,
     "missing_dates": 3607,
-    "blank_images": 220,
-    "placeholder_images": 3610,
+    "blank_images": 3830,
+    "placeholder_images": 0,
     "blank_locations": 0,
     "bucketed_unknown_locations": 69,
     "merged_duplicate_groups": 22
@@ -13,92 +13,92 @@
     "2025": {
       "total": 294,
       "missing_dates": 0,
-      "blank_images": 2,
-      "placeholder_images": 78,
+      "blank_images": 80,
+      "placeholder_images": 0,
       "blank_locations": 0
     },
     "2024": {
       "total": 344,
       "missing_dates": 0,
-      "blank_images": 0,
-      "placeholder_images": 95,
+      "blank_images": 95,
+      "placeholder_images": 0,
       "blank_locations": 0
     },
     "2023": {
       "total": 354,
       "missing_dates": 292,
-      "blank_images": 2,
-      "placeholder_images": 319,
+      "blank_images": 321,
+      "placeholder_images": 0,
       "blank_locations": 0
     },
     "2022": {
       "total": 163,
       "missing_dates": 141,
-      "blank_images": 1,
-      "placeholder_images": 153,
+      "blank_images": 154,
+      "placeholder_images": 0,
       "blank_locations": 0
     },
     "2021": {
       "total": 341,
       "missing_dates": 338,
-      "blank_images": 0,
-      "placeholder_images": 339,
+      "blank_images": 339,
+      "placeholder_images": 0,
       "blank_locations": 0
     },
     "2020": {
       "total": 410,
       "missing_dates": 405,
-      "blank_images": 0,
-      "placeholder_images": 405,
+      "blank_images": 405,
+      "placeholder_images": 0,
       "blank_locations": 0
     },
     "2019": {
       "total": 334,
       "missing_dates": 334,
-      "blank_images": 0,
-      "placeholder_images": 334,
+      "blank_images": 334,
+      "placeholder_images": 0,
       "blank_locations": 0
     },
     "2018": {
       "total": 387,
       "missing_dates": 383,
-      "blank_images": 0,
-      "placeholder_images": 384,
+      "blank_images": 384,
+      "placeholder_images": 0,
       "blank_locations": 0
     },
     "2017": {
       "total": 339,
       "missing_dates": 332,
-      "blank_images": 0,
-      "placeholder_images": 334,
+      "blank_images": 334,
+      "placeholder_images": 0,
       "blank_locations": 0
     },
     "2016": {
       "total": 360,
       "missing_dates": 359,
-      "blank_images": 0,
-      "placeholder_images": 360,
+      "blank_images": 360,
+      "placeholder_images": 0,
       "blank_locations": 0
     },
     "2015": {
       "total": 365,
       "missing_dates": 361,
-      "blank_images": 0,
-      "placeholder_images": 361,
+      "blank_images": 361,
+      "placeholder_images": 0,
       "blank_locations": 0
     },
     "2014": {
       "total": 320,
       "missing_dates": 318,
-      "blank_images": 0,
-      "placeholder_images": 318,
+      "blank_images": 318,
+      "placeholder_images": 0,
       "blank_locations": 0
     },
     "2013": {
       "total": 221,
       "missing_dates": 219,
-      "blank_images": 90,
-      "placeholder_images": 130,
+      "blank_images": 220,
+      "placeholder_images": 0,
       "blank_locations": 0
     },
     "2012": {
@@ -111,8 +111,8 @@
   },
   "validation": {
     "summary": {
-      "run_id": "20260324T174311Z",
-      "generated_at": "2026-03-24T17:43:11+00:00",
+      "run_id": "20260325T013731Z",
+      "generated_at": "2026-03-25T01:37:31+00:00",
       "total_rows": 4357,
       "valid_rows": 4357,
       "invalid_rows": 0,
@@ -339,6 +339,42 @@
         "date_found": "2026-03-12"
       },
       {
+        "id": "5733",
+        "year": "2025",
+        "title": "92 Chris",
+        "url": "https://www.blockislandinfo.com/event/92-chris/5733/",
+        "image": "",
+        "location": "Ocean view Pavilion trail",
+        "date_found": "2025-12-31"
+      },
+      {
+        "id": "5731",
+        "year": "2025",
+        "title": "58 Kristin Maher",
+        "url": "https://www.blockislandinfo.com/event/58-kristin-maher/5731/",
+        "image": "",
+        "location": "Lewis-Dickens Farm",
+        "date_found": "2025-12-10"
+      },
+      {
+        "id": "5729",
+        "year": "2025",
+        "title": "484 - Paige",
+        "url": "https://www.blockislandinfo.com/event/484-paige/5729/",
+        "image": "",
+        "location": "Lobster pot tree in town!",
+        "date_found": "2025-11-29"
+      },
+      {
+        "id": "5727",
+        "year": "2025",
+        "title": "74 - The Staceys",
+        "url": "https://www.blockislandinfo.com/event/74-the-staceys/5727/",
+        "image": "",
+        "location": "Tree at BI Grocery",
+        "date_found": "2025-11-28"
+      },
+      {
         "id": "5726",
         "year": "2025",
         "title": "511 Michele",
@@ -348,256 +384,11 @@
         "date_found": "2025-11-27"
       },
       {
-        "id": "3675",
-        "year": "2023",
-        "title": "196 Anderson Mendoz Soto",
-        "url": "https://www.blockislandinfo.com/event/196-anderson-mendoz-soto/3675/",
-        "image": "",
-        "location": "near Settler's Rock after hiking back from the North lighthouse with my classmate",
-        "date_found": "2024-03-21"
-      },
-      {
-        "id": "3651",
-        "year": "2023",
-        "title": "153",
-        "url": "https://www.blockislandinfo.com/event/153/3651/",
-        "image": "",
-        "location": "Side of the outdoor bar at Captain Nicks in the gravel (off season)",
-        "date_found": "2024-02-28"
-      },
-      {
-        "id": "5740",
-        "year": "2022",
-        "title": "196",
-        "url": "https://www.blockislandinfo.com/event/196/5740/",
-        "image": "",
-        "location": "not sure",
-        "date_found": "2026-03-10"
-      },
-      {
-        "id": "3509",
-        "year": "2013",
-        "title": "413 - F. Ernst",
-        "url": "https://www.blockislandinfo.com/event/413-f-ernst/3509/",
-        "image": "",
-        "location": "Maze beach",
-        "date_found": ""
-      },
-      {
-        "id": "3508",
-        "year": "2013",
-        "title": "400 - A. Petrik",
-        "url": "https://www.blockislandinfo.com/event/400-a-petrik/3508/",
-        "image": "",
-        "location": "Beacon Hill Trail",
-        "date_found": ""
-      },
-      {
-        "id": "3507",
-        "year": "2013",
-        "title": "397 - C. Bowers",
-        "url": "https://www.blockislandinfo.com/event/397-c-bowers/3507/",
-        "image": "",
-        "location": "Dory's Cove",
-        "date_found": ""
-      },
-      {
-        "id": "3506",
-        "year": "2013",
-        "title": "394 - R. Doherty",
-        "url": "https://www.blockislandinfo.com/event/394-r-doherty/3506/",
-        "image": "",
-        "location": "Andy's Way",
-        "date_found": ""
-      },
-      {
-        "id": "3505",
-        "year": "2013",
-        "title": "394 - G. Mooter",
-        "url": "https://www.blockislandinfo.com/event/394-g-mooter/3505/",
-        "image": "",
-        "location": "Near Bonnell Beach",
-        "date_found": ""
-      },
-      {
-        "id": "3504",
-        "year": "2013",
-        "title": "392 - M. Vitacco",
-        "url": "https://www.blockislandinfo.com/event/392-m-vitacco/3504/",
-        "image": "",
-        "location": "Coast Guard Beach",
-        "date_found": ""
-      },
-      {
-        "id": "3503",
-        "year": "2013",
-        "title": "391 - B. Muggingtons",
-        "url": "https://www.blockislandinfo.com/event/391-b-muggingtons/3503/",
-        "image": "",
-        "location": "Inside lobster trap on Dorry's Cove Beach",
-        "date_found": ""
-      },
-      {
-        "id": "3502",
-        "year": "2013",
-        "title": "387 - M. Cyganiewicz",
-        "url": "https://www.blockislandinfo.com/event/387-m-cyganiewicz/3502/",
-        "image": "",
-        "location": "Dorrey's Cove",
-        "date_found": ""
-      },
-      {
-        "id": "3501",
-        "year": "2013",
-        "title": "385 - E. Grskovic",
-        "url": "https://www.blockislandinfo.com/event/385-e-grskovic/3501/",
-        "image": "",
-        "location": "clayhead trail",
-        "date_found": ""
-      },
-      {
-        "id": "3500",
-        "year": "2013",
-        "title": "383 - S. Cattera",
-        "url": "https://www.blockislandinfo.com/event/383-s-cattera/3500/",
-        "image": "",
-        "location": "Off Enchanted Forest Path, Taking a left at the top of the hill, under a tree.",
-        "date_found": ""
-      },
-      {
-        "id": "3499",
-        "year": "2013",
-        "title": "382 - L. Goulding",
-        "url": "https://www.blockislandinfo.com/event/382-l-goulding/3499/",
-        "image": "",
-        "location": "Mansion Beach",
-        "date_found": ""
-      },
-      {
-        "id": "3498",
-        "year": "2013",
-        "title": "373 - J. Shenning",
-        "url": "https://www.blockislandinfo.com/event/373-j-shenning/3498/",
-        "image": "",
-        "location": "Greenway Trail in tree near Cooneymus Rd",
-        "date_found": ""
-      },
-      {
-        "id": "3497",
-        "year": "2013",
-        "title": "372 - J. Wronowski",
-        "url": "https://www.blockislandinfo.com/event/372-j-wronowski/3497/",
-        "image": "",
-        "location": "Middle Earth",
-        "date_found": ""
-      },
-      {
-        "id": "3496",
-        "year": "2013",
-        "title": "366 - S. Cyganiewicz",
-        "url": "https://www.blockislandinfo.com/event/366-s-cyganiewicz/3496/",
-        "image": "",
-        "location": "Dorry's Cove - in a bleach bottle",
-        "date_found": ""
-      },
-      {
-        "id": "3495",
-        "year": "2013",
-        "title": "365 - H. Amedeo",
-        "url": "https://www.blockislandinfo.com/event/365-h-amedeo/3495/",
-        "image": "",
-        "location": "Mansion beach",
-        "date_found": ""
-      },
-      {
-        "id": "3494",
-        "year": "2013",
-        "title": "364 - J. Giaquinto",
-        "url": "https://www.blockislandinfo.com/event/364-j-giaquinto/3494/",
-        "image": "",
-        "location": "Hodge family preserve on the side of trail in the grass",
-        "date_found": ""
-      },
-      {
-        "id": "3493",
-        "year": "2013",
-        "title": "363 - E. Cardinal",
-        "url": "https://www.blockislandinfo.com/event/363-e-cardinal/3493/",
-        "image": "",
-        "location": "Enchanted Forest behind a rock",
-        "date_found": ""
-      },
-      {
-        "id": "3492",
-        "year": "2013",
-        "title": "360 - A. Malloy",
-        "url": "https://www.blockislandinfo.com/event/360-a-malloy/3492/",
-        "image": "",
-        "location": "Mosquito Beach, washed ashore",
-        "date_found": ""
-      },
-      {
-        "id": "3491",
-        "year": "2013",
-        "title": "357 - A. Simeoni",
-        "url": "https://www.blockislandinfo.com/event/357-a-simeoni/3491/",
-        "image": "",
-        "location": "Bluff above Black Rock Beach",
-        "date_found": ""
-      },
-      {
-        "id": "3490",
-        "year": "2013",
-        "title": "356 - M. Hennessy",
-        "url": "https://www.blockislandinfo.com/event/356-m-hennessy/3490/",
-        "image": "",
-        "location": "Mosquito Beach",
-        "date_found": ""
-      }
-    ],
-    "recent_placeholder_image_rows": [
-      {
-        "id": "5733",
-        "year": "2025",
-        "title": "92 Chris",
-        "url": "https://www.blockislandinfo.com/event/92-chris/5733/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
-        "location": "Ocean view Pavilion trail",
-        "date_found": "2025-12-31"
-      },
-      {
-        "id": "5731",
-        "year": "2025",
-        "title": "58 Kristin Maher",
-        "url": "https://www.blockislandinfo.com/event/58-kristin-maher/5731/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
-        "location": "Lewis-Dickens Farm",
-        "date_found": "2025-12-10"
-      },
-      {
-        "id": "5729",
-        "year": "2025",
-        "title": "484 - Paige",
-        "url": "https://www.blockislandinfo.com/event/484-paige/5729/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
-        "location": "Lobster pot tree in town!",
-        "date_found": "2025-11-29"
-      },
-      {
-        "id": "5727",
-        "year": "2025",
-        "title": "74 - The Staceys",
-        "url": "https://www.blockislandinfo.com/event/74-the-staceys/5727/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
-        "location": "Tree at BI Grocery",
-        "date_found": "2025-11-28"
-      },
-      {
         "id": "5724",
         "year": "2025",
         "title": "507 Matt Briand",
         "url": "https://www.blockislandinfo.com/event/507-matt-briand/5724/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Lobster trap tree",
         "date_found": "2025-11-26"
       },
@@ -606,7 +397,7 @@
         "year": "2025",
         "title": "526 Craig R.",
         "url": "https://www.blockislandinfo.com/event/526-craig-r/5722/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Fresh swamp preserve",
         "date_found": "2025-11-23"
       },
@@ -615,7 +406,7 @@
         "year": "2025",
         "title": "305",
         "url": "https://www.blockislandinfo.com/event/305/5721/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Greenway Trail, Fresh Swamp Preserve",
         "date_found": "2025-11-23"
       },
@@ -624,7 +415,7 @@
         "year": "2025",
         "title": "538 Kyle N.",
         "url": "https://www.blockislandinfo.com/event/538-kyle-n/5712/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Hodge Family Preserve",
         "date_found": "2025-11-05"
       },
@@ -633,7 +424,7 @@
         "year": "2025",
         "title": "91 Kyle N.",
         "url": "https://www.blockislandinfo.com/event/91-kyle-n/5711/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Hodge Family Preserve",
         "date_found": "2025-11-05"
       },
@@ -642,7 +433,7 @@
         "year": "2025",
         "title": "376 - John Ellis",
         "url": "https://www.blockislandinfo.com/event/376-john-ellis/5703/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Turnip Farm Trail",
         "date_found": "2025-10-30"
       },
@@ -651,7 +442,7 @@
         "year": "2025",
         "title": "524 Shannon D.",
         "url": "https://www.blockislandinfo.com/event/524-shannon-d/5697/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Dodge cemetery/ turnip farm",
         "date_found": "2025-10-26"
       },
@@ -660,7 +451,7 @@
         "year": "2025",
         "title": "513 joe",
         "url": "https://www.blockislandinfo.com/event/513-joe/5695/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Beach ave trail",
         "date_found": "2025-10-25"
       },
@@ -669,7 +460,7 @@
         "year": "2025",
         "title": "287 Sloane M.",
         "url": "https://www.blockislandinfo.com/event/287-sloane-m/5694/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Martin lots tree trunk",
         "date_found": "2025-10-25"
       },
@@ -678,7 +469,7 @@
         "year": "2025",
         "title": "542- Francesca M.",
         "url": "https://www.blockislandinfo.com/event/542-francesca-m/5687/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Murphy-Cormier Trail",
         "date_found": "2025-10-19"
       },
@@ -687,7 +478,7 @@
         "year": "2025",
         "title": "508 - Karen Wirta",
         "url": "https://www.blockislandinfo.com/event/508-karen-wirta/5677/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Beach Avenue Trail",
         "date_found": "2025-10-18"
       },
@@ -696,7 +487,7 @@
         "year": "2025",
         "title": "498 - Jaki Attenello",
         "url": "https://www.blockislandinfo.com/event/498-jaki-attenello/5675/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Greenway North of Rodmans South of Old Mill Road in a Tree",
         "date_found": "2025-10-18"
       },
@@ -705,7 +496,7 @@
         "year": "2025",
         "title": "481 - Jason J. Diogo, M.D.",
         "url": "https://www.blockislandinfo.com/event/481-jason-j-diogo-m-d/5672/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Vaill Beach Trail",
         "date_found": "2025-10-17"
       },
@@ -714,7 +505,7 @@
         "year": "2025",
         "title": "290 Laurie M.",
         "url": "https://www.blockislandinfo.com/event/290-laurie-m/5669/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Between kid and town beach",
         "date_found": "2025-10-15"
       },
@@ -723,7 +514,7 @@
         "year": "2025",
         "title": "297 Richard Dziadul",
         "url": "https://www.blockislandinfo.com/event/297-richard-dziadul/5665/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Atwood trail across from labyrinth",
         "date_found": "2025-10-13"
       },
@@ -732,7 +523,7 @@
         "year": "2025",
         "title": "272 Court and Andrew",
         "url": "https://www.blockislandinfo.com/event/272-court-and-andrew/5661/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Nicholas ball park",
         "date_found": "2025-10-11"
       },
@@ -741,7 +532,7 @@
         "year": "2025",
         "title": "#67-Denise Souza",
         "url": "https://www.blockislandinfo.com/event/%2367-denise-souza/5657/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Fresh pond trail",
         "date_found": "2025-10-09"
       },
@@ -750,7 +541,7 @@
         "year": "2025",
         "title": "550! D Ciok",
         "url": "https://www.blockislandinfo.com/event/550!-d-ciok/5653/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Old mill near Magellan's tree",
         "date_found": "2025-10-09"
       },
@@ -759,29 +550,12 @@
         "year": "2025",
         "title": "496 Kevin B.",
         "url": "https://www.blockislandinfo.com/event/496-kevin-b/5648/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
+        "image": "",
         "location": "Park behind post office",
         "date_found": "2025-10-08"
-      },
-      {
-        "id": "5647",
-        "year": "2025",
-        "title": "553 rita",
-        "url": "https://www.blockislandinfo.com/event/553-rita/5647/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
-        "location": "Beach ave trail",
-        "date_found": "2025-10-08"
-      },
-      {
-        "id": "5642",
-        "year": "2025",
-        "title": "#284 James L.",
-        "url": "https://www.blockislandinfo.com/event/%23284-james-l/5642/",
-        "image": "https://assets.simpleviewinc.com/simpleview/image/upload/c_fill,h_250,q_75,w_300/v1/clients/blockislandri/default_image_2__187925ca-a462-4baa-a146-6ecc9da1037b.jpg",
-        "location": "Lighthouse",
-        "date_found": "2025-10-05"
       }
-    ]
+    ],
+    "recent_placeholder_image_rows": []
   },
   "duplicate_merges": [
     {

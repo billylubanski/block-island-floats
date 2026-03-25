@@ -14,6 +14,8 @@
 - Run the app locally: `python app.py` (serves http://localhost:5000).
 - Enable Flask debug mode explicitly when needed: `$env:FLASK_DEBUG='1'; python app.py`.
 - Refresh the canonical dataset and rebuild derived artifacts: `python scripts/refresh_data.py refresh`.
+- Run a complete historical refetch when parser or derived-feature changes need every detail page rebuilt: `python scripts/refresh_data.py refresh --full`.
+- Launch that full rebuild as a detached local job with logs and `latest-full-refresh.json` status metadata under `output/refresh/`: `.\scripts\start_full_refresh.ps1`.
 - Validate canonical JSON, snapshots, manifest, and SQLite outputs: `python scripts/refresh_data.py validate`.
 - Run staged record validation on the current database: `python scripts/refresh_data.py validate-records`.
 - Run the automated test suite once Python and pytest are available: `pytest -q`.

@@ -55,6 +55,7 @@ pytest -q
 ```bash
 pip install -r requirements-dev.txt
 python scripts/refresh_data.py refresh
+python scripts/refresh_data.py refresh --full
 python scripts/refresh_data.py validate
 python scripts/refresh_data.py validate-records
 ```
@@ -63,6 +64,8 @@ python scripts/refresh_data.py validate-records
 - `floats.db`, `scraped_data/floats_*.json`, and refresh outputs under `generated/` are rebuilt from that canonical data.
 - Forecast predictions are generated offline during refresh and committed as `generated/forecast_artifact.json`.
 - `.github/workflows/refresh-data.yml` is currently manual-only while the upstream source is blocking automated archive access.
+- `refresh` is the normal incremental path. `refresh --full` refetches every sitemap detail page so new parser, forecast, and validation features are applied across the full historical dataset.
+- For local long-running rebuilds, run `.\scripts\start_full_refresh.ps1`. It launches the full refresh in the background and writes timestamped stdout/stderr logs plus `output/refresh/latest-full-refresh.json` status metadata.
 
 ## Repository Map
 

@@ -1,12 +1,12 @@
 # Data Refresh Summary
 
-- Refreshed at: March 24, 2026 at 05:43 PM UTC
+- Refreshed at: March 25, 2026 at 01:37 AM UTC
 - Total records: 4357
 - Latest source date: 2026-03-12
 - Missing dates: 3607
 - Missing URLs: 0
-- Missing images: 220
-- Legacy DB-only rows excluded: 22
+- Missing images: 3830
+- Legacy DB-only rows excluded: 0
 
 ## Records by Year
 
@@ -41,17 +41,23 @@
 ## Forecast Artifact
 
 - Training rows: 731
-- Populated prediction days: 366/366
+- Cluster training rows: 675
+- Populated zone days: 366/366
+- Primary model: kernel_seasonal
 - Artifact JSON: C:\Users\Billy\Documents\BI Float\generated\forecast_artifact.json
+- Evaluation JSON: C:\Users\Billy\Documents\BI Float\generated\forecast_evaluation.json
+- Evaluation summary: C:\Users\Billy\Documents\BI Float\generated\forecast_evaluation_summary.md
 
 ## Source Discovery
 
+- Refresh scope: incremental
 - Sitemap URLs seen: 4383
-- Detail pages fetched: 29
-- Reused rows: 4354
-- New IDs: 4
+- Detail pages fetched: 51
+- Reused rows: 4332
+- New IDs: 26
 - Changed IDs: 0
 - Backfilled IDs: 25
+- Forced refetch IDs: 0
 
 ## Source Anomalies
 
