@@ -29,15 +29,44 @@ Set `FLASK_DEBUG=1` before `python app.py` if you want the Flask debug server lo
 
 `requirements.txt` mirrors the production install. Use `requirements-dev.txt` for local development, tests, and refresh tooling.
 
-## Render Deploy
+## Cloud Deploy
 
-Render can keep using the default build command:
+The repo now includes checked-in deployment/runtime files:
+
+- `.python-version` pins the cloud Python major/minor version to the tested `3.12` line.
+- `.env.example` documents the runtime knobs used by the app, Gunicorn, and optional offline forecast refresh tooling.
+- `.env.render.example` trims that list to the settings you would actually manage in the Render dashboard.
+- `render.yaml` defines a Render web service with the correct build/start commands and `/healthz` health check.
+- `gunicorn.conf.py` centralizes the Render/container runtime settings so the web process behaves the same across deploy paths.
+- `Dockerfile` and `.dockerignore` provide a container path for any Docker-compatible cloud host.
+- `Procfile` matches the same Gunicorn command shape used by the other deploy paths.
+
+### Render
 
 ```bash
 pip install -r requirements.txt
 ```
 
-That resolves to the lean production dependency set and keeps test and refresh-only tooling such as `pytest`, `playwright`, and BeautifulSoup out of the production image.
+Render can use the included `render.yaml` Blueprint, or the equivalent native service settings:
+
+- Region: `oregon`
+- Instance type: `free`
+- Build command: `pip install --upgrade pip && pip install -r requirements.txt`
+- Start command: `gunicorn -c gunicorn.conf.py app:app`
+- Health check path: `/healthz`
+
+`requirements.txt` still resolves to the lean production dependency set and keeps test and refresh-only tooling such as `pytest`, `playwright`, and BeautifulSoup out of the production image.
+
+No secret environment variables are required to serve the Flask app itself. `PORT` is platform-managed on Render. The checked-in [`.env.render.example`](./.env.render.example) values are the knobs you would mirror into the Render dashboard if you want to override the defaults. `NOAA_CDO_TOKEN` is optional and is only used when you run the offline forecast/data refresh pipeline.
+
+### Docker / Container Hosts
+
+```bash
+docker build -t bi-float-tracker .
+docker run --rm -p 5000:5000 --env-file .env bi-float-tracker
+```
+
+For local container runs, copy `.env.example` to `.env` and adjust values only if needed.
 
 ## Automated Tests
 
