@@ -79,7 +79,10 @@
 }
 
 #field-map {
+    position: relative;
     height: 24rem;
+    z-index: 0;
+    isolation: isolate;
     border-radius: 24px;
     overflow: hidden;
 }
