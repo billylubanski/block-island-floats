@@ -10,15 +10,26 @@
 - Deterministic HTML fixtures for parser tests live in `tests/fixtures/`.
 
 ## Build, Test, and Development Commands
-- Create a venv and install deps: `python -m venv .venv && .venv\Scripts\activate && pip install -r requirements.txt`.
+- Create a venv and install dev deps (recommended): `python -m venv .venv && .venv\Scripts\activate && pip install -r requirements-dev.txt`.
+- Install production-only deps when validating deploy parity: `pip install -r requirements.txt`.
 - Run the app locally: `python app.py` (serves http://localhost:5000).
 - Enable Flask debug mode explicitly when needed: `$env:FLASK_DEBUG='1'; python app.py`.
 - Refresh the canonical dataset and rebuild derived artifacts: `python scripts/refresh_data.py refresh`.
 - Run a complete historical refetch when parser or derived-feature changes need every detail page rebuilt: `python scripts/refresh_data.py refresh --full`.
 - Launch that full rebuild as a detached local job with logs and `latest-full-refresh.json` status metadata under `output/refresh/`: `.\scripts\start_full_refresh.ps1`.
+- Run a one-off full refresh job wrapper that writes status metadata: `.\scripts\run_full_refresh_job.ps1`.
 - Validate canonical JSON, snapshots, manifest, and SQLite outputs: `python scripts/refresh_data.py validate`.
 - Run staged record validation on the current database: `python scripts/refresh_data.py validate-records`.
 - Run the automated test suite once Python and pytest are available: `pytest -q`.
+- Run only browser-backed smoke tests (opt-in): `$env:RUN_UI_SMOKE='1'; pytest -q -m ui`.
+- Install Chromium for Playwright-based smoke checks: `python -m playwright install chromium`.
+
+## Recommended Workflows
+- **Quick local app check**: install `requirements-dev.txt`, run `python app.py`, then verify `/` and `/search`.
+- **Feature implementation loop**: run `pytest -q` after each change batch; keep new tests deterministic and fixture-driven.
+- **Data refresh workflow**: run `refresh`, then `validate`, then `validate-records`; only run `refresh --full` for parser/feature migrations that require all detail pages to be reprocessed.
+- **Long-running full rebuild workflow**: use `start_full_refresh.ps1` (detached) for local monitoring or `run_full_refresh_job.ps1` (single-run wrapper) when you need an end-to-end scripted execution.
+- **UI workflow**: enable `RUN_UI_SMOKE` and run `pytest -q -m ui` for browser smoke checks; keep manual probes under `scripts/manual_checks/`.
 
 ## Testing Guidelines
 - `pytest.ini` constrains automated collection to `tests/`.

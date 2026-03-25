@@ -15,14 +15,17 @@ Flask app for exploring historical Block Island Glass Float finds, field-plannin
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate
+# PowerShell:
+.venv\Scripts\Activate.ps1
+# macOS/Linux:
+source .venv/bin/activate
 pip install -r requirements-dev.txt
 python app.py
 ```
 
 The app serves at `http://localhost:5000`.
 
-Set `$env:FLASK_DEBUG = "1"` before `python app.py` if you want the Flask debug server locally.
+Set `FLASK_DEBUG=1` before `python app.py` if you want the Flask debug server locally (PowerShell: `$env:FLASK_DEBUG = "1"`).
 
 `requirements.txt` mirrors the production install. Use `requirements-dev.txt` for local development, tests, and refresh tooling.
 
@@ -50,6 +53,21 @@ pytest -q
 - Enable the browser smoke layer with `$env:RUN_UI_SMOKE='1'`, then run `pytest -q -m ui`.
 - Manual probes live under `scripts/manual_checks/` and are opt-in only.
 
+## Repo Hygiene Quick Checks
+
+Use these before pushing larger refresh or feature branches:
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+python scripts/refresh_data.py validate
+python scripts/refresh_data.py validate-records
+```
+
+- `pytest -q` catches route/parser regressions and local data-shape assumptions.
+- `validate` checks pipeline-level integrity and report generation.
+- `validate-records` runs record-level auditing focused on suspicious or malformed rows.
+
 ## Data Refresh
 
 ```bash
@@ -73,7 +91,7 @@ python scripts/refresh_data.py validate-records
 - `analyzer.py`, `ml_predictor.py`, `locations.py`, and `utils.py` contain analytics, offline ML generation, lookup data, and shared helpers.
 - `scripts/refresh_data.py` and `scripts/validation_pipeline.py` drive refresh and validation.
 - `tests/` contains automated pytest coverage.
-- `scripts/manual_checks/` contains manual checks that may hit the live site, expect a local server, or inspect the committed production DB.
+- `scripts/manual_checks/` contains manual checks that may hit the live site, expect a local server, or inspect the committed production DB (see `scripts/manual_checks/README.md`).
 - `docs/IMPLEMENTATION_STATUS.md`, `docs/AGENTS.md`, and this README are the canonical current-state docs.
 
 ## Validation Pipeline
