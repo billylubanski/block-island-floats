@@ -99,7 +99,9 @@ textarea {
 .site-header {
     position: sticky;
     top: 0;
-    z-index: 1200;
+    z-index: 5000;
+    isolation: isolate;
+    transform: translateZ(0);
     backdrop-filter: blur(18px);
     background: rgba(7, 20, 18, 0.8);
     border-bottom: 1px solid rgba(193, 214, 203, 0.08);
