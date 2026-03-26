@@ -20,6 +20,7 @@
         display: grid;
         gap: var(--space-5);
         align-content: start;
+        padding-top: 0.6rem;
     }
 
     .dashboard-stage__intro h1 {
@@ -46,6 +47,40 @@
         flex-wrap: wrap;
     }
 
+    .dashboard-filter-panel {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .dashboard-filter-panel__row {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .dashboard-filter-panel__copy {
+        display: grid;
+        gap: 0.35rem;
+        max-width: 38rem;
+    }
+
+    .dashboard-filter-panel__copy h2,
+    .dashboard-filter-panel__copy p {
+        margin: 0;
+    }
+
+    .dashboard-filter-panel__copy p,
+    .dashboard-filter-panel__summary {
+        color: var(--text-2);
+        line-height: 1.65;
+    }
+
+    .dashboard-proof {
+        max-width: 52rem;
+    }
+
     .dash-filter-form {
         display: flex;
         align-items: end;
@@ -66,6 +101,7 @@
             linear-gradient(145deg, rgba(234, 223, 207, 0.12), rgba(121, 208, 180, 0.08)),
             rgba(255, 255, 255, 0.04);
         border: 1px solid rgba(234, 223, 207, 0.16);
+        max-width: 32rem;
     }
 
     .hero-metric__value {
@@ -85,6 +121,10 @@
         color: var(--text-2);
         font-size: 0.92rem;
         line-height: 1.6;
+    }
+
+    .hero-note strong {
+        color: var(--text-0);
     }
 
     .dashboard-stage__map {
@@ -658,6 +698,10 @@
             width: 100%;
         }
 
+        .dashboard-filter-panel__row {
+            align-items: stretch;
+        }
+
         .dash-filter-form .field-group {
             width: 100%;
         }
@@ -671,89 +715,45 @@
 
 {% block page_intro %}
 <section class="dashboard-stage">
-    <div class="surface dashboard-stage__intro">
+    <div class="dashboard-stage__intro">
         <div class="dashboard-copy">
             <p class="page-kicker">{{ page_meta.kicker }}</p>
             <h1>{{ page_meta.title }}</h1>
             <p class="lead">{{ page_meta.subtitle }}</p>
             <div class="dashboard-copy__actions">
-                <a class="button button--primary" href="{{ page_meta.primary_cta.href }}" target="_blank" rel="noreferrer">
+                <a class="button button--primary" href="{{ page_meta.primary_cta.href }}">
                     {{ page_meta.primary_cta.label }}
                 </a>
                 <a class="button button--ghost" href="{{ url_for('field_mode') }}">
-                    Open field mode
+                    Open field view
                 </a>
-            </div>
-        </div>
-
-        <div class="utility-rail">
-            <div class="utility-rail__group">
-                <form action="/" method="get" class="dash-filter-form">
-                    <div class="field-group">
-                        <label for="year">Year focus</label>
-                        <select id="year" name="year" onchange="this.form.submit()">
-                            <option value="all" {% if selected_year == 'all' %}selected{% endif %}>All seasons</option>
-                            {% for row in years %}
-                            <option value="{{ row['year'] }}" {% if selected_year == row['year']|string %}selected{% endif %}>
-                                {{ row['year'] }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <noscript>
-                        <button class="button button--subtle" type="submit">Apply filter</button>
-                    </noscript>
-                </form>
-            </div>
-
-        <div class="utility-rail__summary">
-                {% if selected_year != 'all' %}
-                Showing <strong>{{ total_finds }}</strong> finds from <strong>{{ selected_year }}</strong>.
-                {% else %}
-                Showing <strong>{{ total_finds }}</strong> finds across the archive.
-                {% endif %}
-                Start with the map.
             </div>
         </div>
 
         <div class="hero-metric">
-            <span class="eyebrow">Primary read</span>
+            <span class="eyebrow">Quick read</span>
             <span class="hero-metric__value">{{ still_out_there }}</span>
             <p class="hero-metric__label">
                 Floats still unreported {% if selected_year != 'all' %}in {{ selected_year }}{% else %}across the tracked seasons{% endif %}.
             </p>
             <p class="hero-note">
                 {% if primary_location %}
-                Start with {{ primary_location.name }}.
+                Most active starting area: <strong>{{ primary_location.name }}</strong>.
                 {% else %}
-                Use the map to narrow a first loop.
+                Use the map to narrow your first loop.
+                {% endif %}
+                {% if best_month %}
+                Finds usually peak in <strong>{{ best_month[0] }}</strong>.
                 {% endif %}
             </p>
         </div>
-
-        <div class="kpi-strip">
-            <article class="kpi-tile">
-                <span class="kpi-tile__value">{{ total_finds }}</span>
-                <span class="kpi-tile__label">Reported finds</span>
-            </article>
-            <article class="kpi-tile">
-                <span class="kpi-tile__value">{{ years|length }}</span>
-                <span class="kpi-tile__label">Tracked seasons</span>
-            </article>
-            <article class="kpi-tile">
-                <span class="kpi-tile__value">{{ best_month[0] if best_month else 'N/A' }}</span>
-                <span class="kpi-tile__label">
-                    Best month{% if best_month %}: {{ best_month[1] }} dated finds{% endif %}
-                </span>
-            </article>
-        </div>
     </div>
 
-    <div class="surface dashboard-stage__map">
+    <div class="surface dashboard-stage__map" id="explore-map">
         <div class="section-heading">
-            <span class="eyebrow">Recovery map</span>
-            <h2>See where the archive keeps clustering</h2>
-            <p>Balance proven clusters with your position.</p>
+            <span class="eyebrow">Hotspot map</span>
+            <h2>Where people keep finding floats</h2>
+            <p>Start with the archive&#39;s strongest clusters, then weigh them against where you are on the island.</p>
         </div>
         <div class="dashboard-map">
             <div class="dashboard-map__frame">
@@ -763,7 +763,7 @@
                     <div class="map-legend" id="map-controls-panel">
                         <div class="map-legend__title">
                             <strong>{{ dashboard_map.top_cluster.label }}</strong>
-                            <span>{{ dashboard_map.cluster_count }} mapped clusters. Strongest cluster: {{ dashboard_map.top_cluster.count }} finds.</span>
+                            <span>{{ dashboard_map.cluster_count }} hotspot areas mapped. Busiest area: {{ dashboard_map.top_cluster.count }} reports.</span>
                         </div>
                         <div class="map-legend__tools">
                             <div class="map-scale" aria-hidden="true">
@@ -777,8 +777,8 @@
                                 <button class="is-active" type="button" data-layer-toggle="heat" aria-pressed="true">Heat</button>
                                 <button class="is-active" type="button" data-layer-toggle="spots" aria-pressed="true">Spots</button>
                             </div>
-                            <button class="button button--ghost geo-btn" id="dashboard-geolocate" type="button">Geolocate</button>
-                            <button class="map-reset" id="map-reset-view" type="button">Reset</button>
+                            <button class="button button--ghost geo-btn" id="dashboard-geolocate" type="button">Near me</button>
+                            <button class="map-reset" id="map-reset-view" type="button">Reset map</button>
                         </div>
                     </div>
                     <div class="map-panel-actions">
@@ -794,15 +794,15 @@
                     <div class="map-explorer">
                         <div class="map-explorer__header">
                             <div>
-                                <strong id="map-focus-heading">Top mapped clusters</strong>
-                                <span id="map-focus-subtitle">Jump the map, or geolocate to sort by proximity.</span>
+                                <strong id="map-focus-heading">Compare hotspots</strong>
+                                <span id="map-focus-subtitle">Starts by archive density. Use Near me to sort by proximity.</span>
                             </div>
                         </div>
                         <div class="map-focus-list" id="map-focus-list">
                             {% for cluster in dashboard_map.clusters[:5] %}
                             <button class="map-focus-card{% if loop.first %} is-active{% endif %}" type="button" data-cluster-index="{{ loop.index0 }}">
                                 <span class="map-focus-card__eyebrow">
-                                    {% if loop.first %}Top cluster{% else %}Hotspot {{ loop.index }}{% endif %}
+                                    {% if loop.first %}Start here{% else %}Hotspot {{ loop.index }}{% endif %}
                                 </span>
                                 <span class="map-focus-card__title">{{ cluster.label }}</span>
                                 <span class="map-focus-card__meta">{{ cluster.count }} finds across {{ cluster.spot_count }} spot{% if cluster.spot_count != 1 %}s{% endif %}.</span>
@@ -810,7 +810,7 @@
                             {% endfor %}
                         </div>
                         <p class="map-focus-note" id="map-focus-note">
-                            The rail starts with historical density and rewrites itself by proximity once you geolocate.
+                            The rail starts with archive density and flips to proximity once you geolocate.
                         </p>
                     </div>
                 </div>
@@ -823,9 +823,9 @@
                 </div>
             </div>
             <div class="dashboard-map__meta">
-                <span>{{ dashboard_map.cluster_count }} mapped clusters distilled from {{ dashboard_map.spot_count }} named spots.</span>
+                <span>{{ dashboard_map.cluster_count }} hotspot areas distilled from {{ dashboard_map.spot_count }} named spots.</span>
                 {% if dashboard_map.top_cluster %}
-                <span>Strongest cluster: {{ dashboard_map.top_cluster.label }} ({{ dashboard_map.top_cluster.count }} finds).</span>
+                <span>Busiest area: {{ dashboard_map.top_cluster.label }} ({{ dashboard_map.top_cluster.count }} reports).</span>
                 {% endif %}
                 <span>Last updated: {{ last_updated }}</span>
             </div>
@@ -835,12 +835,64 @@
 {% endblock %}
 
 {% block content %}
+<section class="surface surface--soft dashboard-filter-panel">
+    <div class="dashboard-filter-panel__row">
+        <div class="dashboard-filter-panel__copy">
+            <span class="eyebrow">Season focus</span>
+            <h2>Study one season or keep the full archive in view</h2>
+            <p>Use the filter when you want to isolate one summer. Leave it on all seasons when you want the broadest read of the island.</p>
+        </div>
+
+        <form action="/" method="get" class="dash-filter-form">
+            <div class="field-group">
+                <label for="year">Season</label>
+                <select id="year" name="year" onchange="this.form.submit()">
+                    <option value="all" {% if selected_year == 'all' %}selected{% endif %}>All seasons</option>
+                    {% for row in years %}
+                    <option value="{{ row['year'] }}" {% if selected_year == row['year']|string %}selected{% endif %}>
+                        {{ row['year'] }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <noscript>
+                <button class="button button--subtle" type="submit">Apply filter</button>
+            </noscript>
+        </form>
+    </div>
+
+    <div class="dashboard-filter-panel__summary">
+        {% if selected_year != 'all' %}
+        Viewing <strong>{{ total_finds }}</strong> finds from <strong>{{ selected_year }}</strong>.
+        {% else %}
+        Viewing <strong>{{ total_finds }}</strong> finds across the full archive.
+        {% endif %}
+    </div>
+
+    <div class="kpi-strip dashboard-proof">
+        <article class="kpi-tile">
+            <span class="kpi-tile__value">{{ total_finds }}</span>
+            <span class="kpi-tile__label">Archive reports in view</span>
+        </article>
+        <article class="kpi-tile">
+            <span class="kpi-tile__value">{{ years|length }}</span>
+            <span class="kpi-tile__label">Tracked seasons</span>
+        </article>
+        <article class="kpi-tile">
+            <span class="kpi-tile__value">{{ best_month[0] if best_month else 'N/A' }}</span>
+            <span class="kpi-tile__label">
+                Peak month{% if best_month %}: {{ best_month[1] }} dated finds{% endif %}
+            </span>
+        </article>
+    </div>
+</section>
+
 <section class="dashboard-columns">
     <section class="surface">
         <div class="section-heading">
-            <span class="eyebrow">Best starting points</span>
-            <h2>Top hunting grounds</h2>
-            <p>Historical density for a first pass.</p>
+            <span class="eyebrow">Archive shortlist</span>
+            <h2>Most active named stops</h2>
+            <p>Use these after the map when you want a tighter first-pass shortlist.</p>
         </div>
 
         <div class="rank-list">
@@ -865,9 +917,9 @@
 
     <section class="surface">
         <div class="section-heading">
-            <span class="eyebrow">Seasonal read</span>
-            <h2>Best times to hunt</h2>
-            <p>Peak months from dated reports.</p>
+            <span class="eyebrow">Seasonality</span>
+            <h2>When finds peak</h2>
+            <p>Months with the strongest dated history in the archive.</p>
         </div>
 
         <div class="season-list">
@@ -892,9 +944,9 @@
 
 <section class="surface">
     <div class="section-heading">
-        <span class="eyebrow">Year-by-year trend</span>
-        <h2>Recovery by season</h2>
-        <p>See how much of each drop has surfaced.</p>
+        <span class="eyebrow">Season by season</span>
+        <h2>How each season played out</h2>
+        <p>See how much of each year&#39;s release has surfaced so far.</p>
     </div>
 
     <div class="recovery-list">

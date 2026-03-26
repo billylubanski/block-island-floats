@@ -236,23 +236,24 @@ textarea {
 }
 
 .site-frame {
-    padding-block: var(--space-7) var(--space-8);
+    padding-block: calc(var(--space-7) + 0.5rem) var(--space-8);
 }
 
 .page-main {
     display: grid;
-    gap: var(--space-7);
+    gap: calc(var(--space-7) + 0.5rem);
 }
 
 .page-intro {
-    margin-bottom: var(--space-7);
-    padding: clamp(1.5rem, 2vw, 2rem) 0 0;
+    position: relative;
+    margin-bottom: calc(var(--space-7) + 0.5rem);
+    padding: clamp(1.75rem, 3vw, 2.75rem) 0 0;
 }
 
 .page-intro__content {
     display: grid;
-    gap: var(--space-4);
-    max-width: 64rem;
+    gap: var(--space-5);
+    max-width: 56rem;
 }
 
 .page-intro__headline {
@@ -262,12 +263,16 @@ textarea {
     gap: var(--space-5);
 }
 
+.page-intro__headline .button {
+    flex-shrink: 0;
+}
+
 .page-kicker {
     margin: 0;
     color: var(--accent-strong);
     font-size: 0.78rem;
     font-weight: 800;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
 }
 
@@ -275,18 +280,19 @@ textarea {
 .display-title {
     margin: 0;
     font-family: "Fraunces", serif;
-    font-size: clamp(2.5rem, 5vw, 4.35rem);
+    font-size: clamp(2.75rem, 5.7vw, 4.8rem);
     line-height: 0.94;
     letter-spacing: -0.03em;
+    max-width: 12ch;
 }
 
 .page-lead,
 .lead {
     margin: 0;
-    max-width: 48rem;
+    max-width: 42rem;
     color: var(--text-1);
-    font-size: 1.05rem;
-    line-height: 1.7;
+    font-size: 1.08rem;
+    line-height: 1.72;
 }
 
 .button {
@@ -336,11 +342,11 @@ textarea {
 .surface {
     position: relative;
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.008)),
         var(--surface);
     border: 1px solid var(--line);
     border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-md);
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.16);
     padding: clamp(1.25rem, 2vw, 2rem);
 }
 
@@ -411,7 +417,7 @@ textarea {
     flex-wrap: wrap;
     padding: 1rem 1.1rem;
     border-radius: var(--radius-lg);
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.02);
     border: 1px solid rgba(193, 214, 203, 0.08);
 }
 
@@ -738,6 +744,7 @@ tbody tr:hover td {
     .page-intro h1,
     .display-title {
         font-size: clamp(2.15rem, 12vw, 3.1rem);
+        max-width: 12ch;
     }
 
     .surface {

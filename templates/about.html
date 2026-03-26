@@ -2,109 +2,137 @@
 
 {% block head %}
 <style>
-    .story-grid {
+    .story-intro-grid,
+    .story-guide-grid,
+    .story-support-grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
         gap: var(--space-5);
     }
 
-    .story-block,
-    .mechanic-card,
-    .faq-card,
-    .comparison-card,
-    .resource-card,
-    .feature-card {
+    .story-panel,
+    .trust-panel,
+    .story-column,
+    .support-column {
         display: grid;
-        gap: 0.85rem;
+        gap: 1rem;
+        align-content: start;
     }
 
-    .story-block h2,
-    .story-block h3,
-    .mechanic-card h3,
-    .faq-card h3,
-    .comparison-card h3,
-    .resource-card h3,
-    .feature-card h3 {
+    .story-points,
+    .split-list,
+    .resource-stack,
+    .feature-stack {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .story-point,
+    .split-list li,
+    .feature-stack article {
+        display: grid;
+        gap: 0.35rem;
+    }
+
+    .story-point strong,
+    .split-list strong,
+    .feature-stack strong,
+    .resource-stack strong {
+        font-size: 1rem;
+        line-height: 1.25;
+    }
+
+    .story-point p,
+    .trust-panel p,
+    .split-list,
+    .feature-stack p,
+    .resource-stack span,
+    .resource-intro,
+    .section-kicker {
+        margin: 0;
+        color: var(--text-1);
+        line-height: 1.7;
+    }
+
+    .story-point p,
+    .feature-stack p,
+    .resource-stack span {
+        color: var(--text-2);
+    }
+
+    .trust-panel {
+        padding: 1.2rem 1.25rem;
+        border-radius: 24px;
+        background:
+            linear-gradient(180deg, rgba(121, 208, 180, 0.1), rgba(255, 255, 255, 0.02)),
+            rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(121, 208, 180, 0.16);
+    }
+
+    .topic-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+        gap: 1rem;
+    }
+
+    .topic-block {
+        display: grid;
+        gap: 0.45rem;
+        padding-top: 0.95rem;
+        border-top: 1px solid rgba(193, 214, 203, 0.08);
+    }
+
+    .topic-block:first-child,
+    .topic-block:nth-child(2) {
+        padding-top: 0;
+        border-top: none;
+    }
+
+    .topic-block h3,
+    .feature-stack h3 {
         margin: 0;
         line-height: 1.15;
     }
 
-    .story-block p,
-    .mechanic-card p,
-    .faq-card p,
-    .comparison-card p,
-    .resource-card p,
-    .feature-card p {
+    .topic-block p {
         margin: 0;
-        color: var(--text-1);
-        line-height: 1.75;
-    }
-
-    .mechanics-grid,
-    .resource-grid,
-    .feature-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-        gap: 0.9rem;
-    }
-
-    .comparison-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.9rem;
-    }
-
-    .mechanic-card,
-    .faq-card,
-    .comparison-card,
-    .resource-card,
-    .feature-card {
-        padding: 1rem 1.05rem;
-        border-radius: 18px;
-        border: 1px solid rgba(193, 214, 203, 0.08);
-        background: rgba(255, 255, 255, 0.03);
-    }
-
-    .faq-list,
-    .comparison-list {
-        display: grid;
-        gap: 0.9rem;
-    }
-
-    .faq-card p strong,
-    .comparison-card ul strong {
-        color: var(--text-0);
-    }
-
-    .comparison-card ul {
-        margin: 0;
-        padding-left: 1.2rem;
-        color: var(--text-1);
-        display: grid;
-        gap: 0.6rem;
+        color: var(--text-2);
         line-height: 1.65;
     }
 
-    .resource-card__links {
+    .split-list {
+        padding-left: 1.1rem;
+    }
+
+    .resource-stack a {
         display: flex;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-        align-items: center;
-    }
-
-    .subtle-note {
-        color: var(--text-2);
-        line-height: 1.7;
-    }
-
-    .about-disclosures {
-        display: grid;
+        align-items: baseline;
+        justify-content: space-between;
         gap: 1rem;
+        padding-bottom: 0.85rem;
+        border-bottom: 1px solid rgba(193, 214, 203, 0.08);
+        color: inherit;
+        text-decoration: none;
     }
 
-    @media (max-width: 960px) {
-        .story-grid,
-        .comparison-grid {
+    .resource-stack a:last-child {
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+
+    .resource-stack span {
+        max-width: 18rem;
+        text-align: right;
+    }
+
+    .section-kicker {
+        color: var(--text-2);
+    }
+
+    @media (max-width: 980px) {
+        .story-intro-grid,
+        .story-guide-grid,
+        .story-support-grid {
             grid-template-columns: 1fr;
         }
     }
@@ -112,242 +140,148 @@
 {% endblock %}
 
 {% block content %}
-<section class="story-grid">
-    <section class="surface story-block">
-        <div class="section-heading" style="margin-bottom: 0;">
-            <span class="eyebrow">Tracker</span>
-            <h2>Use the tracker when location choice starts to matter</h2>
-            <p>This app compresses public float reports into hotspots, search, field mode, and daily forecast reads.</p>
+<section class="story-intro-grid">
+    <section class="surface story-panel">
+        <div class="section-heading">
+            <span class="eyebrow">What this tracker does</span>
+            <h2>Use public float reports to choose a stronger starting point</h2>
+            <p>This tracker turns years of public Block Island glass float posts into a cleaner planning view, so you can compare hotspots, search named trails and beaches, and head out with a shorter shortlist.</p>
         </div>
 
-        <div class="story-block">
-            <h3>What it helps with</h3>
-            <p>Pick a starting zone, compare named spots, and jump back to the original report when needed.</p>
+        <div class="story-points">
+            <article class="story-point">
+                <strong>Start with the map.</strong>
+                <p>See which parts of the island keep surfacing in the archive instead of jumping between old posts.</p>
+            </article>
+            <article class="story-point">
+                <strong>Check the season.</strong>
+                <p>Use the archive to see when finds usually peak and which places keep showing up year after year.</p>
+            </article>
+            <article class="story-point">
+                <strong>Switch to the field view when you are moving.</strong>
+                <p>Sort nearby spots by distance, open directions fast, and keep the rules close at hand.</p>
+            </article>
         </div>
     </section>
 
-    <aside class="surface story-block">
-        <div class="section-heading" style="margin-bottom: 0;">
-            <span class="eyebrow">Official site</span>
-            <h2>Use the official site for rules, registration, and finder posts</h2>
-            <p>Go there for project rules, new or re-registered finds, and the original finder stories.</p>
-        </div>
-
-        <div class="story-block">
-            <h3>Tracker boundary</h3>
-            <p>This is not an official hiding map. It is a decision aid built from public reports, so gaps and undated records remain part of the data.</p>
-        </div>
-
-        <p class="subtle-note">This page keeps year-specific language out of the reference copy.</p>
+    <aside class="trust-panel">
+        <span class="eyebrow">Trust note</span>
+        <h2>Use this for planning, not as an official hiding map</h2>
+        <p>The tracker is built from public finder reports. It helps with pattern-reading and route choice, but the official Block Island Glass Float Project site remains the source for rules, registration, and finder stories.</p>
+        <p class="section-kicker">Always confirm the official rules before you head out, especially around trail access and registration.</p>
+        <a class="utility-link" href="{{ official_links.project }}" target="_blank" rel="noreferrer">Open the official project site</a>
     </aside>
 </section>
 
-<section class="about-disclosures">
-    <details class="details-panel">
-        <summary>Project background and mechanics</summary>
-        <div class="details-panel__body">
-            <div class="story-grid">
-                <section class="story-block">
-                    <div class="section-heading" style="margin-bottom: 0;">
-                        <span class="eyebrow">Project background</span>
-                        <h2>How the Block Island hunt started</h2>
-                        <p>The Glass Float Project began in 2011 and grew from a small hide-and-seek tradition into a yearly island hunt.</p>
-                    </div>
+<section class="surface">
+    <div class="section-heading">
+        <span class="eyebrow">How the hunt works</span>
+        <h2>A few rules shape the whole season</h2>
+        <p>The Glass Float Project started in 2011 and still follows a few dependable patterns that matter when you plan a day on the island.</p>
+    </div>
 
-                    <div class="story-block">
-                        <h3>Who runs it now</h3>
-                        <p>Eben Horton, Jennifer Nauck, and the gallery team run the project, with the official site serving as the source of record.</p>
-                    </div>
-                </section>
+    <div class="topic-grid">
+        <article class="topic-block">
+            <h3>Floats arrive in waves</h3>
+            <p>They are hidden throughout the season instead of all at once, so the hunt keeps changing as the summer moves.</p>
+        </article>
+        <article class="topic-block">
+            <h3>Most hides stay on public routes</h3>
+            <p>Beaches and marked Greenway trails do most of the work, not sensitive areas, dunes, or private property.</p>
+        </article>
+        <article class="topic-block">
+            <h3>One float per person</h3>
+            <p>The project runs on stewardship. Find one, register it, and leave the next discovery for someone else.</p>
+        </article>
+        <article class="topic-block">
+            <h3>Registering keeps the story intact</h3>
+            <p>The official archive ties each float to a finder photo and story, which is why the registration link matters even if you planned the hunt here.</p>
+        </article>
+    </div>
+</section>
 
-                <aside class="story-block">
-                    <div class="section-heading" style="margin-bottom: 0;">
-                        <span class="eyebrow">Evergreen mechanics</span>
-                        <h2>How the official project works</h2>
-                        <p>These are the durable rules behind the season-specific marketing copy.</p>
-                    </div>
-
-                    <div class="mechanics-grid">
-                        <article class="mechanic-card">
-                            <h3>Hide cadence</h3>
-                            <p>Floats are hidden in waves through the season instead of all at once.</p>
-                        </article>
-                        <article class="mechanic-card">
-                            <h3>Placement</h3>
-                            <p>Most hides are on beaches or marked Greenway trails, not in sensitive or private areas.</p>
-                        </article>
-                        <article class="mechanic-card">
-                            <h3>Annual pattern</h3>
-                            <p>Each season usually includes about 550 numbered floats.</p>
-                        </article>
-                        <article class="mechanic-card">
-                            <h3>Hunt ethic</h3>
-                            <p>One float per person per year, leave the island intact, and do not keep a second float.</p>
-                        </article>
-                    </div>
-                </aside>
-            </div>
+<section class="story-guide-grid">
+    <section class="surface story-column">
+        <div class="section-heading" style="margin-bottom: 0;">
+            <span class="eyebrow">Use this tracker for</span>
+            <h2>Pattern-reading before you spend the mileage</h2>
+            <p>It is best when you want to decide where to start, what to compare, and which areas deserve a second look.</p>
         </div>
-    </details>
 
-    <details class="details-panel">
-        <summary>More official project context</summary>
-        <div class="details-panel__body">
-            <div class="faq-list">
-                <article class="faq-card">
-                    <h3>Funding and season close</h3>
-                    <p>The project is supported by the Tourism Council and raffle sales, with the raffle marking the formal season close.</p>
-                </article>
-                <article class="faq-card">
-                    <h3>Broken or missed floats</h3>
-                    <p>The studio can replace broken floats, and hunters who miss one can still buy directly from the gallery.</p>
-                </article>
-                <article class="faq-card">
-                    <h3>Community context</h3>
-                    <p>The hunt is a long-running island ritual, not just a data set.</p>
-                </article>
-            </div>
+        <ul class="split-list">
+            <li><strong>Compare hotspots.</strong> See where named beaches and trails keep appearing in public reports.</li>
+            <li><strong>Search the archive.</strong> Jump from a finder, float number, or place name into the fuller location story.</li>
+            <li><strong>Carry a shorter shortlist.</strong> Move into field view once you know which stops are worth checking first.</li>
+        </ul>
+    </section>
+
+    <section class="surface story-column">
+        <div class="section-heading" style="margin-bottom: 0;">
+            <span class="eyebrow">Use the official site for</span>
+            <h2>Rules, registration, and original finder posts</h2>
+            <p>The official project site is still the right place for anything that changes the season record or affects hunt etiquette.</p>
         </div>
-    </details>
+
+        <ul class="split-list">
+            <li><strong>Project rules and etiquette.</strong> Confirm the current guidance before you head into the dunes, bluffs, or trail network.</li>
+            <li><strong>Registering or re-registering a float.</strong> Add your photo and story to the official archive.</li>
+            <li><strong>Reading the original post.</strong> Open the raw finder pages if you want the full story behind a specific float.</li>
+        </ul>
+    </section>
 </section>
 
-<section class="surface">
-    <div class="section-heading">
-        <span class="eyebrow">Field reminders</span>
-        <h2>Official tips worth keeping close</h2>
-        <p>These are the official reminders that matter once you are moving.</p>
-    </div>
+<section class="story-support-grid">
+    <section class="surface support-column">
+        <div class="section-heading" style="margin-bottom: 0;">
+            <span class="eyebrow">Keep these official links handy</span>
+            <h2>Useful pages before and after the hunt</h2>
+        </div>
 
-    <div class="faq-list">
-        <article class="faq-card">
-            <h3>Trail behavior</h3>
-            <p>Stay on established trails and search just off the path edge without cutting a new route.</p>
-        </article>
-        <article class="faq-card">
-            <h3>Stewardship</h3>
-            <p>Leave no trace, keep pets leashed, and check for ticks or poison ivy after longer walks.</p>
-        </article>
-        <article class="faq-card">
-            <h3>Register the find</h3>
-            <p>Registering or re-registering keeps the official archive tied to finder photos and stories.</p>
-        </article>
-    </div>
-</section>
+        <div class="resource-stack">
+            <a href="{{ official_links.project }}" target="_blank" rel="noreferrer">
+                <strong>Project hub</strong>
+                <span>Official overview, current rules, and project updates.</span>
+            </a>
+            <a href="{{ official_links.register }}" target="_blank" rel="noreferrer">
+                <strong>Register floats</strong>
+                <span>Submit a new find or update an older one with your photo and story.</span>
+            </a>
+            <a href="{{ official_links.found }}" target="_blank" rel="noreferrer">
+                <strong>Found floats</strong>
+                <span>Read the individual finder posts behind the archive.</span>
+            </a>
+            <a href="{{ official_links.greenway }}" target="_blank" rel="noreferrer">
+                <strong>Open Greenway guide</strong>
+                <span>Plan longer walks through the marked trail network.</span>
+            </a>
+        </div>
+    </section>
 
-<section class="surface">
-    <div class="section-heading">
-        <span class="eyebrow">Role split</span>
-        <h2>Use each source for the right job</h2>
-        <p>Use the official site for recordkeeping and this tracker for interpretation.</p>
-    </div>
+    <section class="surface support-column">
+        <div class="section-heading" style="margin-bottom: 0;">
+            <span class="eyebrow">What you can do here</span>
+            <h2>The tracker stays focused on planning</h2>
+            <p class="resource-intro">Each surface has one job, so the site stays useful on a phone and still gives experienced hunters enough context.</p>
+        </div>
 
-    <div class="comparison-grid">
-        <article class="comparison-card">
-            <h3>Official project site</h3>
-            <ul>
-                <li>Rules, etiquette, and the current hunt mechanics.</li>
-                <li>Float registration and re-registration for adding photos and stories.</li>
-                <li>Per-float finder posts and the raw archive ledger.</li>
-                <li>Trail resources like the Greenway guide and official project updates.</li>
-            </ul>
-        </article>
-        <article class="comparison-card">
-            <h3>This tracker</h3>
-            <ul>
-                <li>Normalized locations, ranked hotspots, and map-driven archive reading.</li>
-                <li>Field mode for quick distance sorting and navigation.</li>
-                <li>Location rollups that compress many reports into one usable place brief.</li>
-                <li>Forecast and seasonal analysis for choosing where to start.</li>
-            </ul>
-        </article>
-    </div>
-</section>
-
-<section class="surface">
-    <div class="section-heading">
-        <span class="eyebrow">Official resources</span>
-        <h2>Official links to keep open</h2>
-        <p>These are the official pages worth keeping one tap away.</p>
-    </div>
-
-    <div class="resource-grid">
-        <article class="resource-card">
-            <h3>Project hub</h3>
-            <p>Official overview, mechanics, and project updates.</p>
-            <div class="resource-card__links">
-                <a class="utility-link" href="{{ official_links.project }}" target="_blank" rel="noreferrer">Open project hub</a>
-            </div>
-        </article>
-        <article class="resource-card">
-            <h3>Register floats</h3>
-            <p>Submit a new find or update an older one with photos and story.</p>
-            <div class="resource-card__links">
-                <a class="utility-link" href="{{ official_links.register }}" target="_blank" rel="noreferrer">Open registration</a>
-            </div>
-        </article>
-        <article class="resource-card">
-            <h3>Found floats</h3>
-            <p>Open the original per-float posts.</p>
-            <div class="resource-card__links">
-                <a class="utility-link" href="{{ official_links.found }}" target="_blank" rel="noreferrer">Open found floats</a>
-            </div>
-        </article>
-        <article class="resource-card">
-            <h3>Found float archives</h3>
-            <p>Use the raw numeric ledger behind the tracker data.</p>
-            <div class="resource-card__links">
-                <a class="utility-link" href="{{ official_links.archives }}" target="_blank" rel="noreferrer">Open archives</a>
-            </div>
-        </article>
-        <article class="resource-card">
-            <h3>Tips and etiquette</h3>
-            <p>Trail behavior, leave-no-trace, and second-float reminders.</p>
-            <div class="resource-card__links">
-                <a class="utility-link" href="{{ official_links.tips }}" target="_blank" rel="noreferrer">Open tips</a>
-            </div>
-        </article>
-        <article class="resource-card">
-            <h3>Greenway guide</h3>
-            <p>Trail planning for longer Greenway loops.</p>
-            <div class="resource-card__links">
-                <a class="utility-link" href="{{ official_links.greenway }}" target="_blank" rel="noreferrer">Open Greenway guide</a>
-            </div>
-        </article>
-    </div>
-</section>
-
-<section class="surface">
-    <div class="section-heading">
-        <span class="eyebrow">Tracker surfaces</span>
-        <h2>How the app is organized</h2>
-        <p>Each surface has one job.</p>
-    </div>
-
-    <div class="feature-grid">
-        <article class="feature-card">
-            <h3>Dashboard</h3>
-            <p>Hotspots, seasonality, and year-by-year recovery.</p>
-        </article>
-        <article class="feature-card">
-            <h3>Field mode</h3>
-            <p>Distance sorting, map orientation, and quick official links.</p>
-        </article>
-        <article class="feature-card">
-            <h3>Forecast</h3>
-            <p>Lead zone, support, and live conditions.</p>
-        </article>
-        <article class="feature-card">
-            <h3>Location detail</h3>
-            <p>Place history, images, and links back to original reports.</p>
-        </article>
-        <article class="feature-card">
-            <h3>Search</h3>
-            <p>Fast lookup by float number, finder, or place name.</p>
-        </article>
-        <article class="feature-card">
-            <h3>PWA support</h3>
-            <p>Installable on mobile for faster access on island.</p>
-        </article>
-    </div>
+        <div class="feature-stack">
+            <article>
+                <strong>Explore hotspots</strong>
+                <p>Start with the places that keep surfacing in the archive.</p>
+            </article>
+            <article>
+                <strong>Search the archive</strong>
+                <p>Find a place, float number, or finder and jump straight to the useful context.</p>
+            </article>
+            <article>
+                <strong>Use the field view</strong>
+                <p>Sort nearby locations by distance and move with the map once you are on the island.</p>
+            </article>
+            <article>
+                <strong>Check today's read</strong>
+                <p>Use the daily recommendation as a starting order, not a guarantee.</p>
+            </article>
+        </div>
+    </section>
 </section>
 {% endblock %}

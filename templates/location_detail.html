@@ -281,7 +281,7 @@
 {% endblock %}
 
 {% block page_intro %}
-<a href="{{ url_for('index') }}" class="back-link">Back to dashboard</a>
+<a href="{{ url_for('index') }}" class="back-link">Back to hotspots</a>
 
 <section class="location-hero">
     <div class="surface location-hero__main">
@@ -290,7 +290,7 @@
         <p class="lead">
             {{ page_meta.subtitle }}
             {% if latest_find and latest_find['date_found'] %}
-            Latest dated report: {{ latest_find['date_found'] }}.
+            Latest recorded report: {{ latest_find['date_found'] }}.
             {% endif %}
         </p>
 
@@ -301,7 +301,7 @@
             </a>
             {% endif %}
             <a class="button button--ghost" href="{{ url_for('field_mode') }}">
-                Open field mode
+                Open field view
             </a>
         </div>
 
@@ -323,29 +323,29 @@
 
     <aside class="surface location-hero__aside">
         <div class="section-heading" style="margin-bottom: 0.5rem;">
-            <span class="eyebrow">Quick read</span>
-            <h2>What stands out here</h2>
-            <p>Scan this before the gallery and chronology.</p>
+            <span class="eyebrow">Location brief</span>
+            <h2>Why this stop matters</h2>
+            <p>Scan this first if you want the fast read before the photos and report list.</p>
         </div>
 
         <div class="summary-list">
             <div class="summary-list__item">
-                <span>Top finder</span>
-                <strong>{{ top_finder[0] if top_finder[0] else 'Unknown' }}</strong>
+                <span>Latest report</span>
+                <strong>{{ latest_find['date_found'] if latest_find and latest_find['date_found'] else 'Undated in the archive' }}</strong>
             </div>
             <div class="summary-list__item">
-                <span>Peak season</span>
-                <strong>{{ peak_year[0] if peak_year[0] else 'Unknown' }}</strong>
+                <span>Strongest season</span>
+                <strong>{{ peak_year[0] if peak_year[0] else 'Unknown' }}{% if peak_year[1] %} with {{ peak_year[1] }} reports{% endif %}</strong>
             </div>
             <div class="summary-list__item">
-                <span>Recent image count</span>
-                <strong>{{ images|length }}</strong>
+                <span>Archive footprint</span>
+                <strong>{{ total_finds }} reports across {{ years_tracked }} seasons</strong>
             </div>
             {% if coords %}
             <div class="summary-list__item">
-                <span>Mapped coordinates</span>
+                <span>Map access</span>
                 <a href="https://maps.google.com/?q={{ coords.lat }},{{ coords.lon }}" target="_blank" rel="noreferrer">
-                    {{ coords.lat }}, {{ coords.lon }}
+                    Open {{ location_name }} in Maps
                 </a>
             </div>
             {% endif %}
@@ -357,9 +357,9 @@
 {% block content %}
 <section class="surface">
     <div class="section-heading">
-        <span class="eyebrow">Image archive</span>
-        <h2>Gallery</h2>
-        <p>Recent photos from this location.</p>
+        <span class="eyebrow">Photo archive</span>
+        <h2>See the terrain and past finds</h2>
+        <p>Recent photos from this stop can help you recognize the setting before you walk it.</p>
     </div>
 
     {% if featured_images %}
@@ -398,12 +398,12 @@
 
 <section class="surface">
     <div class="section-heading">
-        <span class="eyebrow">Recent chronology</span>
-        <h2>Latest reported finds</h2>
-        <p>Newest reports first.</p>
+        <span class="eyebrow">Recent reports</span>
+        <h2>Latest finds from this stop</h2>
+        <p>Newest posts first, with links back to the official report.</p>
     </div>
 
-    <p class="official-note">Open the original report below, or use <a class="utility-link" href="{{ official_links.register }}" target="_blank" rel="noreferrer">Register Floats</a> to add a photo and story.</p>
+    <p class="official-note">Open the original report below, or use <a class="utility-link" href="{{ official_links.register }}" target="_blank" rel="noreferrer">Register Floats</a> to add or update the official story.</p>
 
     <div class="recent-finds">
         {% for find in recent_finds %}

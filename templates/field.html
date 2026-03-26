@@ -19,11 +19,11 @@
             </div>
 
             <div class="field-command__actions">
-                <a href="https://www.blockislandinfo.com/glass-float-project/" target="_blank" rel="noreferrer" class="button button--primary">
+                <a href="{{ official_links.register }}" target="_blank" rel="noreferrer" class="button button--primary">
                     Report a find
                 </a>
                 <a href="{{ url_for('index') }}" class="button button--ghost">
-                    Dashboard
+                    Explore hotspots
                 </a>
             </div>
         </div>
@@ -49,7 +49,7 @@
                 <button class="button button--primary geolocate-btn" id="geolocate-btn" type="button">
                     Find my location
                 </button>
-                <div class="geolocate-status" id="status">Allow location to sort nearby spots.</div>
+                <div class="geolocate-status" id="status">Allow location to sort the nearest hotspots.</div>
             </div>
         </div>
     </div>
@@ -59,9 +59,9 @@
 {% block content %}
 <section class="surface field-map-panel">
     <div class="section-heading">
-        <span class="eyebrow">Map first</span>
-        <h2>Map before you move</h2>
-        <p>Mapped spots re-sort once location is available.</p>
+        <span class="eyebrow">Nearby map</span>
+        <h2>Check the map before you walk</h2>
+        <p>Once location is available, the closest mapped stops rise to the top.</p>
     </div>
 
     <div id="field-map" aria-label="Map of common hunting spots"></div>
@@ -72,13 +72,13 @@
 {% if forecast_briefing and forecast_briefing.zones %}
 <section class="surface field-forecast-strip">
     <div class="section-heading" style="margin-bottom: 0;">
-        <span class="eyebrow">Forecast handoff</span>
-        <h2>Start with {{ forecast_briefing.zones[0].label }}</h2>
-        <p>Use the lead zone first, then fall back to nearby support spots.</p>
+        <span class="eyebrow">Today's first stop</span>
+        <h2>Best first stop: {{ forecast_briefing.zones[0].label }}</h2>
+        <p>Start here, then use nearby backup areas if access, weather, or crowds change the plan.</p>
     </div>
     <div class="field-forecast-strip__meta">
-        <span class="pill pill--accent">{{ forecast_briefing.activity_label }} read</span>
-        <span class="pill">Confidence: {{ forecast_briefing.confidence_band|capitalize }}</span>
+        <span class="pill pill--accent">{{ forecast_briefing.activity_label }} outlook</span>
+        <span class="pill">Strength: {{ forecast_briefing.confidence_band|capitalize }}</span>
         {% for tag in forecast_briefing.zones[0].reason_tags %}
         <span class="pill">{{ tag }}</span>
         {% endfor %}
@@ -89,13 +89,13 @@
 <section class="surface">
     <div class="spots-header">
         <div>
-            <span class="eyebrow">Move list</span>
-            <h2>Hunting spots</h2>
+            <span class="eyebrow">Nearby spots</span>
+            <h2>Compare the closest mapped stops</h2>
         </div>
-        <span class="spot-count" id="spot-count">{{ hunting_spots|length }} locations</span>
+        <span class="spot-count" id="spot-count">{{ hunting_spots|length }} mapped locations</span>
     </div>
 
-    <div class="loading" id="loading">Calculating distances...</div>
+    <div class="loading" id="loading">Sorting nearby stops...</div>
 
     <div id="spots-list" class="spots-list">
         {% for spot in hunting_spots %}
@@ -110,9 +110,9 @@
                 <span class="spot-distance">--</span>
             </div>
             <div class="spot-stats">
-                <div class="spot-stat">{{ spot.count }} finds reported</div>
+                <div class="spot-stat">{{ spot.count }} reports in the archive</div>
                 {% if spot.forecast_zone %}
-                <div class="spot-stat">Supports {{ spot.forecast_zone }}</div>
+                <div class="spot-stat">Backup area for {{ spot.forecast_zone }}</div>
                 {% endif %}
             </div>
             <div class="nav-buttons">
@@ -134,7 +134,7 @@
     type="button"
     aria-controls="field-etiquette-drawer"
     aria-expanded="false">
-    Trail tips
+    Hunt rules
 </button>
 
 <div class="etiquette-backdrop" id="etiquette-backdrop" hidden></div>

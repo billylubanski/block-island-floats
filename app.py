@@ -34,8 +34,8 @@ OFFICIAL_LINKS = {
 }
 REPORT_FIND_URL = OFFICIAL_LINKS['register']
 DEFAULT_FIELD_ETIQUETTE = {
-    'title': 'Field Etiquette',
-    'intro': 'Official trail guidance for the hunt.',
+    'title': 'Hunt rules',
+    'intro': 'Official rules and trail etiquette for the hunt.',
     'rules_heading': 'Hunt respectfully',
     'rules': [
         'Stay on established trails.',
@@ -158,13 +158,14 @@ def build_cta(label, href, external=False):
     return cta
 
 
-def build_page_meta(active_nav, mode, kicker, title, subtitle, primary_cta=None):
+def build_page_meta(active_nav, mode, kicker, title, subtitle, primary_cta=None, description=None):
     page_meta = {
         'active_nav': active_nav,
         'mode': mode,
         'kicker': kicker,
         'title': title,
         'subtitle': subtitle,
+        'description': description or subtitle,
     }
     if primary_cta:
         page_meta['primary_cta'] = primary_cta
@@ -485,14 +486,14 @@ def index():
                            page_meta=build_page_meta(
                                active_nav='dashboard',
                                mode='dashboard',
-                               kicker='Dashboard',
-                               title='Read the island before you head out',
-                               subtitle='See hotspots, seasonality, and open counts before you head out.',
+                               kicker='Explore',
+                               title='Plan your Block Island glass float hunt with real find history',
+                               subtitle='See which beaches and trails keep producing finds, when finds peak, and where to start today.',
                                primary_cta=build_cta(
-                                   label='Report a find',
-                                   href=REPORT_FIND_URL,
-                                   external=True,
+                                   label='Explore hotspots',
+                                   href='#explore-map',
                                ),
+                               description='Use public find history to compare hotspots, seasonality, and the best places to start a Block Island glass float hunt.',
                            ))
 
 @app.route('/search')
@@ -531,9 +532,10 @@ def search():
         page_meta=build_page_meta(
             active_nav='search',
             mode='utility',
-            kicker='Search',
-            title='Trace finders, float numbers, and locations fast',
-            subtitle='Find a float, finder, or place and jump to the useful context.',
+            kicker='Archive',
+            title='Search the float archive by place, finder, or number',
+            subtitle='Use the public archive to confirm a report, trace a location, or jump into the full place history.',
+            description='Search public Block Island glass float reports by place name, finder, or float number.',
         ),
     )
 
@@ -545,13 +547,13 @@ def about():
             active_nav='about',
             mode='story',
             kicker='Guide',
-            title='Built for hunters who like evidence before mileage',
-            subtitle='Use the tracker for archive signal and the official site for rules, registration, and finder posts.',
+            title='Plan smarter, then use the official site to claim the find',
+            subtitle='This tracker turns public float reports into a clearer starting plan. Use the official site for rules, registration, and finder stories.',
             primary_cta=build_cta(
-                label='Report a found float',
-                href=REPORT_FIND_URL,
-                external=True,
+                label='Explore hotspots',
+                href=url_for('index'),
             ),
+            description='Learn how the tracker helps plan a Block Island glass float hunt, and when to use the official project site.',
         ),
     )
 
@@ -580,8 +582,9 @@ def field_mode():
                               active_nav='field',
                               mode='utility',
                               kicker='Field',
-                              title='Field mode',
-                              subtitle='Sort mapped spots by distance and move with the map.',
+                              title='Find the best spots near you',
+                              subtitle='Sort mapped locations by distance, open directions fast, and keep hunt rules close at hand.',
+                              description='Use the field view to sort nearby Block Island float locations, open directions, and keep official hunt rules close.',
                           ))
 
 @app.route('/location/<path:location_name>')
@@ -670,18 +673,21 @@ def location_detail(location_name):
                           page_meta=build_page_meta(
                               active_nav='dashboard',
                               mode='utility',
-                              kicker='Location',
+                              kicker='Location guide',
                               title=location_name,
                               subtitle=(
-                                  f'{total_finds} reports across {years_tracked} seasons.'
+                                  f'{location_name} keeps surfacing in public find reports, with {total_finds} reports across {years_tracked} seasons.'
                                   if years_tracked
-                                  else f'{total_finds} reports.'
+                                  else f'{location_name} has {total_finds} recorded reports in the archive.'
                               ),
                               primary_cta=build_cta(
                                   label='Open in Maps',
                                   href=f'https://maps.google.com/?q={coords["lat"]},{coords["lon"]}',
                                   external=True,
                               ) if coords else None,
+                              description=(
+                                  f'Browse photos, recent reports, and map access for {location_name}.'
+                              ),
                           ))
 
 def predict_today():
@@ -714,14 +720,15 @@ def forecast():
                           page_meta=build_page_meta(
                               active_nav='forecast',
                               mode='utility',
-                              kicker='Forecast',
-                              title='Forecast briefing',
-                              subtitle="See today's lead zone, support, and live conditions.",
+                              kicker='Today',
+                              title='Where to start today',
+                              subtitle="Get a simple starting recommendation based on find history, seasonality, tide, and weather.",
                               primary_cta=build_cta(
-                                  label='Open field mode',
+                                  label='Open field view',
                                   href=url_for('field_mode'),
                               ),
-                          ))
+                              description='See today\'s recommended starting area for a Block Island glass float hunt and the live conditions behind it.',
+                           ))
 
 @app.route('/sw.js')
 def service_worker():

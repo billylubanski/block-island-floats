@@ -128,7 +128,7 @@
 
     .forecast-zone {
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-columns: auto minmax(0, 1fr);
         gap: 1rem;
         align-items: start;
         padding: 1rem;
@@ -161,6 +161,12 @@
         text-decoration: none;
     }
 
+    .forecast-zone__summary {
+        margin: 0;
+        color: var(--text-1);
+        line-height: 1.6;
+    }
+
     .forecast-zone__meta {
         display: flex;
         gap: 0.55rem;
@@ -182,13 +188,6 @@
 
     .forecast-zone__cta {
         justify-self: start;
-    }
-
-    .forecast-zone__signal {
-        color: var(--text-1);
-        font-size: 0.9rem;
-        font-weight: 800;
-        white-space: nowrap;
     }
 
     .forecast-support-grid {
@@ -240,14 +239,14 @@
     <div class="utility-rail">
         <div class="utility-rail__group">
             <span class="pill pill--accent">Today</span>
-            <span class="pill">Confidence: {{ briefing.confidence_band|capitalize }}</span>
-            <span class="pill">Primary spine: {{ briefing.selected_model.replace('_', ' ') }}</span>
+            <span class="pill">Strength: {{ briefing.confidence_band|capitalize }}</span>
+            <span class="pill">History + live conditions</span>
         </div>
         <div class="utility-rail__summary">
             {% if briefing.confidence_band == 'low' %}
-            Directional only.
+            Use this as a starting suggestion, then confirm with access and conditions on the ground.
             {% else %}
-            Starting order only.
+            Best first stop based on the latest history and live conditions.
             {% endif %}
         </div>
     </div>
@@ -255,21 +254,27 @@
     <div class="forecast-hero__top">
         <div class="forecast-scoreboard">
             <div class="section-heading">
-                <span class="eyebrow">Daily read</span>
+                <span class="eyebrow">Today's recommendation</span>
                 <h2>Where to start first</h2>
-                <p>{{ briefing.lead_change_summary }}</p>
+                <p>
+                    {% if lead_zone %}
+                    Start with {{ lead_zone.label }}, then keep the backup areas below in mind if the weather, access, or crowds change your plan.
+                    {% else %}
+                    Today&#39;s recommendation is unavailable, but the live conditions below still give you a useful island read.
+                    {% endif %}
+                </p>
             </div>
 
             <div class="forecast-scoreboard__meta">
-                <span class="pill pill--accent">{{ briefing.activity_label }}</span>
+                <span class="pill pill--accent">{{ briefing.activity_label }} hunt outlook</span>
                 {% if lead_zone %}
-                <span class="pill">Lead zone: {{ lead_zone.label }}</span>
+                <span class="pill">Best area: {{ lead_zone.label }}</span>
                 {% endif %}
             </div>
 
             <div class="forecast-scoreboard__value">
                 <strong>{{ briefing.activity_score }}/10</strong>
-                <span>Island-wide activity score</span>
+                <span>Today&#39;s hunt outlook</span>
             </div>
 
             <div class="progress-track">
@@ -279,18 +284,18 @@
 
         <aside class="forecast-lead">
             <div class="section-heading" style="margin-bottom: 0;">
-                <span class="eyebrow">Best next move</span>
-                <h2>Start with the zone</h2>
-                <p>Work inside the lead area, then use backups if conditions change.</p>
+                <span class="eyebrow">Why it leads today</span>
+                <h2>{% if lead_zone %}Why {{ lead_zone.label }} is up front{% else %}Why no area is leading{% endif %}</h2>
+                <p>Use the reasons below as the tiebreaker, not a guarantee.</p>
             </div>
 
             {% if lead_zone %}
             <div class="forecast-lead__row">
                 <div class="forecast-lead__title">
                     <strong>{{ lead_zone.label }}</strong>
-                    <span>{{ lead_zone.signal_label }}</span>
+                    <span>Best first stop today</span>
                 </div>
-                <a class="button button--primary" href="{{ lead_zone.field_href }}">Open field mode</a>
+                <a class="button button--primary" href="{{ lead_zone.field_href }}">Open field view</a>
             </div>
             <div class="forecast-zone__tags">
                 {% for tag in lead_zone.reason_tags %}
@@ -302,8 +307,8 @@
             </p>
             {% else %}
             <div class="empty-state">
-                <h3>No briefing available</h3>
-                <p>Not enough zone support is available right now.</p>
+                <h3>No starting area available</h3>
+                <p>There is not enough dated history to move one area to the front today.</p>
             </div>
             {% endif %}
         </aside>
@@ -353,9 +358,9 @@
 
 <section class="surface">
     <div class="section-heading">
-        <span class="eyebrow">Ranked zones</span>
-        <h2>Top zones for a first loop</h2>
-        <p>Use the lead call first, then fall through the list as conditions change.</p>
+        <span class="eyebrow">Best areas to keep in mind</span>
+        <h2>Where to go next if you want a backup</h2>
+        <p>Start with the top recommendation first, then fall through the list if the island looks different once you arrive.</p>
     </div>
 
     {% if briefing.zones %}
@@ -366,13 +371,19 @@
             <div class="forecast-zone__body">
                 <div class="forecast-zone__heading">
                     <a href="{{ zone.location_href }}">{{ zone.label }}</a>
-                    <span>{{ zone.support_count }} reports mapped here.</span>
+                    <p class="forecast-zone__summary">
+                        {% if loop.first %}
+                        This area has the clearest mix of archive history and today&#39;s conditions.
+                        {% else %}
+                        Keep this one in reserve if your first stop feels crowded or quiet on the ground.
+                        {% endif %}
+                    </p>
                 </div>
 
                 <div class="forecast-zone__meta">
-                    <span class="pill pill--accent">{{ zone.signal_label }}</span>
-                    <span class="pill">{{ zone.dated_support_count }} dated finds</span>
-                    <span class="pill">{{ zone.actual_years|length }} actual years</span>
+                    <span class="pill pill--accent">{% if loop.first %}Best first stop{% else %}Backup area{% endif %}</span>
+                    <span class="pill">{{ zone.support_count }} archive reports</span>
+                    <span class="pill">{{ zone.actual_years|length }} seasons represented</span>
                 </div>
 
                 <div class="forecast-zone__tags">
@@ -387,24 +398,17 @@
                     {% endfor %}
                 </div>
 
-                <p class="forecast-zone__detail">
-                    {% if zone.reason_texts %}
-                    {{ zone.reason_texts[0] }}
-                    {% else %}
-                    Seasonality is carrying most of this call.
-                    {% endif %}
-                </p>
+                <p class="forecast-zone__detail">{{ zone.dated_support_count }} dated finds help keep this area in the conversation.</p>
 
-                <a class="button button--ghost forecast-zone__cta" href="{{ zone.field_href }}">Use in field mode</a>
+                <a class="button button--ghost forecast-zone__cta" href="{{ zone.field_href }}">Open in field view</a>
             </div>
-            <div class="forecast-zone__signal">{{ zone.score|round(3) }} signal</div>
         </article>
         {% endfor %}
     </div>
     {% else %}
     <div class="empty-state">
-        <h3>No zones available</h3>
-        <p>There is not enough support to rank mapped zones.</p>
+        <h3>No recommendation available</h3>
+        <p>There is not enough dated history to rank mapped areas right now.</p>
     </div>
     {% endif %}
 </section>
@@ -413,22 +417,22 @@
     <section class="surface forecast-support">
         <div class="section-heading" style="margin-bottom: 0;">
             <span class="eyebrow">Freshness</span>
-            <h2>How current the inputs are</h2>
+            <h2>How current the read is</h2>
         </div>
         <div class="forecast-freshness">
-            <span>Artifact built: {{ briefing.feature_freshness.artifact_generated_at or 'Unknown' }}</span>
-            <span>Live weather: {{ briefing.feature_freshness.weather_updated_at or 'Unavailable' }}</span>
-            <span>Live tide: {{ briefing.feature_freshness.tide_updated_at or 'Unavailable' }}</span>
-            <span>Historical weather enrichment: {{ 'Available' if briefing.feature_freshness.historical_weather_available else 'Not configured' }}</span>
+            <span>Forecast updated: {{ briefing.feature_freshness.artifact_generated_at or 'Unknown' }}</span>
+            <span>Live weather updated: {{ briefing.feature_freshness.weather_updated_at or 'Unavailable' }}</span>
+            <span>Live tide updated: {{ briefing.feature_freshness.tide_updated_at or 'Unavailable' }}</span>
+            <span>Historical weather added: {{ 'Yes' if briefing.feature_freshness.historical_weather_available else 'No' }}</span>
         </div>
     </section>
 
     <details class="details-panel">
-        <summary>Why confidence stays bounded</summary>
+        <summary>Why this stays a starting suggestion</summary>
         <div class="details-panel__body">
             <div class="forecast-support">
-                <p>The model ranks broader zones because dated support is still thin across many named spots.</p>
-                <p>Check the map, access, and live conditions before you commit to a loop.</p>
+                <p>The recommendation works best at the area level because many individual spots still have thinner dated history.</p>
+                <p>Use the map, access, and what you see on the ground to make the final call.</p>
             </div>
         </div>
     </details>

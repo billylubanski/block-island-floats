@@ -210,18 +210,19 @@ def test_index_route_renders_dashboard_controls(sample_db: Path, capture_templat
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
-    assert 'class="utility-rail"' in text
+    assert 'class="dashboard-filter-panel__summary"' in text
     assert 'id="map-loading"' in text
     assert "<div id=\"map\"" in text
     assert 'id="dashboard-map-data"' in text
     assert '/static/dashboard-map.js' in text
-    assert "Top mapped clusters" in text
+    assert "Compare hotspots" in text
     assert "Hide controls" in text
     assert "Show hotspots" in text
-    assert "Reset" in text
-    assert "Year focus" in text
+    assert "Reset map" in text
+    assert "Season focus" in text
     assert "Floats still unreported" in text
-    assert "Read the island before you head out" in text
+    assert "Plan your Block Island glass float hunt with real find history" in text
+    assert 'name="description"' in text
 
     _, context = capture_templates[-1]
     assert context["selected_year"] == "2025"
@@ -236,10 +237,10 @@ def test_about_route_renders_project_copy():
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
-    assert "Use the tracker when location choice starts to matter" in text
-    assert "Project background and mechanics" in text
-    assert "Use each source for the right job" in text
-    assert "Official links to keep open" in text
+    assert "Use public float reports to choose a stronger starting point" in text
+    assert "Use this for planning, not as an official hiding map" in text
+    assert "A few rules shape the whole season" in text
+    assert "Useful pages before and after the hunt" in text
     assert "Open Greenway guide" in text
     assert "2011" in text
     assert "2023" not in text
@@ -271,10 +272,12 @@ def test_field_route_renders_json_backed_official_guidance(sample_db: Path, monk
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
-    assert "Field reminders" in text
+    assert "Find the best spots near you" in text
+    assert "Hunt rules" in text
     assert "Register your float so the official archive can attach your find" in text
     assert "Greenway trail guide" in text
     assert app_module.OFFICIAL_LINKS["register"] in text
+    assert app_module.OFFICIAL_LINKS["project"] not in text
 
 
 def test_field_route_renders_fallback_guidance_payload(sample_db: Path, monkeypatch: pytest.MonkeyPatch):
@@ -287,7 +290,7 @@ def test_field_route_renders_fallback_guidance_payload(sample_db: Path, monkeypa
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
-    assert "Field reminders" in text
+    assert "Hunt rules" in text
     assert "Leave no trace" in text
     assert "Register floats" in text
 
@@ -298,8 +301,8 @@ def test_search_route_includes_official_report_links(sample_db: Path):
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
-    assert text.count("Showing up to 50 matches.") == 1
-    assert "Open location detail" in text
+    assert text.count("Showing up to 50 matches from public finder posts.") == 1
+    assert "Open location guide" in text
     assert "Open official report" in text
     assert "Register Floats" in text
     assert "https://example.com/find/2025-1" in text
@@ -328,7 +331,7 @@ def test_search_route_hides_official_report_link_when_url_missing(tmp_path: Path
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
-    assert "Open location detail" in text
+    assert "Open location guide" in text
     assert "Open official report" not in text
 
 
@@ -342,7 +345,7 @@ def test_location_detail_renders_recent_find_official_report_links(sample_db: Pa
     text = response.get_data(as_text=True)
     assert "Open official report" in text
     assert app_module.OFFICIAL_LINKS["register"] in text
-    assert "Open the original report below" in text
+    assert "Newest posts first, with links back to the official report." in text
 
 
 def test_forecast_route_renders_predictions_and_location_detail(
@@ -361,14 +364,15 @@ def test_forecast_route_renders_predictions_and_location_detail(
     assert location_response.status_code == 200
 
     text = response.get_data(as_text=True)
-    assert "Forecast briefing" in text
-    assert "Top zones for a first loop" in text
-    assert text.count("Directional only.") == 1
-    assert "Why confidence stays bounded" in text
+    assert "Where to start today" in text
+    assert "Where to go next if you want a backup" in text
+    assert text.count("Use this as a starting suggestion, then confirm with access and conditions on the ground.") == 1
+    assert "Why this stays a starting suggestion" in text
     assert "Rodman&#39;s Hollow" in text
     assert "7.2/10" in text
     assert "Partly Cloudy" in text
     assert "9 mph" in text
+    assert "Primary spine" not in text
     assert "% probability" not in text
 
 
@@ -382,8 +386,8 @@ def test_forecast_route_handles_empty_predictions(sample_db: Path, monkeypatch: 
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
-    assert "Forecast briefing" in text
-    assert "No zones available" in text
+    assert "Where to start today" in text
+    assert "No recommendation available" in text
 
 
 def test_forecast_helpers_read_generated_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -464,8 +468,8 @@ def test_forecast_route_handles_invalid_forecast_artifact(
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
-    assert "Forecast briefing" in text
-    assert "No zones available" in text
+    assert "Where to start today" in text
+    assert "No recommendation available" in text
 
 
 def test_get_weather_data_converts_noaa_response(monkeypatch: pytest.MonkeyPatch):

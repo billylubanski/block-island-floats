@@ -17,6 +17,31 @@
         width: 100%;
     }
 
+    .search-helper {
+        margin: 0;
+        color: var(--text-2);
+        line-height: 1.65;
+    }
+
+    .search-example-row {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .search-example {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.4rem;
+        padding: 0.5rem 0.85rem;
+        border-radius: 999px;
+        border: 1px solid rgba(193, 214, 203, 0.12);
+        background: rgba(255, 255, 255, 0.03);
+        text-decoration: none;
+        font-weight: 700;
+    }
+
     .results-header {
         display: flex;
         align-items: flex-start;
@@ -112,30 +137,40 @@
 {% endblock %}
 
 {% block content %}
+{% set rodmans_hollow = "Rodman's Hollow" %}
 <section class="surface">
     <div class="section-heading">
-        <span class="eyebrow">Search</span>
-        <h2>Search by finder, location, or float number</h2>
-        <p>Find the report, then open the location view if you need more context.</p>
+        <span class="eyebrow">Archive search</span>
+        <h2>Look up a place, finder, or float number</h2>
+        <p>Use the archive to confirm a report, trace a location, or jump from one post into the fuller place history.</p>
     </div>
 
     <div class="utility-rail">
-        <form action="/search" method="get" class="search-form">
-            <div class="field-group">
-                <label for="search-query">Search term</label>
-                <input
-                    id="search-query"
-                    type="text"
-                    name="q"
-                    placeholder="Try a finder name, Rodman's Hollow, or float 245"
-                    value="{{ query }}">
-            </div>
-            <button class="button button--primary" type="submit">Run search</button>
-        </form>
-
-        <div class="utility-rail__summary">
-            Showing up to 50 matches.
+        <div class="utility-rail__group">
+            <form action="/search" method="get" class="search-form">
+                <div class="field-group">
+                    <label for="search-query">Search term</label>
+                    <input
+                        id="search-query"
+                        type="text"
+                        name="q"
+                        placeholder="Try Rodman's Hollow, Another Tester, or float 245"
+                        value="{{ query }}">
+                </div>
+                <button class="button button--primary" type="submit">Search the archive</button>
+            </form>
         </div>
+        <div class="utility-rail__summary">
+            Showing up to 50 matches from public finder posts.
+        </div>
+    </div>
+
+    <p class="search-helper">Try one of these shortcuts if you are not sure where to start.</p>
+    <div class="search-example-row">
+        <a class="search-example" href="{{ url_for('search', q=rodmans_hollow) }}">Rodman's Hollow</a>
+        <a class="search-example" href="{{ url_for('search', q='Clay Head Trail') }}">Clay Head Trail</a>
+        <a class="search-example" href="{{ url_for('search', q='Tester') }}">Finder name</a>
+        <a class="search-example" href="{{ url_for('search', q='1') }}">Float number</a>
     </div>
 </section>
 
@@ -145,14 +180,11 @@
         <div class="section-heading" style="margin-bottom: 0;">
             <span class="eyebrow">Results</span>
             <h2>{{ result_count }} match{{ '' if result_count == 1 else 'es' }} for "{{ query }}"</h2>
+            <p>Open a location page for the full place history, or jump to the original report for the finder story.</p>
         </div>
         <a class="button button--ghost" href="{{ url_for('search') }}">
             Clear search
         </a>
-    </div>
-
-    <div class="result-callout">
-        <p>Need to add a photo or story later? Re-register it through <a class="utility-link" href="{{ official_links.register }}" target="_blank" rel="noreferrer">Register Floats</a>.</p>
     </div>
 
     {% if results %}
@@ -168,8 +200,7 @@
 
             <h3>{{ row['location_name'] }}</h3>
             <p class="result-card__summary">
-                <strong>{{ row['finder'] }}</strong> reported this float at
-                <strong>{{ row['location_name'] }}</strong>.
+                <strong>{{ row['finder'] }}</strong> reported a float here. Open the location guide for the broader pattern, or the official report for the original post.
             </p>
 
             <div class="result-card__footer">
@@ -182,7 +213,7 @@
                 </span>
                 <div class="result-card__actions">
                     <a href="{{ url_for('location_detail', location_name=row['location_name']) }}">
-                        Open location detail
+                        Open location guide
                     </a>
                     {% if row['report_url'] %}
                     <a href="{{ row['report_url'] }}" target="_blank" rel="noreferrer">
@@ -194,6 +225,10 @@
         </article>
         {% endfor %}
     </div>
+
+    <div class="result-callout">
+        <p>Found your float? Use <a class="utility-link" href="{{ official_links.register }}" target="_blank" rel="noreferrer">Register Floats</a> to add or update the official story.</p>
+    </div>
     {% else %}
     <div class="empty-state">
         <h3>No matching reports</h3>
@@ -204,9 +239,9 @@
 {% else %}
 <section class="surface surface--soft">
     <div class="section-heading" style="margin-bottom: 0;">
-        <span class="eyebrow">Quick use</span>
-        <h2>Search first, then open location detail</h2>
-        <p>Use search for the quick lookup, then open the location page for the fuller pattern.</p>
+        <span class="eyebrow">How to use it</span>
+        <h2>Search first, then open the place guide</h2>
+        <p>Search is fastest when you know one clue. Once you find the right place, the location page gives you the fuller archive read.</p>
     </div>
 </section>
 {% endif %}

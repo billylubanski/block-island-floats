@@ -5,6 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% if page_meta and page_meta.title %}{{ page_meta.title }} | {% endif %}Block Island Glass Floats</title>
+    <meta
+        name="description"
+        content="{% if page_meta and page_meta.description %}{{ page_meta.description }}{% else %}Plan your Block Island glass float hunt with public find history, field tools, and official links.{% endif %}">
+    <meta property="og:title" content="{% if page_meta and page_meta.title %}{{ page_meta.title }} | {% endif %}Block Island Glass Floats">
+    <meta
+        property="og:description"
+        content="{% if page_meta and page_meta.description %}{{ page_meta.description }}{% else %}Plan your Block Island glass float hunt with public find history, field tools, and official links.{% endif %}">
 
     <meta name="theme-color" content="#071412">
     <meta name="color-scheme" content="dark">
@@ -33,7 +40,7 @@
                 <span class="brand__mark" aria-hidden="true"></span>
                 <span class="brand__copy">
                     <span class="brand__title">Block Island Floats</span>
-                    <span class="brand__meta">Tracker and field guide</span>
+                    <span class="brand__meta">Planning guide and field view</span>
                 </span>
             </a>
 
@@ -50,11 +57,11 @@
             <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
                 <a class="site-nav__link {% if page_meta and page_meta.active_nav == 'dashboard' %}is-active{% endif %}"
                     href="{{ url_for('index') }}">
-                    Dashboard
+                    Explore
                 </a>
                 <a class="site-nav__link {% if page_meta and page_meta.active_nav == 'field' %}is-active{% endif %}"
                     href="{{ url_for('field_mode') }}">
-                    Field Mode
+                    Field
                 </a>
                 <a class="site-nav__link {% if page_meta and page_meta.active_nav == 'search' %}is-active{% endif %}"
                     href="{{ url_for('search') }}">
@@ -62,11 +69,11 @@
                 </a>
                 <a class="site-nav__link {% if page_meta and page_meta.active_nav == 'forecast' %}is-active{% endif %}"
                     href="{{ url_for('forecast') }}">
-                    Forecast
+                    Today
                 </a>
                 <a class="site-nav__link {% if page_meta and page_meta.active_nav == 'about' %}is-active{% endif %}"
                     href="{{ url_for('about') }}">
-                    About
+                    Guide
                 </a>
             </nav>
         </div>

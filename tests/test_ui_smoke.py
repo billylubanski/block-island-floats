@@ -223,8 +223,8 @@ def test_forecast_page_smoke_renders_zone_briefing(live_ui_server, ui_page):
 
     page.goto(f"{live_ui_server}/forecast", wait_until="domcontentloaded")
 
-    assert page.title() == "Forecast briefing | Block Island Glass Floats"
-    assert page.locator("h1").inner_text() == "Forecast briefing"
+    assert page.title() == "Where to start today | Block Island Glass Floats"
+    assert page.locator("h1").inner_text() == "Where to start today"
     assert page.locator(".forecast-zone").count() == 2
     assert page.locator(".forecast-context-card h3").all_inner_texts() == [
         "Weather",
@@ -233,19 +233,19 @@ def test_forecast_page_smoke_renders_zone_briefing(live_ui_server, ui_page):
     ]
     assert page.locator(".utility-rail .pill").all_inner_texts() == [
         "Today",
-        "Confidence: Low",
-        "Primary spine: kernel seasonal",
+        "Strength: Low",
+        "History + live conditions",
     ]
-    assert page.locator(".utility-rail__summary").inner_text().strip() == "Directional only."
+    assert page.locator(".utility-rail__summary").inner_text().strip() == "Use this as a starting suggestion, then confirm with access and conditions on the ground."
     assert page.locator(".forecast-zone__heading a").all_inner_texts() == [
         "Rodman's Hollow",
         "Clay Head Trail",
     ]
 
     body_text = page.locator("body").inner_text()
-    assert "Top zones for a first loop" in body_text
-    assert "Start with the zone" in body_text
-    assert "Why confidence stays bounded" in body_text
+    assert "Where to go next if you want a backup" in body_text
+    assert "Why Rodman's Hollow is up front" in body_text
+    assert "Why this stays a starting suggestion" in body_text
     assert "% probability" not in body_text
     assert "probability" not in body_text.lower()
     assert errors == []
@@ -255,15 +255,15 @@ def test_forecast_page_hands_off_to_field_mode(live_ui_server, ui_page):
     page, errors = ui_page
 
     page.goto(f"{live_ui_server}/forecast", wait_until="domcontentloaded")
-    page.get_by_role("link", name="Open field mode").first().click()
+    page.get_by_role("link", name="Open field view").first().click()
 
     assert page.url == f"{live_ui_server}/field"
-    assert page.title() == "Field mode | Block Island Glass Floats"
-    assert page.locator("h1").inner_text() == "Field mode"
-    assert page.locator(".field-forecast-strip h2").inner_text() == "Start with Rodman's Hollow"
+    assert page.title() == "Find the best spots near you | Block Island Glass Floats"
+    assert page.locator("h1").inner_text() == "Find the best spots near you"
+    assert page.locator(".field-forecast-strip h2").inner_text() == "Best first stop: Rodman's Hollow"
     assert page.locator(".field-forecast-strip .pill").all_inner_texts() == [
-        "Active read",
-        "Confidence: Low",
+        "Active outlook",
+        "Strength: Low",
         "Strong july history",
         "Recent finds nearby",
     ]
@@ -272,6 +272,6 @@ def test_forecast_page_hands_off_to_field_mode(live_ui_server, ui_page):
     assert spot_badges == ["Forecast zone #1", "Forecast zone #2"]
 
     support_stats = page.locator(".spot-stat").all_inner_texts()
-    assert "Supports Rodman's Hollow" in support_stats
-    assert "Supports Clay Head Trail" in support_stats
+    assert "Backup area for Rodman's Hollow" in support_stats
+    assert "Backup area for Clay Head Trail" in support_stats
     assert errors == []
