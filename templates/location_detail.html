@@ -41,6 +41,26 @@
         flex-wrap: wrap;
     }
 
+    .location-share-banner {
+        align-items: center;
+    }
+
+    .location-share-banner p {
+        margin: 0;
+        color: var(--text-1);
+        line-height: 1.55;
+    }
+
+    .location-share-status[hidden] {
+        display: none;
+    }
+
+    .location-share-status[data-state="error"] {
+        color: #ffd1d1;
+        border-color: rgba(255, 131, 131, 0.28);
+        background: rgba(114, 29, 29, 0.34);
+    }
+
     .stat-strip {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -294,6 +314,15 @@
             {% endif %}
         </p>
 
+        {% if shared_ref %}
+        <div class="utility-rail location-share-banner">
+            <div class="utility-rail__group">
+                <span class="pill pill--accent">Shared spot</span>
+                <p>Shared by a hunting partner. Open field mode below if you want this brief in motion.</p>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="location-actions">
             {% if page_meta.primary_cta %}
             <a class="button button--primary" href="{{ page_meta.primary_cta.href }}" target="_blank" rel="noreferrer">
@@ -303,6 +332,10 @@
             <a class="button button--ghost" href="{{ url_for('field_mode') }}">
                 Open field mode
             </a>
+            <button class="button button--subtle" id="share-location-button" type="button">
+                Share this spot
+            </button>
+            <span class="pill pill--accent location-share-status" id="share-status" role="status" aria-live="polite" hidden></span>
         </div>
 
         <div class="stat-strip">
@@ -465,9 +498,16 @@
 {% endblock %}
 
 {% block scripts %}
+<script id="location-share-payload" type="application/json">{{ share_payload|tojson }}</script>
 <script>
     const images = {{ images | tojson }};
     let currentIndex = 0;
+    const sharePayloadElement = document.getElementById('location-share-payload');
+    const sharePayload = sharePayloadElement ? JSON.parse(sharePayloadElement.textContent) : null;
+    const shareButton = document.getElementById('share-location-button');
+    const shareStatus = document.getElementById('share-status');
+    const sharedRef = {{ shared_ref|tojson }};
+    let shareStatusTimer = null;
 
     function openLightbox(index) {
         currentIndex = index;
@@ -490,6 +530,100 @@
         event.stopPropagation();
         currentIndex = (currentIndex + direction + images.length) % images.length;
         document.getElementById('lightbox-img').src = images[currentIndex].url;
+    }
+
+    function trackShareEvent(eventName, shareMethod = null) {
+        if (!sharePayload) {
+            return;
+        }
+
+        const payload = {
+            event_name: eventName,
+            location_name: sharePayload.location_name,
+        };
+
+        if (shareMethod) {
+            payload.share_method = shareMethod;
+        }
+
+        const body = JSON.stringify(payload);
+        if (navigator.sendBeacon) {
+            navigator.sendBeacon(
+                '/api/events',
+                new Blob([body], { type: 'application/json' })
+            );
+            return;
+        }
+
+        fetch('/api/events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body,
+            keepalive: true,
+        }).catch(() => {});
+    }
+
+    function setShareStatus(message, state = 'success') {
+        if (!shareStatus) {
+            return;
+        }
+
+        shareStatus.textContent = message;
+        shareStatus.dataset.state = state;
+        shareStatus.hidden = false;
+
+        if (shareStatusTimer) {
+            window.clearTimeout(shareStatusTimer);
+        }
+
+        shareStatusTimer = window.setTimeout(() => {
+            shareStatus.hidden = true;
+        }, 2400);
+    }
+
+    async function shareLocation() {
+        if (!sharePayload) {
+            return;
+        }
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: document.title,
+                    text: sharePayload.share_text,
+                    url: sharePayload.share_url,
+                });
+                setShareStatus('Shared');
+                trackShareEvent('share_clicked', 'native');
+                return;
+            } catch (error) {
+                if (error && error.name === 'AbortError') {
+                    return;
+                }
+            }
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            try {
+                await navigator.clipboard.writeText(sharePayload.share_url);
+                setShareStatus('Link copied');
+                trackShareEvent('share_clicked', 'copy');
+                return;
+            } catch (error) {
+            }
+        }
+
+        setShareStatus('Copy failed', 'error');
+    }
+
+    if (shareButton) {
+        shareButton.addEventListener('click', () => {
+            shareLocation();
+        });
+    }
+
+    if (sharedRef) {
+        trackShareEvent('shared_location_view');
     }
 
     document.addEventListener('keydown', (event) => {

@@ -345,6 +345,123 @@ def test_location_detail_renders_recent_find_official_report_links(sample_db: Pa
     assert "Open the original report below" in text
 
 
+def test_location_detail_builds_share_payload_and_meta(sample_db: Path, capture_templates):
+    encoded_location = quote("Rodman's Hollow", safe="")
+
+    with app_module.app.test_client() as client:
+        response = client.get(f"/location/{encoded_location}")
+
+    assert response.status_code == 200
+    text = response.get_data(as_text=True)
+    assert "Share this spot" in text
+    assert 'property="og:description"' in text
+    assert 'property="og:image" content="https://cdn.example.com/2025-1.jpg"' in text
+    assert 'property="og:url"' in text
+
+    _, context = capture_templates[-1]
+    assert context["share_payload"] == {
+        "share_url": "http://localhost/location/Rodman's%20Hollow?ref=share",
+        "share_text": "Rodman's Hollow has 2 reported finds across 2 seasons. Spot brief:",
+        "location_name": "Rodman's Hollow",
+    }
+    assert context["shared_ref"] is False
+    assert context["page_meta"]["description"] == (
+        "Rodman's Hollow has 2 reported finds across 2 seasons. Spot brief: "
+        "Latest dated report: 2025-07-10."
+    )
+    assert context["page_meta"]["image"] == "https://cdn.example.com/2025-1.jpg"
+    assert context["page_meta"]["url"] == "http://localhost/location/Rodman's%20Hollow"
+
+
+def test_location_detail_renders_shared_banner_for_share_ref(sample_db: Path, capture_templates):
+    encoded_location = quote("Rodman's Hollow", safe="")
+
+    with app_module.app.test_client() as client:
+        response = client.get(f"/location/{encoded_location}?ref=share")
+
+    assert response.status_code == 200
+    text = response.get_data(as_text=True)
+    assert "Shared by a hunting partner" in text
+
+    _, context = capture_templates[-1]
+    assert context["shared_ref"] is True
+
+
+def test_api_events_route_persists_allowed_events_to_metrics_db(
+    sample_db: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    metrics_path = tmp_path / "output" / "metrics.db"
+    monkeypatch.setattr(app_module, "METRICS_DB_PATH", str(metrics_path))
+
+    with app_module.app.test_client() as client:
+        share_response = client.post(
+            "/api/events",
+            json={
+                "event_name": "share_clicked",
+                "location_name": "Rodman's Hollow",
+                "share_method": "native",
+            },
+        )
+        visit_response = client.post(
+            "/api/events",
+            json={
+                "event_name": "shared_location_view",
+                "location_name": "Rodman's Hollow",
+            },
+        )
+
+    assert share_response.status_code == 204
+    assert visit_response.status_code == 204
+    assert metrics_path.exists()
+
+    conn = sqlite3.connect(metrics_path)
+    try:
+        rows = conn.execute(
+            "SELECT event_name, location_name, share_method FROM growth_events ORDER BY id"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    assert rows == [
+        ("share_clicked", "Rodman's Hollow", "native"),
+        ("shared_location_view", "Rodman's Hollow", None),
+    ]
+
+    source_conn = sqlite3.connect(sample_db)
+    try:
+        source_tables = {
+            row[0]
+            for row in source_conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        }
+    finally:
+        source_conn.close()
+
+    assert "growth_events" not in source_tables
+
+
+def test_api_events_route_rejects_invalid_payload(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    metrics_path = tmp_path / "output" / "metrics.db"
+    monkeypatch.setattr(app_module, "METRICS_DB_PATH", str(metrics_path))
+
+    with app_module.app.test_client() as client:
+        response = client.post(
+            "/api/events",
+            json={
+                "event_name": "share_clicked",
+                "location_name": "Rodman's Hollow",
+            },
+        )
+
+    assert response.status_code == 400
+    assert response.get_json() == {"error": "invalid event payload"}
+    assert not metrics_path.exists()
+
+
 def test_forecast_route_renders_predictions_and_location_detail(
     sample_db: Path,
     monkeypatch: pytest.MonkeyPatch,
