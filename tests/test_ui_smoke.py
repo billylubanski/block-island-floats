@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import asyncio
 import copy
 import os
+import sqlite3
+import sys
 import threading
 from collections import Counter
+from pathlib import Path
 from socket import socket
+from urllib.parse import quote
 
 import app as app_module
 import pytest
@@ -110,19 +115,108 @@ def sample_field_weather() -> dict[str, object]:
     }
 
 
+def create_finds_db(path: Path) -> None:
+    conn = sqlite3.connect(path)
+    conn.execute(
+        """
+        CREATE TABLE finds (
+            id TEXT PRIMARY KEY,
+            year TEXT,
+            float_number TEXT,
+            finder TEXT,
+            location_raw TEXT,
+            location_normalized TEXT,
+            date_found TEXT,
+            url TEXT,
+            image_url TEXT
+        )
+        """
+    )
+    conn.commit()
+    conn.close()
+
+
+def insert_find(path: Path, **values) -> None:
+    conn = sqlite3.connect(path)
+    columns = ", ".join(values.keys())
+    placeholders = ", ".join("?" for _ in values)
+    conn.execute(
+        f"INSERT INTO finds ({columns}) VALUES ({placeholders})",
+        tuple(values.values()),
+    )
+    conn.commit()
+    conn.close()
+
+
 def open_port() -> int:
     with socket() as sock:
         sock.bind(("127.0.0.1", 0))
         return int(sock.getsockname()[1])
 
 
+async def _probe_asyncio_subprocess() -> tuple[bool, str | None]:
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable,
+            "-c",
+            "print('ok')",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await proc.communicate()
+    except Exception as exc:
+        return False, str(exc)
+
+    if proc.returncode != 0:
+        return False, stderr.decode().strip() or f"subprocess exited with {proc.returncode}"
+
+    if stdout.decode().strip() != "ok":
+        return False, "subprocess probe returned unexpected output"
+
+    return True, None
+
+
+def asyncio_subprocess_available() -> tuple[bool, str | None]:
+    try:
+        return asyncio.run(_probe_asyncio_subprocess())
+    except Exception as exc:
+        return False, str(exc)
+
+
 @pytest.fixture
-def live_ui_server(monkeypatch: pytest.MonkeyPatch):
+def live_ui_server(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     app_module.weather_cache["data"] = None
     app_module.weather_cache["timestamp"] = None
     app_module.tide_cache["data"] = None
     app_module.tide_cache["timestamp"] = None
     app_module.clear_forecast_cache()
+
+    db_path = tmp_path / "ui-smoke.db"
+    create_finds_db(db_path)
+    insert_find(
+        db_path,
+        id="2025-1",
+        year="2025",
+        float_number="1",
+        finder="Tester",
+        location_raw="rodman",
+        location_normalized="Rodman's Hollow",
+        date_found="2025-07-10",
+        url="https://example.com/find/2025-1",
+        image_url="https://cdn.example.com/2025-1.jpg",
+    )
+    insert_find(
+        db_path,
+        id="2024-1",
+        year="2024",
+        float_number="4",
+        finder="Another Tester",
+        location_raw="rodman",
+        location_normalized="Rodman's Hollow",
+        date_found="2024-08-01",
+        url="https://example.com/find/2024-1",
+        image_url="https://cdn.example.com/2024-1.jpg",
+    )
 
     monkeypatch.setattr(
         app_module,
@@ -140,6 +234,7 @@ def live_ui_server(monkeypatch: pytest.MonkeyPatch):
             }
         ),
     )
+    monkeypatch.setattr(app_module, "DB_NAME", str(db_path))
     monkeypatch.setattr(app_module, "get_last_updated", lambda: "Fixture update")
     monkeypatch.setattr(app_module, "get_weather_data", lambda: sample_field_weather())
 
@@ -165,11 +260,19 @@ def live_ui_server(monkeypatch: pytest.MonkeyPatch):
 @pytest.fixture(scope="session")
 def chromium_browser():
     sync_api = pytest.importorskip("playwright.sync_api")
+    supported, reason = asyncio_subprocess_available()
+    if not supported:
+        pytest.skip(f"Playwright Chromium is unavailable in this sandbox: {reason}")
+
+    playwright = None
+    browser = None
 
     try:
         playwright = sync_api.sync_playwright().start()
         browser = playwright.chromium.launch(headless=True)
     except Exception as exc:  # pragma: no cover - environment dependent
+        if playwright is not None:
+            playwright.stop()
         pytest.skip(f"Playwright Chromium is unavailable: {exc}")
 
     try:
@@ -274,4 +377,41 @@ def test_forecast_page_hands_off_to_field_mode(live_ui_server, ui_page):
     support_stats = page.locator(".spot-stat").all_inner_texts()
     assert "Backup area for Rodman's Hollow" in support_stats
     assert "Backup area for Clay Head Trail" in support_stats
+    assert errors == []
+
+
+def test_location_page_share_button_uses_native_share(live_ui_server, ui_page):
+    page, errors = ui_page
+    encoded_location = quote("Rodman's Hollow", safe="")
+
+    page.add_init_script(
+        """
+        window.__shareCalls = [];
+        Object.defineProperty(navigator, 'share', {
+            configurable: true,
+            value: async (payload) => {
+                window.__shareCalls.push(payload);
+            }
+        });
+        Object.defineProperty(navigator, 'sendBeacon', {
+            configurable: true,
+            value: () => true
+        });
+        """
+    )
+
+    page.goto(f"{live_ui_server}/location/{encoded_location}", wait_until="domcontentloaded")
+    page.get_by_role("button", name="Share this spot").click()
+
+    share_status = page.locator("#share-status")
+    share_status.wait_for(state="visible")
+
+    assert share_status.inner_text() == "Shared"
+    assert page.evaluate("window.__shareCalls") == [
+        {
+            "title": "Rodman's Hollow | Block Island Glass Floats",
+            "text": "Rodman's Hollow has 2 reported finds across 2 seasons. Spot brief:",
+            "url": f"{live_ui_server}/location/Rodman's%20Hollow?ref=share",
+        }
+    ]
     assert errors == []

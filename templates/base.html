@@ -4,14 +4,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if page_meta and page_meta.title %}{{ page_meta.title }} | {% endif %}Block Island Glass Floats</title>
-    <meta
-        name="description"
-        content="{% if page_meta and page_meta.description %}{{ page_meta.description }}{% else %}Plan your Block Island glass float hunt with public find history, field tools, and official links.{% endif %}">
-    <meta property="og:title" content="{% if page_meta and page_meta.title %}{{ page_meta.title }} | {% endif %}Block Island Glass Floats">
-    <meta
-        property="og:description"
-        content="{% if page_meta and page_meta.description %}{{ page_meta.description }}{% else %}Plan your Block Island glass float hunt with public find history, field tools, and official links.{% endif %}">
+    {% set meta_title = ((page_meta.title ~ ' | ') if page_meta and page_meta.title else '') ~ 'Block Island Glass Floats' %}
+    {% set meta_description = page_meta.description if page_meta and page_meta.description else (page_meta.subtitle if page_meta and page_meta.subtitle else 'Plan your Block Island glass float hunt with public find history, field tools, and official links.') %}
+    {% set meta_url = page_meta.url if page_meta and page_meta.url else request.base_url %}
+    {% set meta_image = page_meta.image if page_meta and page_meta.image else url_for('static', filename='icon-512.png', _external=True) %}
+    <title>{{ meta_title }}</title>
+
+    <meta name="description" content="{{ meta_description }}">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ meta_title }}">
+    <meta property="og:description" content="{{ meta_description }}">
+    <meta property="og:url" content="{{ meta_url }}">
+    <meta property="og:image" content="{{ meta_image }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ meta_title }}">
+    <meta name="twitter:description" content="{{ meta_description }}">
+    <meta name="twitter:image" content="{{ meta_image }}">
 
     <meta name="theme-color" content="#071412">
     <meta name="color-scheme" content="dark">

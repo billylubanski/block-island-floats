@@ -24,6 +24,9 @@ DB_NAME = 'floats.db'
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 FIELD_ETIQUETTE_PATH = os.path.join(APP_ROOT, 'data', 'field_etiquette.json')
 FORECAST_ARTIFACT_PATH = os.path.join(APP_ROOT, 'generated', 'forecast_artifact.json')
+METRICS_DB_PATH = os.path.join(APP_ROOT, 'output', 'metrics.db')
+ALLOWED_EVENT_NAMES = {'share_clicked', 'shared_location_view'}
+ALLOWED_SHARE_METHODS = {'native', 'copy'}
 OFFICIAL_LINKS = {
     'project': 'https://www.blockislandinfo.com/glass-float-project/',
     'register': 'https://www.blockislandinfo.com/glass-float-project/register-floats/',
@@ -158,7 +161,17 @@ def build_cta(label, href, external=False):
     return cta
 
 
-def build_page_meta(active_nav, mode, kicker, title, subtitle, primary_cta=None, description=None):
+def build_page_meta(
+    active_nav,
+    mode,
+    kicker,
+    title,
+    subtitle,
+    primary_cta=None,
+    description=None,
+    url=None,
+    image=None,
+):
     page_meta = {
         'active_nav': active_nav,
         'mode': mode,
@@ -169,7 +182,97 @@ def build_page_meta(active_nav, mode, kicker, title, subtitle, primary_cta=None,
     }
     if primary_cta:
         page_meta['primary_cta'] = primary_cta
+    if url:
+        page_meta['url'] = url
+    if image:
+        page_meta['image'] = image
     return page_meta
+
+
+def get_metrics_db_connection():
+    metrics_dir = os.path.dirname(METRICS_DB_PATH)
+    if metrics_dir:
+        os.makedirs(metrics_dir, exist_ok=True)
+    return sqlite3.connect(METRICS_DB_PATH)
+
+
+def ensure_metrics_schema(conn):
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS growth_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_name TEXT NOT NULL,
+            location_name TEXT NOT NULL,
+            share_method TEXT,
+            created_at TEXT NOT NULL
+        )
+        '''
+    )
+    conn.commit()
+
+
+def parse_event_payload():
+    payload = request.get_json(silent=True)
+    if isinstance(payload, dict):
+        return payload
+
+    raw_payload = request.get_data(as_text=True)
+    if not raw_payload:
+        return None
+
+    try:
+        payload = json.loads(raw_payload)
+    except json.JSONDecodeError:
+        return None
+
+    return payload if isinstance(payload, dict) else None
+
+
+def normalize_event_payload(payload):
+    if not isinstance(payload, dict):
+        return None
+
+    event_name = str(payload.get('event_name') or '').strip()
+    location_name = str(payload.get('location_name') or '').strip()
+    share_method = payload.get('share_method')
+    if isinstance(share_method, str):
+        share_method = share_method.strip()
+
+    if event_name not in ALLOWED_EVENT_NAMES or not location_name:
+        return None
+
+    if event_name == 'share_clicked':
+        if share_method not in ALLOWED_SHARE_METHODS:
+            return None
+    else:
+        share_method = None
+
+    return {
+        'event_name': event_name,
+        'location_name': location_name,
+        'share_method': share_method,
+    }
+
+
+def record_growth_event(event_name, location_name, share_method=None):
+    conn = get_metrics_db_connection()
+    try:
+        ensure_metrics_schema(conn)
+        conn.execute(
+            '''
+            INSERT INTO growth_events (event_name, location_name, share_method, created_at)
+            VALUES (?, ?, ?, ?)
+            ''',
+            (
+                event_name,
+                location_name,
+                share_method,
+                datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def get_db_mtime():
@@ -652,6 +755,19 @@ def location_detail(location_name):
     extra_images = images[12:]
     recent_finds = finds[:18]
     older_finds = finds[18:]
+    shared_ref = request.args.get('ref') == 'share'
+    share_url = url_for('location_detail', location_name=location_name, ref='share', _external=True)
+    location_url = url_for('location_detail', location_name=location_name, _external=True)
+    season_label = 'season' if years_tracked == 1 else 'seasons'
+    latest_date = latest_find['date_found'] if latest_find and latest_find['date_found'] else None
+    share_text = (
+        f'{location_name} has {total_finds} reported finds across {years_tracked} {season_label}. '
+        'Spot brief:'
+    )
+    page_description = share_text
+    if latest_date:
+        page_description = f'{page_description} Latest dated report: {latest_date}.'
+    page_image = images[0]['url'] if images else url_for('static', filename='icon-512.png', _external=True)
     
     conn.close()
     
@@ -670,6 +786,12 @@ def location_detail(location_name):
                           latest_find=latest_find,
                           recent_finds=recent_finds,
                           older_finds=older_finds,
+                          share_payload={
+                              'share_url': share_url,
+                              'share_text': share_text,
+                              'location_name': location_name,
+                          },
+                          shared_ref=shared_ref,
                           page_meta=build_page_meta(
                               active_nav='dashboard',
                               mode='utility',
@@ -685,10 +807,24 @@ def location_detail(location_name):
                                   href=f'https://maps.google.com/?q={coords["lat"]},{coords["lon"]}',
                                   external=True,
                               ) if coords else None,
-                              description=(
-                                  f'Browse photos, recent reports, and map access for {location_name}.'
-                              ),
+                              description=page_description,
+                              url=location_url,
+                              image=page_image,
                           ))
+
+
+@app.route('/api/events', methods=['POST'])
+def record_event():
+    payload = normalize_event_payload(parse_event_payload())
+    if payload is None:
+        return {'error': 'invalid event payload'}, 400
+
+    record_growth_event(
+        payload['event_name'],
+        payload['location_name'],
+        share_method=payload.get('share_method'),
+    )
+    return '', 204
 
 def predict_today():
     artifact = load_forecast_artifact()
