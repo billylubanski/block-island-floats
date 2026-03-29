@@ -36,7 +36,7 @@ def test_routes():
         response = requests.get(f"{base_url}/about")
         if response.status_code == 200:
             print("About Page OK")
-            if "About the Project" in response.text:
+            if "Use public float reports to choose a stronger starting point" in response.text:
                 print("About Content found")
             else:
                 print("About Content NOT found")

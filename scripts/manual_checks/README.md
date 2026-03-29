@@ -34,3 +34,4 @@ python scripts/manual_checks/verify_regex.py
 - These are manual diagnostics; they are not run in CI.
 - `verify_ids.py` requires Playwright + Chromium (`python -m playwright install chromium`).
 - `verify_changes.py` and `verify_location.py` expect a valid local environment and committed data artifacts.
+- Chrome DevTools MCP is a separate Codex-side manual debugging tool for interactive browser inspection; it complements these scripts but does not replace deterministic pytest coverage.

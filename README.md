@@ -82,6 +82,25 @@ pytest -q
 - Enable the browser smoke layer with `$env:RUN_UI_SMOKE='1'`, then run `pytest -q -m ui`.
 - Manual probes live under `scripts/manual_checks/` and are opt-in only.
 
+### Optional: Chrome DevTools MCP
+
+If you use Codex on Windows and want interactive browser debugging beyond the deterministic Playwright smoke layer, add Chrome DevTools MCP to `C:\Users\Billy\.codex\config.toml`:
+
+```toml
+[mcp_servers.chrome-devtools]
+command = 'cmd'
+args = [
+    '/c',
+    'npx',
+    '-y',
+    'chrome-devtools-mcp@latest',
+]
+env = { SystemRoot='C:\\Windows', PROGRAMFILES='C:\\Program Files' }
+startup_timeout_ms = 20_000
+```
+
+Restart Codex after updating the config. Use the `chrome-devtools` server for exploratory checks against a local `python app.py` session when you need DOM snapshots, screenshots, console logs, network inspection, or performance traces. This is manual/debug tooling only; keep automated coverage in `tests/`.
+
 ## Repo Hygiene Quick Checks
 
 Use these before pushing larger refresh or feature branches:

@@ -30,6 +30,7 @@
 - **Data refresh workflow**: run `refresh`, then `validate`, then `validate-records`; only run `refresh --full` for parser/feature migrations that require all detail pages to be reprocessed.
 - **Long-running full rebuild workflow**: use `start_full_refresh.ps1` (detached) for local monitoring or `run_full_refresh_job.ps1` (single-run wrapper) when you need an end-to-end scripted execution.
 - **UI workflow**: enable `RUN_UI_SMOKE` and run `pytest -q -m ui` for browser smoke checks; keep manual probes under `scripts/manual_checks/`.
+- **Exploratory browser debugging**: if Codex has the optional `chrome-devtools` MCP server configured, use it for interactive screenshots, console/network inspection, and performance tracing against a local app session; do not treat it as automated test coverage.
 
 ## Testing Guidelines
 - `pytest.ini` constrains automated collection to `tests/`.

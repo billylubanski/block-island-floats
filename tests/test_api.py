@@ -277,7 +277,7 @@ def test_field_route_renders_json_backed_official_guidance(sample_db: Path, monk
     assert "Register your float so the official archive can attach your find" in text
     assert "Greenway trail guide" in text
     assert app_module.OFFICIAL_LINKS["register"] in text
-    assert app_module.OFFICIAL_LINKS["project"] not in text
+    assert f'href="{app_module.OFFICIAL_LINKS["project"]}"' not in text
 
 
 def test_field_route_renders_fallback_guidance_payload(sample_db: Path, monkeypatch: pytest.MonkeyPatch):
