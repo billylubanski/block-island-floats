@@ -4,7 +4,9 @@ from forecasting import (
     build_calendar_features,
     build_daily_forecast_briefing,
     build_spot_forecast_lookup,
+    convert_wind_speed_to_mph,
     empty_forecast_artifact,
+    normalize_wind_direction,
     resolve_observation_station_id,
 )
 
@@ -71,6 +73,14 @@ def test_resolve_observation_station_id_prefers_kbid():
     ]
 
     assert resolve_observation_station_id(features) == "KBID"
+
+
+def test_convert_wind_speed_to_mph_honors_kmh_units():
+    assert convert_wind_speed_to_mph(38.88, "wmoUnit:km_h-1") == 24
+
+
+def test_normalize_wind_direction_converts_degrees_to_compass():
+    assert normalize_wind_direction(230) == "SW"
 
 
 def test_build_daily_forecast_briefing_returns_low_confidence_without_live_context():

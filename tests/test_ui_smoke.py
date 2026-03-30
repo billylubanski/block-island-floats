@@ -486,7 +486,14 @@ def test_field_page_mobile_hunt_rules_button_stays_clear_of_navigation_actions(l
         () => {
             const root = document.documentElement;
             const maxScroll = Math.max(root.scrollHeight - window.innerHeight, 0);
-            return [...new Set([0, Math.floor(maxScroll * 0.33), Math.floor(maxScroll * 0.66), maxScroll])];
+            const positions = [];
+            for (let value = 0; value <= maxScroll; value += 80) {
+                positions.push(value);
+            }
+            if (positions[positions.length - 1] !== maxScroll) {
+                positions.push(maxScroll);
+            }
+            return positions;
         }
         """
     )

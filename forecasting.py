@@ -327,6 +327,64 @@ def parse_wind_speed_mph(value: Any) -> int | None:
     return round(sum(values) / len(values))
 
 
+def convert_wind_speed_to_mph(value: Any, unit_code: Any = None) -> int | None:
+    if value in (None, ""):
+        return None
+
+    try:
+        speed = float(value)
+    except (TypeError, ValueError):
+        return None
+
+    normalized_unit = str(unit_code or "").strip().lower()
+    if not normalized_unit:
+        return round(speed * 2.23694)
+    if "km_h-1" in normalized_unit or "km/h" in normalized_unit or "kilometer per hour" in normalized_unit:
+        return round(speed * 0.621371)
+    if "kn" in normalized_unit or "knot" in normalized_unit:
+        return round(speed * 1.15078)
+    if "mi_h-1" in normalized_unit or "mile per hour" in normalized_unit or normalized_unit.endswith(":mph"):
+        return round(speed)
+    if "m_s-1" in normalized_unit or "m/s" in normalized_unit or "meter per second" in normalized_unit:
+        return round(speed * 2.23694)
+    return round(speed * 2.23694)
+
+
+def normalize_wind_direction(value: Any) -> str | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, (int, float)):
+        degrees = float(value) % 360
+    else:
+        text = str(value).strip()
+        if not text:
+            return None
+        try:
+            degrees = float(text) % 360
+        except ValueError:
+            return text
+
+    directions = (
+        "N",
+        "NNE",
+        "NE",
+        "ENE",
+        "E",
+        "ESE",
+        "SE",
+        "SSE",
+        "S",
+        "SSW",
+        "SW",
+        "WSW",
+        "W",
+        "WNW",
+        "NW",
+        "NNW",
+    )
+    return directions[int((degrees + 11.25) // 22.5) % len(directions)]
+
+
 def weather_emoji(description: str) -> str:
     desc_lower = (description or "").lower()
     if "sunny" in desc_lower or "clear" in desc_lower:
@@ -402,13 +460,20 @@ def fetch_live_weather_context(
         temperature_c = observation_payload.get("temperature", {}).get("value")
         temperature_f = round((temperature_c * 9 / 5) + 32) if temperature_c is not None else current_period.get("temperature")
 
-        wind_speed_mps = observation_payload.get("windSpeed", {}).get("value")
-        wind_speed = round(wind_speed_mps * 2.23694) if wind_speed_mps is not None else parse_wind_speed_mph(current_period.get("windSpeed"))
+        observed_wind = observation_payload.get("windSpeed", {})
+        wind_speed = convert_wind_speed_to_mph(
+            observed_wind.get("value"),
+            observed_wind.get("unitCode"),
+        )
+        if wind_speed is None:
+            wind_speed = parse_wind_speed_mph(current_period.get("windSpeed"))
 
         description = observation_payload.get("textDescription") or current_period.get("shortForecast") or "Unknown"
         precip_chance = current_period.get("probabilityOfPrecipitation", {}).get("value")
         forecast_text = current_period.get("detailedForecast") or current_period.get("shortForecast") or description
-        wind_direction = current_period.get("windDirection") or observation_payload.get("windDirection", {}).get("value")
+        wind_direction = normalize_wind_direction(
+            current_period.get("windDirection") or observation_payload.get("windDirection", {}).get("value")
+        )
         updated = observation_payload.get("timestamp") or current_period.get("startTime")
         severe = any(keyword in forecast_text.lower() for keyword in ("thunder", "storm", "gale", "snow", "advisory", "warning"))
 

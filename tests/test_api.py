@@ -693,7 +693,7 @@ def test_get_weather_data_converts_noaa_response(monkeypatch: pytest.MonkeyPatch
             return {
                 "properties": {
                     "temperature": {"value": 20},
-                    "windSpeed": {"value": 4.0},
+                    "windSpeed": {"unitCode": "wmoUnit:km_h-1", "value": 38.88},
                     "textDescription": "Partly Cloudy",
                 }
             }
@@ -714,10 +714,37 @@ def test_get_weather_data_converts_noaa_response(monkeypatch: pytest.MonkeyPatch
     assert captured["headers"]["Accept"] == "application/geo+json"
     assert captured["timeout"] == 5
     assert weather["temp"] == 68
-    assert weather["wind"] == 9
+    assert weather["wind"] == 24
     assert weather["condition"] == "Partly Cloudy"
     assert weather["emoji"]
     assert weather["timestamp"]
+
+
+def test_get_weather_context_falls_back_when_live_context_has_no_display_values(monkeypatch: pytest.MonkeyPatch):
+    fallback_weather = {
+        "temp": 68,
+        "condition": "Partly Cloudy",
+        "wind": 9,
+        "emoji": "WEATHER",
+        "timestamp": "09:30 AM",
+    }
+
+    monkeypatch.setattr(
+        app_module,
+        "fetch_live_weather_context",
+        lambda **kwargs: {
+            "temp": None,
+            "condition": "Unknown",
+            "wind": None,
+            "summary": "",
+            "updated_at": "2026-07-01T09:30:00Z",
+        },
+    )
+    monkeypatch.setattr(app_module, "get_weather_data", lambda: fallback_weather)
+
+    weather = app_module.get_weather_context()
+
+    assert weather == fallback_weather
 
 
 def test_get_weather_data_uses_cache(monkeypatch: pytest.MonkeyPatch):
