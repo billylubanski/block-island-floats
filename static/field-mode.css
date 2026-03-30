@@ -39,6 +39,11 @@
     align-items: stretch;
 }
 
+.field-command__utility {
+    display: flex;
+    justify-content: flex-end;
+}
+
 .field-weather {
     min-height: 100%;
 }
@@ -570,5 +575,6 @@ body.field-drawer-open {
         width: 100%;
         justify-content: center;
         box-shadow: none;
+        z-index: auto;
     }
 }

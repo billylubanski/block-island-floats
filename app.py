@@ -14,9 +14,11 @@ from forecasting import (
     build_daily_forecast_briefing as compose_daily_forecast_briefing,
     build_recent_activity_snapshot,
     build_spot_forecast_lookup,
+    convert_wind_speed_to_mph,
     empty_forecast_artifact,
     fetch_live_tide_context,
     fetch_live_weather_context,
+    weather_emoji,
 )
 from locations import LOCATIONS
 from utils import get_last_updated
@@ -774,6 +776,41 @@ weather_cache = {
     'timestamp': None
 }
 
+
+def normalize_weather_payload(weather):
+    if not isinstance(weather, dict):
+        return None
+
+    normalized = dict(weather)
+    condition = str(normalized.get('condition') or '').strip()
+    summary = str(normalized.get('summary') or '').strip()
+    if not condition or condition.lower() == 'unknown':
+        condition = summary
+
+    if condition:
+        normalized['condition'] = condition
+    else:
+        normalized.pop('condition', None)
+
+    timestamp = str(normalized.get('timestamp') or '').strip()
+    if timestamp:
+        normalized['timestamp'] = timestamp
+    else:
+        normalized.pop('timestamp', None)
+
+    if not normalized.get('emoji') and condition:
+        normalized['emoji'] = weather_emoji(condition)
+
+    if (
+        normalized.get('temp') is None
+        and normalized.get('wind') is None
+        and not normalized.get('condition')
+    ):
+        return None
+
+    return normalized
+
+
 def get_weather_data():
     """
     Fetch current weather for Block Island (Station KBID) from NOAA API.
@@ -782,10 +819,11 @@ def get_weather_data():
     global weather_cache
     
     # Check cache (15 minute expiration)
-    now = datetime.datetime.now()
-    if (weather_cache['data'] and weather_cache['timestamp'] and 
+    now = datetime.datetime.now(DISPLAY_TIMEZONE)
+    cached_weather = normalize_weather_payload(weather_cache['data'])
+    if (cached_weather and weather_cache['timestamp'] and 
         (now - weather_cache['timestamp']).total_seconds() < 900):
-        return weather_cache['data']
+        return cached_weather
         
     try:
         # NOAA API requires a User-Agent
@@ -805,12 +843,13 @@ def get_weather_data():
             
             # Extract relevant data
             temp_c = props.get('temperature', {}).get('value')
-            wind_speed_mps = props.get('windSpeed', {}).get('value')
-            text_desc = props.get('textDescription', 'Unknown')
-
-            # NOAA reports wind speed in meters per second.
+            wind_payload = props.get('windSpeed', {})
+            text_desc = props.get('textDescription') or ''
             temp_f = round((temp_c * 9/5) + 32) if temp_c is not None else None
-            wind_mph = round(wind_speed_mps * 2.23694) if wind_speed_mps is not None else None
+            wind_mph = convert_wind_speed_to_mph(
+                wind_payload.get('value'),
+                wind_payload.get('unitCode'),
+            )
             
             # Map text description to emoji
             desc_lower = text_desc.lower()
@@ -833,19 +872,18 @@ def get_weather_data():
             else:
                 emoji = '🌡️' # Thermometer as default
                 
-            weather_data = {
+            weather_data = normalize_weather_payload({
                 'temp': temp_f,
                 'condition': text_desc,
                 'wind': wind_mph,
-                'emoji': emoji,
+                'emoji': weather_emoji(text_desc or 'Live weather'),
                 'timestamp': now.strftime("%I:%M %p")
-            }
-            
-            # Update cache
-            weather_cache['data'] = weather_data
-            weather_cache['timestamp'] = now
-            
-            return weather_data
+            })
+
+            if weather_data:
+                weather_cache['data'] = weather_data
+                weather_cache['timestamp'] = now
+                return weather_data
             
     except Exception as e:
         print(f"Error fetching weather: {e}")
@@ -863,16 +901,19 @@ def get_weather_context():
     """Fetch richer NWS weather context for the forecast briefing."""
     global weather_cache
 
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(DISPLAY_TIMEZONE)
+    cached_weather = normalize_weather_payload(weather_cache['data'])
     if (
-        weather_cache['data']
+        cached_weather
         and weather_cache['timestamp']
         and (now - weather_cache['timestamp']).total_seconds() < 900
-        and weather_cache['data'].get('summary')
+        and cached_weather.get('summary')
     ):
-        return weather_cache['data']
+        return cached_weather
 
-    weather = fetch_live_weather_context(now=now, request_get=requests.get)
+    weather = normalize_weather_payload(
+        fetch_live_weather_context(now=now, request_get=requests.get)
+    )
     if weather:
         weather_cache['data'] = weather
         weather_cache['timestamp'] = now
@@ -915,6 +956,14 @@ def build_daily_forecast_briefing(target_date=None):
         tide_context=get_tide_context(),
         recent_activity=recent_activity,
     )
+
+    conditions = briefing.get('conditions', {}) if isinstance(briefing.get('conditions'), dict) else {}
+    normalized_weather = normalize_weather_payload(conditions.get('weather'))
+    conditions['weather'] = normalized_weather
+    briefing['conditions'] = conditions
+    if not normalized_weather:
+        briefing.setdefault('feature_freshness', {})['weather_updated_at'] = ''
+        briefing['feature_freshness']['live_weather_available'] = False
 
     for zone in briefing.get('zones', []):
         primary_spot = zone.get('primary_spot') or zone.get('label')
@@ -1105,7 +1154,9 @@ def field_mode():
         focused_route=focused_route,
     )
     last_updated = get_last_updated()
-    weather = get_weather_data()
+    weather = normalize_weather_payload(
+        briefing.get('conditions', {}).get('weather')
+    ) or get_weather_data()
 
     return render_template('field.html',
                            hunting_spots=hunting_spots,

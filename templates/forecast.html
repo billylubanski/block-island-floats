@@ -402,8 +402,21 @@
         <article class="forecast-context-card">
             <h3>Weather</h3>
             {% if briefing.conditions.weather %}
-            <span>{{ briefing.conditions.weather.emoji }} {{ briefing.conditions.weather.condition }}</span>
-            <p>{{ briefing.conditions.weather.temp }} F, wind {{ briefing.conditions.weather.wind }} mph{% if briefing.conditions.weather.wind_direction %} {{ briefing.conditions.weather.wind_direction }}{% endif %}.</p>
+            <span>
+                {% if briefing.conditions.weather.emoji %}{{ briefing.conditions.weather.emoji }} {% endif %}
+                {{ briefing.conditions.weather.condition if briefing.conditions.weather.condition else 'Live weather' }}
+            </span>
+            {% if briefing.conditions.weather.temp is not none or briefing.conditions.weather.wind is not none %}
+            <p>
+                {% if briefing.conditions.weather.temp is not none %}
+                {{ briefing.conditions.weather.temp }} F
+                {% endif %}
+                {% if briefing.conditions.weather.wind is not none %}
+                {% if briefing.conditions.weather.temp is not none %}, {% endif %}
+                wind {{ briefing.conditions.weather.wind }} mph{% if briefing.conditions.weather.wind_direction %} {{ briefing.conditions.weather.wind_direction }}{% endif %}
+                {% endif %}.
+            </p>
+            {% endif %}
             {% if briefing.conditions.weather.precip_chance is not none %}
             <p>Rain chance: {{ briefing.conditions.weather.precip_chance }}%.</p>
             {% endif %}

@@ -89,14 +89,24 @@
             {% if weather %}
             <div class="weather-widget field-weather">
                 <div class="weather-main">
-                    <div class="weather-icon">{{ weather.emoji }}</div>
-                    <div class="weather-temp">{{ weather.temp }} F</div>
+                    <div class="weather-icon">{{ weather.emoji if weather.emoji else 'Weather' }}</div>
+                    <div class="weather-temp">
+                        {% if weather.temp is not none %}
+                        {{ weather.temp }} F
+                        {% else %}
+                        Live weather
+                        {% endif %}
+                    </div>
                 </div>
                 <div class="weather-details">
-                    <div class="weather-condition">{{ weather.condition }}</div>
+                    <div class="weather-condition">{{ weather.condition if weather.condition else 'Weather unavailable' }}</div>
                     <div class="weather-meta">
+                        {% if weather.wind is not none %}
                         <span>Wind {{ weather.wind }} mph</span>
+                        {% endif %}
+                        {% if weather.timestamp %}
                         <span>Updated {{ weather.timestamp }}</span>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -108,6 +118,17 @@
                 </button>
                 <div class="geolocate-status" id="status" role="status" aria-live="polite" aria-atomic="true">Allow location to sort the shortlist and full directory by distance.</div>
             </div>
+        </div>
+
+        <div class="field-command__utility">
+            <button
+                class="etiquette-trigger button button--subtle"
+                id="etiquette-trigger"
+                type="button"
+                aria-controls="field-etiquette-drawer"
+                aria-expanded="false">
+                Hunt rules
+            </button>
         </div>
     </div>
 </section>
@@ -224,15 +245,6 @@
         </div>
     </details>
 </section>
-
-<button
-    class="etiquette-trigger button button--subtle"
-    id="etiquette-trigger"
-    type="button"
-    aria-controls="field-etiquette-drawer"
-    aria-expanded="false">
-    Hunt rules
-</button>
 
 <div class="etiquette-backdrop" id="etiquette-backdrop" hidden></div>
 
