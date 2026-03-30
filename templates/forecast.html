@@ -420,9 +420,9 @@
             <h2>How current the read is</h2>
         </div>
         <div class="forecast-freshness">
-            <span>Forecast updated: {{ briefing.feature_freshness.artifact_generated_at or 'Unknown' }}</span>
-            <span>Live weather updated: {{ briefing.feature_freshness.weather_updated_at or 'Unavailable' }}</span>
-            <span>Live tide updated: {{ briefing.feature_freshness.tide_updated_at or 'Unavailable' }}</span>
+            <span>Forecast updated: {{ briefing.feature_freshness.artifact_generated_at|format_local_timestamp('Unknown') }}</span>
+            <span>Live weather updated: {{ briefing.feature_freshness.weather_updated_at|format_local_timestamp('Unavailable') }}</span>
+            <span>Live tide updated: {{ briefing.feature_freshness.tide_updated_at|format_local_timestamp('Unavailable') }}</span>
             <span>Historical weather added: {{ 'Yes' if briefing.feature_freshness.historical_weather_available else 'No' }}</span>
         </div>
     </section>

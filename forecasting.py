@@ -5,6 +5,7 @@ import math
 import sqlite3
 from collections import Counter, defaultdict
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -22,6 +23,10 @@ NWS_USER_AGENT = "(glassfloattracker.com, contact@glassfloattracker.com)"
 REFERENCE_NEW_MOON = dt.date(2000, 1, 6)
 SYNODIC_MONTH = 29.53058867
 DAY_KEYS = tuple(str(day) for day in range(1, 367))
+try:
+    BLOCK_ISLAND_TIMEZONE = ZoneInfo("America/New_York")
+except Exception:
+    BLOCK_ISLAND_TIMEZONE = dt.timezone.utc
 
 WATERFRONT_KEYWORDS = {
     "beach",
@@ -136,6 +141,14 @@ def parse_date(date_str: str | None) -> dt.datetime | None:
         except ValueError:
             continue
     return None
+
+
+def ensure_block_island_time(value: dt.datetime | None = None) -> dt.datetime:
+    if value is None:
+        return dt.datetime.now(BLOCK_ISLAND_TIMEZONE)
+    if value.tzinfo is None:
+        return value.replace(tzinfo=BLOCK_ISLAND_TIMEZONE)
+    return value.astimezone(BLOCK_ISLAND_TIMEZONE)
 
 
 def cyclical_day_distance(day_a: int, day_b: int, period: int = 366) -> int:
@@ -356,7 +369,7 @@ def fetch_live_weather_context(
     now: dt.datetime | None = None,
     request_get=requests.get,
 ) -> dict[str, Any] | None:
-    current_time = now or dt.datetime.now()
+    current_time = ensure_block_island_time(now)
 
     try:
         points_response = request_get(BLOCK_ISLAND_POINT_URL, headers=_nws_headers(), timeout=8)
@@ -423,6 +436,7 @@ def _fetch_tide_predictions_for_station(
     target_time: dt.datetime,
     request_get=requests.get,
 ) -> dict[str, Any] | None:
+    target_time = ensure_block_island_time(target_time)
     begin = (target_time - dt.timedelta(hours=12)).strftime("%Y%m%d %H:%M")
     end = (target_time + dt.timedelta(hours=18)).strftime("%Y%m%d %H:%M")
     hourly_params = {
@@ -453,7 +467,7 @@ def _fetch_tide_predictions_for_station(
     timeline = []
     for item in hourly_predictions:
         try:
-            ts = dt.datetime.strptime(item["t"], "%Y-%m-%d %H:%M")
+            ts = dt.datetime.strptime(item["t"], "%Y-%m-%d %H:%M").replace(tzinfo=BLOCK_ISLAND_TIMEZONE)
             height = float(item["v"])
         except (KeyError, TypeError, ValueError):
             continue
@@ -470,7 +484,7 @@ def _fetch_tide_predictions_for_station(
     nearest_event = None
     for item in hilo_predictions:
         try:
-            event_time = dt.datetime.strptime(item["t"], "%Y-%m-%d %H:%M")
+            event_time = dt.datetime.strptime(item["t"], "%Y-%m-%d %H:%M").replace(tzinfo=BLOCK_ISLAND_TIMEZONE)
             event_type = item.get("type", "")
             event_height = float(item["v"])
         except (KeyError, TypeError, ValueError):
@@ -502,7 +516,7 @@ def fetch_live_tide_context(
     target_time: dt.datetime | None = None,
     request_get=requests.get,
 ) -> dict[str, Any] | None:
-    current_time = target_time or dt.datetime.now()
+    current_time = ensure_block_island_time(target_time)
     for station_id in (PRIMARY_TIDE_STATION, FALLBACK_TIDE_STATION):
         context = _fetch_tide_predictions_for_station(station_id, target_time=current_time, request_get=request_get)
         if context:

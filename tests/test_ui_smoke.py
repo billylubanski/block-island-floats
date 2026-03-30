@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import copy
 import os
 import sqlite3
@@ -285,11 +286,16 @@ def chromium_browser():
 @pytest.fixture
 def ui_page(chromium_browser, live_ui_server):
     context = chromium_browser.new_context(viewport={"width": 1440, "height": 1600})
+    placeholder_gif = base64.b64decode("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==")
 
     def route_request(route):
         url = route.request.url
         if url.startswith(live_ui_server) or url.startswith("data:") or url == "about:blank":
             route.continue_()
+            return
+
+        if route.request.resource_type == "image":
+            route.fulfill(status=200, content_type="image/gif", body=placeholder_gif)
             return
 
         if url == "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css":
@@ -298,6 +304,10 @@ def ui_page(chromium_browser, live_ui_server):
 
         if url == "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js":
             route.fulfill(status=200, content_type="application/javascript", body="")
+            return
+
+        if url.startswith("https://fonts.googleapis.com/"):
+            route.fulfill(status=200, content_type="text/css", body="")
             return
 
         route.abort()
@@ -358,7 +368,7 @@ def test_forecast_page_hands_off_to_field_mode(live_ui_server, ui_page):
     page, errors = ui_page
 
     page.goto(f"{live_ui_server}/forecast", wait_until="domcontentloaded")
-    page.get_by_role("link", name="Open field view").first().click()
+    page.get_by_role("link", name="Open field view").first.click()
 
     assert page.url == f"{live_ui_server}/field"
     assert page.title() == "Find the best spots near you | Block Island Glass Floats"

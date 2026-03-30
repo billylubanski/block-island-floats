@@ -6,6 +6,7 @@ import sqlite3
 import os
 from collections import Counter, defaultdict
 from functools import lru_cache
+from zoneinfo import ZoneInfo
 from analyzer import normalize_location, analyze_dates, analyze_unreported_floats, get_year_recovery_stats
 from forecasting import (
     build_cluster_lookup,
@@ -25,6 +26,10 @@ APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 FIELD_ETIQUETTE_PATH = os.path.join(APP_ROOT, 'data', 'field_etiquette.json')
 FORECAST_ARTIFACT_PATH = os.path.join(APP_ROOT, 'generated', 'forecast_artifact.json')
 METRICS_DB_PATH = os.path.join(APP_ROOT, 'output', 'metrics.db')
+try:
+    DISPLAY_TIMEZONE = ZoneInfo(os.getenv('APP_TIMEZONE', 'America/New_York'))
+except Exception:
+    DISPLAY_TIMEZONE = datetime.timezone.utc
 ALLOWED_EVENT_NAMES = {'share_clicked', 'shared_location_view'}
 ALLOWED_SHARE_METHODS = {'native', 'copy'}
 OFFICIAL_LINKS = {
@@ -122,6 +127,34 @@ def load_forecast_artifact():
 
 def get_today():
     return datetime.date.today()
+
+
+def format_local_timestamp(value, missing='Unavailable'):
+    if value in (None, ''):
+        return missing
+
+    timestamp = value
+    if not isinstance(timestamp, datetime.datetime):
+        raw_value = str(timestamp).strip()
+        if not raw_value:
+            return missing
+        if raw_value.endswith('Z'):
+            raw_value = f'{raw_value[:-1]}+00:00'
+        try:
+            timestamp = datetime.datetime.fromisoformat(raw_value)
+        except ValueError:
+            return str(value)
+
+    if timestamp.tzinfo is None:
+        localized = timestamp.replace(tzinfo=DISPLAY_TIMEZONE)
+    else:
+        localized = timestamp.astimezone(DISPLAY_TIMEZONE)
+
+    time_label = localized.strftime('%I:%M %p').lstrip('0')
+    return f"{localized.strftime('%b')} {localized.day}, {localized.year} at {time_label} {localized.tzname()}"
+
+
+app.add_template_filter(format_local_timestamp, 'format_local_timestamp')
 
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME)

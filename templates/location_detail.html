@@ -127,12 +127,17 @@
 
     .gallery-item {
         position: relative;
+        display: block;
+        width: 100%;
+        padding: 0;
         overflow: hidden;
         aspect-ratio: 1;
         border: 1px solid rgba(193, 214, 203, 0.08);
         border-radius: 20px;
         cursor: pointer;
         background: rgba(255, 255, 255, 0.04);
+        color: inherit;
+        text-align: left;
     }
 
     .gallery-item img {
@@ -142,8 +147,16 @@
         transition: transform 0.3s ease;
     }
 
-    .gallery-item:hover img {
+    .gallery-item:hover img,
+    .gallery-item:focus-visible img {
         transform: scale(1.04);
+    }
+
+    .gallery-item:focus-visible,
+    .lightbox-close:focus-visible,
+    .lightbox-nav:focus-visible {
+        outline: 2px solid var(--accent-strong);
+        outline-offset: 3px;
     }
 
     .gallery-item__info {
@@ -398,12 +411,16 @@
     {% if featured_images %}
     <div class="gallery-grid">
         {% for image in featured_images %}
-        <div class="gallery-item" onclick="openLightbox({{ loop.index0 }})">
+        <button
+            class="gallery-item"
+            type="button"
+            data-lightbox-index="{{ loop.index0 }}"
+            aria-label="Open photo of {% if image.float_number %}float {{ image.float_number }}{% else %}an unknown float{% endif %}{% if image.year %} from {{ image.year }}{% endif %}">
             <img src="{{ image.url }}" alt="Float {{ image.float_number if image.float_number else 'unknown' }}" loading="lazy">
             <div class="gallery-item__info">
                 {{ image.year }}{% if image.float_number %} - #{{ image.float_number }}{% endif %}
             </div>
-        </div>
+        </button>
         {% endfor %}
     </div>
 
@@ -413,12 +430,16 @@
         <div class="details-panel__body">
             <div class="gallery-grid">
                 {% for image in extra_images %}
-                <div class="gallery-item" onclick="openLightbox({{ loop.index0 + featured_images|length }})">
+                <button
+                    class="gallery-item"
+                    type="button"
+                    data-lightbox-index="{{ loop.index0 + featured_images|length }}"
+                    aria-label="Open photo of {% if image.float_number %}float {{ image.float_number }}{% else %}an unknown float{% endif %}{% if image.year %} from {{ image.year }}{% endif %}">
                     <img src="{{ image.url }}" alt="Float {{ image.float_number if image.float_number else 'unknown' }}" loading="lazy">
                     <div class="gallery-item__info">
                         {{ image.year }}{% if image.float_number %} - #{{ image.float_number }}{% endif %}
                     </div>
-                </div>
+                </button>
                 {% endfor %}
             </div>
         </div>
@@ -487,10 +508,10 @@
     {% endif %}
 </section>
 
-<div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
-    <button class="lightbox-close" type="button" onclick="closeLightbox(event)">Close</button>
-    <button class="lightbox-nav lightbox-prev" type="button" onclick="navigateLightbox(-1, event)">Prev</button>
-    <button class="lightbox-nav lightbox-next" type="button" onclick="navigateLightbox(1, event)">Next</button>
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Location photo gallery" aria-hidden="true">
+    <button class="lightbox-close" id="lightbox-close" type="button">Close</button>
+    <button class="lightbox-nav lightbox-prev" id="lightbox-prev" type="button">Prev</button>
+    <button class="lightbox-nav lightbox-next" id="lightbox-next" type="button">Next</button>
     <div class="lightbox-content">
         <img id="lightbox-img" src="" alt="">
     </div>
@@ -507,29 +528,56 @@
     const shareButton = document.getElementById('share-location-button');
     const shareStatus = document.getElementById('share-status');
     const sharedRef = {{ shared_ref|tojson }};
+    const galleryButtons = Array.from(document.querySelectorAll('[data-lightbox-index]'));
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImage = document.getElementById('lightbox-img');
+    const lightboxClose = document.getElementById('lightbox-close');
+    const lightboxPrev = document.getElementById('lightbox-prev');
+    const lightboxNext = document.getElementById('lightbox-next');
     let shareStatusTimer = null;
+    let lastFocusedGalleryButton = null;
 
-    function openLightbox(index) {
-        currentIndex = index;
-        const lightbox = document.getElementById('lightbox');
-        const image = document.getElementById('lightbox-img');
-        image.src = images[index].url;
-        lightbox.classList.add('active');
-        document.body.style.overflow = 'hidden';
+    function buildLightboxAltText(image) {
+        if (!image) {
+            return '';
+        }
+        const floatLabel = image.float_number ? `Float ${image.float_number}` : 'Float photo';
+        return image.year ? `${floatLabel} from ${image.year}` : floatLabel;
     }
 
-    function closeLightbox(event) {
-        if (event.target.id === 'lightbox' || event.target.classList.contains('lightbox-close')) {
-            const lightbox = document.getElementById('lightbox');
-            lightbox.classList.remove('active');
-            document.body.style.overflow = '';
+    function openLightbox(index, trigger = null) {
+        if (!lightbox || !lightboxImage || !images[index]) {
+            return;
+        }
+        currentIndex = index;
+        lastFocusedGalleryButton = trigger;
+        lightboxImage.src = images[index].url;
+        lightboxImage.alt = buildLightboxAltText(images[index]);
+        lightbox.classList.add('active');
+        lightbox.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        lightboxClose?.focus();
+    }
+
+    function closeLightbox() {
+        if (!lightbox) {
+            return;
+        }
+        lightbox.classList.remove('active');
+        lightbox.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        if (lastFocusedGalleryButton) {
+            lastFocusedGalleryButton.focus();
         }
     }
 
-    function navigateLightbox(direction, event) {
-        event.stopPropagation();
+    function navigateLightbox(direction) {
+        if (!lightboxImage || !images.length) {
+            return;
+        }
         currentIndex = (currentIndex + direction + images.length) % images.length;
-        document.getElementById('lightbox-img').src = images[currentIndex].url;
+        lightboxImage.src = images[currentIndex].url;
+        lightboxImage.alt = buildLightboxAltText(images[currentIndex]);
     }
 
     function trackShareEvent(eventName, shareMethod = null) {
@@ -622,24 +670,50 @@
         });
     }
 
+    galleryButtons.forEach((button) => {
+        const index = Number.parseInt(button.dataset.lightboxIndex || '-1', 10);
+        if (index >= 0) {
+            button.addEventListener('click', () => {
+                openLightbox(index, button);
+            });
+        }
+    });
+
+    lightbox?.addEventListener('click', (event) => {
+        if (event.target === lightbox) {
+            closeLightbox();
+        }
+    });
+    lightboxClose?.addEventListener('click', () => closeLightbox());
+    lightboxPrev?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        navigateLightbox(-1);
+    });
+    lightboxNext?.addEventListener('click', (event) => {
+        event.stopPropagation();
+        navigateLightbox(1);
+    });
+
     if (sharedRef) {
         trackShareEvent('shared_location_view');
     }
 
     document.addEventListener('keydown', (event) => {
-        const lightbox = document.getElementById('lightbox');
-        if (!lightbox.classList.contains('active')) {
+        if (!lightbox || !lightbox.classList.contains('active')) {
             return;
         }
 
         if (event.key === 'Escape') {
-            closeLightbox({ target: lightbox });
+            event.preventDefault();
+            closeLightbox();
         }
         if (event.key === 'ArrowLeft') {
-            navigateLightbox(-1, event);
+            event.preventDefault();
+            navigateLightbox(-1);
         }
         if (event.key === 'ArrowRight') {
-            navigateLightbox(1, event);
+            event.preventDefault();
+            navigateLightbox(1);
         }
     });
 </script>

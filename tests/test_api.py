@@ -219,6 +219,8 @@ def test_index_route_renders_dashboard_controls(sample_db: Path, capture_templat
     assert "Hide controls" in text
     assert "Show hotspots" in text
     assert "Reset map" in text
+    assert 'aria-label="Open menu"' in text
+    assert ">Open menu<" in text
     assert "Season focus" in text
     assert "Floats still unreported" in text
     assert "Plan your Block Island glass float hunt with real find history" in text
@@ -276,6 +278,8 @@ def test_field_route_renders_json_backed_official_guidance(sample_db: Path, monk
     assert "Hunt rules" in text
     assert "Register your float so the official archive can attach your find" in text
     assert "Greenway trail guide" in text
+    assert 'role="status"' in text
+    assert 'aria-live="polite"' in text
     assert app_module.OFFICIAL_LINKS["register"] in text
     assert f'href="{app_module.OFFICIAL_LINKS["project"]}"' not in text
 
@@ -344,6 +348,11 @@ def test_location_detail_renders_recent_find_official_report_links(sample_db: Pa
     assert response.status_code == 200
     text = response.get_data(as_text=True)
     assert "Open official report" in text
+    assert 'class="gallery-item"' in text
+    assert 'data-lightbox-index="' in text
+    assert 'onclick="openLightbox' not in text
+    assert 'role="dialog"' in text
+    assert 'aria-modal="true"' in text
     assert app_module.OFFICIAL_LINKS["register"] in text
     assert "Newest posts first, with links back to the official report." in text
 
@@ -489,8 +498,18 @@ def test_forecast_route_renders_predictions_and_location_detail(
     assert "7.2/10" in text
     assert "Partly Cloudy" in text
     assert "9 mph" in text
+    assert "Forecast updated: Jul 1, 2026 at 4:00 AM EDT" in text
+    assert "Live weather updated: Jul 1, 2026 at 5:30 AM EDT" in text
+    assert "Live tide updated: Jul 1, 2026 at 5:15 AM EDT" in text
+    assert "2026-07-01T09:30:00Z" not in text
     assert "Primary spine" not in text
     assert "% probability" not in text
+
+
+def test_format_local_timestamp_handles_naive_and_aware_values():
+    assert app_module.format_local_timestamp("2026-07-01T09:30:00Z") == "Jul 1, 2026 at 5:30 AM EDT"
+    assert app_module.format_local_timestamp("2026-03-29T21:18:22.824388") == "Mar 29, 2026 at 9:18 PM EDT"
+    assert app_module.format_local_timestamp("", missing="Unknown") == "Unknown"
 
 
 def test_forecast_route_handles_empty_predictions(sample_db: Path, monkeypatch: pytest.MonkeyPatch):

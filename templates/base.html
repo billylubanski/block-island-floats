@@ -55,11 +55,11 @@
             <button
                 class="nav-toggle"
                 type="button"
-                aria-label="Open navigation"
+                aria-label="Open menu"
                 aria-expanded="false"
                 aria-controls="site-nav"
                 data-nav-toggle>
-                Menu
+                <span data-nav-toggle-label>Open menu</span>
             </button>
 
             <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
@@ -120,14 +120,19 @@
             const toggle = document.querySelector('[data-nav-toggle]');
             const nav = document.getElementById('site-nav');
             const header = document.querySelector('.site-header');
+            const toggleLabel = toggle ? toggle.querySelector('[data-nav-toggle-label]') : null;
 
             if (!toggle || !nav || !header) {
                 return;
             }
 
             const setOpen = (isOpen) => {
+                const nextLabel = isOpen ? 'Close menu' : 'Open menu';
                 toggle.setAttribute('aria-expanded', String(isOpen));
-                toggle.setAttribute('aria-label', isOpen ? 'Close navigation' : 'Open navigation');
+                toggle.setAttribute('aria-label', nextLabel);
+                if (toggleLabel) {
+                    toggleLabel.textContent = nextLabel;
+                }
                 document.body.classList.toggle('nav-open', isOpen);
             };
 
