@@ -8,6 +8,63 @@
 <script src="/static/field-mode.js" defer></script>
 {% endblock %}
 
+{% macro render_spot_card(spot, extra_class='') %}
+<article class="spot-card {{ extra_class }}" data-lat="{{ spot.lat }}" data-lon="{{ spot.lon }}">
+    <div class="spot-header">
+        <div class="spot-title">
+            <div class="spot-title__meta">
+                {% if spot.priority_label %}
+                <span class="pill pill--accent">{{ spot.priority_label }}</span>
+                {% endif %}
+                {% if spot.forecast_rank %}
+                <span class="pill">Forecast zone #{{ spot.forecast_rank }}</span>
+                {% endif %}
+            </div>
+            <h3 class="spot-name">
+                <a class="spot-name__link" href="{{ spot.location_href or url_for('location_detail', location_name=spot.name) }}">
+                    {{ spot.name }}
+                </a>
+            </h3>
+        </div>
+        <span class="spot-distance">--</span>
+    </div>
+
+    {% if spot.priority_reason %}
+    <p class="spot-note">{{ spot.priority_reason }}</p>
+    {% endif %}
+
+    {% if spot.priority_tags %}
+    <div class="spot-tags">
+        {% for tag in spot.priority_tags %}
+        <span class="pill">{{ tag }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="spot-stats">
+        <div class="spot-stat">{{ spot.count }} reports in the archive</div>
+        {% if spot.forecast_zone %}
+        <div class="spot-stat">Backup area for {{ spot.forecast_zone }}</div>
+        {% endif %}
+        {% if spot.support_summary %}
+        <div class="spot-stat">{{ spot.support_summary }}</div>
+        {% endif %}
+        {% if spot.supporting_spots %}
+        <div class="spot-stat">Keep nearby: {{ spot.supporting_spots|join(', ') }}</div>
+        {% endif %}
+    </div>
+
+    <div class="nav-buttons">
+        <a href="https://maps.google.com/?q={{ spot.lat }},{{ spot.lon }}" class="nav-btn" target="_blank" rel="noreferrer">
+            Google Maps
+        </a>
+        <a href="maps://?q={{ spot.lat }},{{ spot.lon }}" class="nav-btn">
+            Apple Maps
+        </a>
+    </div>
+</article>
+{% endmacro %}
+
 {% block page_intro %}
 <section class="field-command">
     <div class="surface field-command__shell">
@@ -49,7 +106,7 @@
                 <button class="button button--primary geolocate-btn" id="geolocate-btn" type="button">
                     Find my location
                 </button>
-                <div class="geolocate-status" id="status" role="status" aria-live="polite" aria-atomic="true">Allow location to sort the nearest hotspots.</div>
+                <div class="geolocate-status" id="status" role="status" aria-live="polite" aria-atomic="true">Allow location to sort the shortlist and full directory by distance.</div>
             </div>
         </div>
     </div>
@@ -57,11 +114,71 @@
 {% endblock %}
 
 {% block content %}
+{% if priority_tiers.best_bet %}
+<section class="surface field-forecast-strip">
+    <div class="section-heading field-forecast-strip__heading">
+        <span class="eyebrow">{{ priority_tiers.best_bet.priority_label }}</span>
+        <h2>{% if focused_route %}Start at{% else %}Start with{% endif %} {{ priority_tiers.best_bet.name }}</h2>
+        <p>The first screen now recommends a short next-stop list before the full directory appears.</p>
+    </div>
+
+    <div class="field-forecast-strip__grid">
+        <div class="field-forecast-strip__lead">
+            {% if forecast_briefing and forecast_briefing.zones %}
+            <div class="field-forecast-strip__meta">
+                <span class="pill pill--accent">{{ forecast_briefing.activity_label }} outlook</span>
+                <span class="pill">Strength: {{ forecast_briefing.confidence_band|capitalize }}</span>
+                {% for tag in forecast_briefing.zones[0].reason_tags %}
+                <span class="pill">{{ tag }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <div class="field-priority-stats" aria-label="Field recommendation summary">
+                <div class="field-priority-stat">
+                    <strong>1</strong>
+                    <span>lead stop up front</span>
+                </div>
+                <div class="field-priority-stat">
+                    <strong>{{ priority_tiers.closest_worthwhile|length }}</strong>
+                    <span>worthwhile backups</span>
+                </div>
+                <div class="field-priority-stat">
+                    <strong>{{ priority_tiers.directory_count }}</strong>
+                    <span>locations kept in the full directory</span>
+                </div>
+            </div>
+        </div>
+
+        {{ render_spot_card(priority_tiers.best_bet, ('spot-card--focus ' if focused_route else '') ~ 'spot-card--feature') }}
+    </div>
+</section>
+{% endif %}
+
+{% if priority_tiers.closest_worthwhile %}
+<section class="surface field-tier field-tier--worthwhile" id="field-worthwhile">
+    <div class="spots-header">
+        <div>
+            <span class="eyebrow">Closest worthwhile stops</span>
+            <h2>Keep a short backup list instead of scanning everything</h2>
+        </div>
+        <span class="spot-count">Use Find my location to reorder this tier</span>
+    </div>
+    <p class="field-tier__note">These stay close to the lead recommendation so a new user can tell where to go next without reading dozens of entries.</p>
+
+    <div class="spots-list" id="worthwhile-list" data-sortable-spots>
+        {% for spot in priority_tiers.closest_worthwhile %}
+        {{ render_spot_card(spot) }}
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
 <section class="surface field-map-panel">
     <div class="section-heading">
         <span class="eyebrow">Nearby map</span>
-        <h2>Check the map before you walk</h2>
-        <p>Once location is available, the closest mapped stops rise to the top.</p>
+        <h2>Check the map after you have the shortlist</h2>
+        <p>Once location is available, each tier and the full directory can be re-sorted by distance.</p>
     </div>
 
     <div id="field-map" aria-label="Map of common hunting spots"></div>
@@ -69,63 +186,43 @@
     <p class="field-last-updated">Last updated: {{ last_updated }}</p>
 </section>
 
-{% if forecast_briefing and forecast_briefing.zones %}
-<section class="surface field-forecast-strip">
-    <div class="section-heading" style="margin-bottom: 0;">
-        <span class="eyebrow">Today's first stop</span>
-        <h2>Best first stop: {{ forecast_briefing.zones[0].label }}</h2>
-        <p>Start here, then use nearby backup areas if access, weather, or crowds change the plan.</p>
+{% if priority_tiers.more_options %}
+<section class="surface field-tier field-tier--more-options" id="field-more-options">
+    <div class="spots-header">
+        <div>
+            <span class="eyebrow">More options</span>
+            <h2>Expand the search only after the shortlist runs cold</h2>
+        </div>
     </div>
-    <div class="field-forecast-strip__meta">
-        <span class="pill pill--accent">{{ forecast_briefing.activity_label }} outlook</span>
-        <span class="pill">Strength: {{ forecast_briefing.confidence_band|capitalize }}</span>
-        {% for tag in forecast_briefing.zones[0].reason_tags %}
-        <span class="pill">{{ tag }}</span>
+    <p class="field-tier__note">This keeps strong archive signal nearby without dropping you into the whole directory on the first screen.</p>
+
+    <div class="spots-list" id="more-options-list" data-sortable-spots>
+        {% for spot in priority_tiers.more_options %}
+        {{ render_spot_card(spot) }}
         {% endfor %}
     </div>
 </section>
 {% endif %}
 
-<section class="surface">
-    <div class="spots-header">
-        <div>
-            <span class="eyebrow">Nearby spots</span>
-            <h2>Compare the closest mapped stops</h2>
-        </div>
-        <span class="spot-count" id="spot-count">{{ hunting_spots|length }} mapped locations</span>
-    </div>
+<section class="surface field-directory" id="field-directory">
+    <details class="field-directory__details">
+        <summary class="field-directory__summary">
+            <div class="field-directory__summary-copy">
+                <span class="eyebrow">Full directory</span>
+                <strong>Open every mapped location</strong>
+                <span class="field-directory__summary-text">The complete list stays available, but it no longer sets the default hierarchy.</span>
+            </div>
+            <span class="spot-count" id="spot-count">{{ priority_tiers.directory_count }} mapped locations</span>
+        </summary>
 
-    <div class="loading" id="loading">Sorting nearby stops...</div>
+        <div class="loading" id="loading">Sorting mapped locations...</div>
 
-    <div id="spots-list" class="spots-list">
-        {% for spot in hunting_spots %}
-        <div class="spot-card" data-lat="{{ spot.lat }}" data-lon="{{ spot.lon }}">
-            <div class="spot-header">
-                <div class="spot-title">
-                    <h3 class="spot-name">{{ spot.name }}</h3>
-                    {% if spot.forecast_rank %}
-                    <span class="pill pill--accent">Forecast zone #{{ spot.forecast_rank }}</span>
-                    {% endif %}
-                </div>
-                <span class="spot-distance">--</span>
-            </div>
-            <div class="spot-stats">
-                <div class="spot-stat">{{ spot.count }} reports in the archive</div>
-                {% if spot.forecast_zone %}
-                <div class="spot-stat">Backup area for {{ spot.forecast_zone }}</div>
-                {% endif %}
-            </div>
-            <div class="nav-buttons">
-                <a href="https://maps.google.com/?q={{ spot.lat }},{{ spot.lon }}" class="nav-btn" target="_blank" rel="noreferrer">
-                    Google Maps
-                </a>
-                <a href="maps://?q={{ spot.lat }},{{ spot.lon }}" class="nav-btn">
-                    Apple Maps
-                </a>
-            </div>
+        <div id="spots-list" class="spots-list" data-sortable-spots>
+            {% for spot in hunting_spots %}
+            {{ render_spot_card(spot) }}
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
+    </details>
 </section>
 
 <button

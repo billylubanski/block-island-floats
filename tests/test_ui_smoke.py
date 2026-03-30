@@ -306,6 +306,10 @@ def ui_page(chromium_browser, live_ui_server):
             route.fulfill(status=200, content_type="application/javascript", body="")
             return
 
+        if url == "https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js":
+            route.fulfill(status=200, content_type="application/javascript", body="")
+            return
+
         if url.startswith("https://fonts.googleapis.com/"):
             route.fulfill(status=200, content_type="text/css", body="")
             return
@@ -317,11 +321,22 @@ def ui_page(chromium_browser, live_ui_server):
     page.set_default_timeout(10000)
 
     errors: list[str] = []
+
+    def record_console_error(message):
+        if message.type != "error":
+            return
+
+        if (
+            "Failed to find a valid digest in the 'integrity' attribute for resource "
+            "'https://unpkg.com/leaflet@1.9.4/dist/" in message.text
+        ):
+            return
+
+        errors.append(f"console:{message.type}:{message.text}")
+
     page.on(
         "console",
-        lambda message: errors.append(f"console:{message.type}:{message.text}")
-        if message.type == "error"
-        else None,
+        record_console_error,
     )
     page.on("pageerror", lambda error: errors.append(f"pageerror:{error}"))
 
@@ -338,6 +353,8 @@ def test_forecast_page_smoke_renders_zone_briefing(live_ui_server, ui_page):
 
     assert page.title() == "Where to start today | Block Island Glass Floats"
     assert page.locator("h1").inner_text() == "Where to start today"
+    assert page.locator(".forecast-priority__copy strong").inner_text() == "Start with Rodman's Hollow"
+    assert page.locator(".forecast-priority__summary").inner_text().strip() == "Recent reports support this zone."
     assert page.locator(".forecast-zone").count() == 2
     assert page.locator(".forecast-context-card h3").all_inner_texts() == [
         "Weather",
@@ -357,10 +374,70 @@ def test_forecast_page_smoke_renders_zone_briefing(live_ui_server, ui_page):
 
     body_text = page.locator("body").inner_text()
     assert "Where to go next if you want a backup" in body_text
-    assert "Why Rodman's Hollow is up front" in body_text
+    assert "Open location guide" in body_text
     assert "Why this stays a starting suggestion" in body_text
     assert "% probability" not in body_text
     assert "probability" not in body_text.lower()
+    assert errors == []
+
+
+def test_home_page_mobile_surfaces_recommended_start_above_fold(live_ui_server, ui_page):
+    page, errors = ui_page
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(live_ui_server, wait_until="domcontentloaded")
+
+    assert page.locator(".dashboard-decision__headline strong").inner_text() == "Begin at Rodman's Hollow"
+    assert page.locator(".dashboard-decision__summary").inner_text().strip() == "Recent reports support this zone."
+
+    fold_metrics = page.evaluate(
+        """
+        () => {
+            const title = document.querySelector('.dashboard-decision__headline strong');
+            const cta = document.querySelector('.dashboard-decision .button--primary');
+            const titleRect = title.getBoundingClientRect();
+            const ctaRect = cta.getBoundingClientRect();
+            return {
+                viewportHeight: window.innerHeight,
+                titleTop: titleRect.top,
+                ctaBottom: ctaRect.bottom,
+            };
+        }
+        """
+    )
+
+    assert fold_metrics["titleTop"] < fold_metrics["viewportHeight"]
+    assert fold_metrics["ctaBottom"] <= fold_metrics["viewportHeight"]
+    assert errors == []
+
+
+def test_forecast_page_mobile_surfaces_lead_reason_above_fold(live_ui_server, ui_page):
+    page, errors = ui_page
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(f"{live_ui_server}/forecast", wait_until="domcontentloaded")
+
+    assert page.locator(".forecast-priority__copy strong").inner_text() == "Start with Rodman's Hollow"
+    assert page.locator(".forecast-priority__summary").inner_text().strip() == "Recent reports support this zone."
+
+    fold_metrics = page.evaluate(
+        """
+        () => {
+            const summary = document.querySelector('.forecast-priority__summary');
+            const cta = document.querySelector('.forecast-priority .button--primary');
+            const summaryRect = summary.getBoundingClientRect();
+            const ctaRect = cta.getBoundingClientRect();
+            return {
+                viewportHeight: window.innerHeight,
+                summaryBottom: summaryRect.bottom,
+                ctaBottom: ctaRect.bottom,
+            };
+        }
+        """
+    )
+
+    assert fold_metrics["summaryBottom"] <= fold_metrics["viewportHeight"]
+    assert fold_metrics["ctaBottom"] <= fold_metrics["viewportHeight"]
     assert errors == []
 
 
@@ -373,20 +450,87 @@ def test_forecast_page_hands_off_to_field_mode(live_ui_server, ui_page):
     assert page.url == f"{live_ui_server}/field"
     assert page.title() == "Find the best spots near you | Block Island Glass Floats"
     assert page.locator("h1").inner_text() == "Find the best spots near you"
-    assert page.locator(".field-forecast-strip h2").inner_text() == "Best first stop: Rodman's Hollow"
+    assert page.locator(".field-forecast-strip h2").inner_text() == "Start with Rodman's Hollow"
     assert page.locator(".field-forecast-strip .pill").all_inner_texts() == [
         "Active outlook",
         "Strength: Low",
         "Strong july history",
         "Recent finds nearby",
+        "Best bet right now",
+        "Forecast zone #1",
     ]
 
-    spot_badges = page.locator(".spot-card .pill").all_inner_texts()
-    assert spot_badges == ["Forecast zone #1", "Forecast zone #2"]
+    assert page.get_by_role("heading", name="Keep a short backup list instead of scanning everything").is_visible()
+    worthwhile_badges = page.locator("#worthwhile-list .spot-card .pill").all_inner_texts()
+    assert worthwhile_badges == [
+        "Useful fallback",
+        "Forecast zone #2",
+        "Strong july history",
+        "Archive standout",
+    ]
 
-    support_stats = page.locator(".spot-stat").all_inner_texts()
+    support_stats = page.locator(".field-forecast-strip .spot-stat").all_inner_texts()
     assert "Backup area for Rodman's Hollow" in support_stats
-    assert "Backup area for Clay Head Trail" in support_stats
+    assert page.locator(".field-directory__summary").inner_text().count("3 mapped locations") == 1
+    assert errors == []
+
+
+def test_field_page_mobile_hunt_rules_button_stays_clear_of_navigation_actions(live_ui_server, ui_page):
+    page, errors = ui_page
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(f"{live_ui_server}/field", wait_until="domcontentloaded")
+
+    scroll_positions = page.evaluate(
+        """
+        () => {
+            const root = document.documentElement;
+            const maxScroll = Math.max(root.scrollHeight - window.innerHeight, 0);
+            return [...new Set([0, Math.floor(maxScroll * 0.33), Math.floor(maxScroll * 0.66), maxScroll])];
+        }
+        """
+    )
+
+    for scroll_y in scroll_positions:
+        page.evaluate("(value) => window.scrollTo(0, value)", scroll_y)
+        page.wait_for_timeout(50)
+        overlaps = page.evaluate(
+            """
+            () => {
+                const trigger = document.getElementById('etiquette-trigger');
+                if (!trigger) {
+                    return [];
+                }
+
+                const triggerRect = trigger.getBoundingClientRect();
+                return Array.from(document.querySelectorAll('.nav-btn'))
+                    .map((button) => {
+                        const rect = button.getBoundingClientRect();
+                        const isVisible = rect.bottom > 0 && rect.top < window.innerHeight;
+                        if (!isVisible) {
+                            return null;
+                        }
+
+                        const intersects = !(
+                            rect.right <= triggerRect.left
+                            || rect.left >= triggerRect.right
+                            || rect.bottom <= triggerRect.top
+                            || rect.top >= triggerRect.bottom
+                        );
+
+                        return intersects ? button.textContent.trim() : null;
+                    })
+                    .filter(Boolean);
+            }
+            """
+        )
+        assert overlaps == []
+
+    page.get_by_role("button", name="Hunt rules").click()
+    drawer = page.locator("#field-etiquette-drawer")
+    assert drawer.get_attribute("aria-hidden") == "false"
+    page.get_by_role("button", name="Close etiquette panel").click()
+    assert drawer.get_attribute("aria-hidden") == "true"
     assert errors == []
 
 
@@ -419,8 +563,12 @@ def test_location_page_share_button_uses_native_share(live_ui_server, ui_page):
     assert share_status.inner_text() == "Shared"
     assert page.evaluate("window.__shareCalls") == [
         {
-            "title": "Rodman's Hollow | Block Island Glass Floats",
-            "text": "Rodman's Hollow has 2 reported finds across 2 seasons. Spot brief:",
+            "title": "Rodman's Hollow outing card",
+            "text": (
+                "Rodman's Hollow outing card: steady archive signal with 2 reported finds across 2 seasons. "
+                "Latest dated report: 2025-07-10. Backup stops: Clay Head Trail and "
+                "Hodge Family Wildlife Preserve."
+            ),
             "url": f"{live_ui_server}/location/Rodman's%20Hollow?ref=share",
         }
     ]

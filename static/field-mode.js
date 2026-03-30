@@ -5,7 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingEl = document.getElementById('loading');
     const spotCountEl = document.getElementById('spot-count');
     const spotCards = Array.from(document.querySelectorAll('.spot-card'));
-    const spotsList = document.getElementById('spots-list');
+    const sortableLists = Array.from(document.querySelectorAll('[data-sortable-spots]'));
+    const directoryList = document.getElementById('spots-list');
     const geolocateBtn = document.getElementById('geolocate-btn');
     const drawer = document.getElementById('field-etiquette-drawer');
     const backdrop = document.getElementById('etiquette-backdrop');
@@ -103,15 +104,18 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const sortByDistance = () => {
-        const sortedCards = [...spotCards].sort((a, b) => {
-            const distA = Number.parseFloat(a.dataset.distance || '999');
-            const distB = Number.parseFloat(b.dataset.distance || '999');
-            return distA - distB;
+        sortableLists.forEach((list) => {
+            const sortedCards = Array.from(list.querySelectorAll('.spot-card')).sort((a, b) => {
+                const distA = Number.parseFloat(a.dataset.distance || '999');
+                const distB = Number.parseFloat(b.dataset.distance || '999');
+                return distA - distB;
+            });
+
+            sortedCards.forEach((card) => list.appendChild(card));
         });
 
-        sortedCards.forEach((card) => spotsList.appendChild(card));
-        if (spotCountEl) {
-            spotCountEl.textContent = `${sortedCards.length} locations (sorted by distance)`;
+        if (spotCountEl && directoryList) {
+            spotCountEl.textContent = `${directoryList.querySelectorAll('.spot-card').length} mapped locations (sorted by distance)`;
         }
     };
 
@@ -129,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 userLat = position.coords.latitude;
                 userLon = position.coords.longitude;
 
-                statusEl.textContent = `Location found. Showing ${spotCards.length} nearby spots.`;
+                statusEl.textContent = 'Location found. Shortlist and full directory sorted by distance.';
 
                 if (map) {
                     if (userLayer) {

@@ -204,7 +204,13 @@ def sample_forecast_briefing() -> dict[str, object]:
     }
 
 
-def test_index_route_renders_dashboard_controls(sample_db: Path, capture_templates):
+def test_index_route_renders_dashboard_controls(
+    sample_db: Path,
+    capture_templates,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setattr(app_module, "build_daily_forecast_briefing", lambda target_date=None: sample_forecast_briefing())
+
     with app_module.app.test_client() as client:
         response = client.get("/?year=2025")
 
@@ -223,6 +229,9 @@ def test_index_route_renders_dashboard_controls(sample_db: Path, capture_templat
     assert ">Open menu<" in text
     assert "Season focus" in text
     assert "Floats still unreported" in text
+    assert "Start here now" in text
+    assert "Begin at Rodman&#39;s Hollow" in text
+    assert "See why it leads" in text
     assert "Plan your Block Island glass float hunt with real find history" in text
     assert 'name="description"' in text
 
@@ -231,6 +240,7 @@ def test_index_route_renders_dashboard_controls(sample_db: Path, capture_templat
     assert context["still_out_there"] == 1
     assert context["total_finds"] == 2
     assert context["dashboard_map"]["cluster_count"] >= 1
+    assert context["lead_zone"]["label"] == "Rodman's Hollow"
 
 
 def test_about_route_renders_project_copy():
@@ -278,10 +288,35 @@ def test_field_route_renders_json_backed_official_guidance(sample_db: Path, monk
     assert "Hunt rules" in text
     assert "Register your float so the official archive can attach your find" in text
     assert "Greenway trail guide" in text
+    assert "Best bet right now" in text
+    assert "Closest worthwhile stops" in text
+    assert "Open every mapped location" in text
     assert 'role="status"' in text
     assert 'aria-live="polite"' in text
     assert app_module.OFFICIAL_LINKS["register"] in text
     assert f'href="{app_module.OFFICIAL_LINKS["project"]}"' not in text
+
+
+def test_field_route_renders_focused_share_handoff(
+    sample_db: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capture_templates,
+):
+    monkeypatch.setattr(app_module, "get_weather_data", lambda: None)
+    monkeypatch.setattr(app_module, "build_daily_forecast_briefing", lambda target_date=None: sample_forecast_briefing())
+    encoded_location = quote("Rodman's Hollow", safe="")
+
+    with app_module.app.test_client() as client:
+        response = client.get(f"/field?focus={encoded_location}")
+
+    assert response.status_code == 200
+
+    _, context = capture_templates[-1]
+    assert context["focused_route"]["name"] == "Rodman's Hollow"
+    assert context["focused_route"]["backup_stops"][0]["name"] == "Clay Head Trail"
+    assert context["focused_route"]["summary"].startswith("Shared from a location page.")
+    assert context["priority_tiers"]["best_bet"]["priority_label"] == "Shared route start"
+    assert context["priority_tiers"]["best_bet"]["support_summary"] == "1 mapped backup stops were carried over from the shared route."
 
 
 def test_field_route_renders_fallback_guidance_payload(sample_db: Path, monkeypatch: pytest.MonkeyPatch):
@@ -297,6 +332,7 @@ def test_field_route_renders_fallback_guidance_payload(sample_db: Path, monkeypa
     assert "Hunt rules" in text
     assert "Leave no trace" in text
     assert "Register floats" in text
+    assert "Full directory" in text
 
 
 def test_search_route_includes_official_report_links(sample_db: Path):
@@ -306,10 +342,29 @@ def test_search_route_includes_official_report_links(sample_db: Path):
     assert response.status_code == 200
     text = response.get_data(as_text=True)
     assert text.count("Showing up to 50 matches from public finder posts.") == 1
-    assert "Open location guide" in text
-    assert "Open official report" in text
+    assert text.count("Open location guide") == 2
+    assert text.count("Open official report") == 3
+    assert "Show 2 matching reports" in text
     assert "Register Floats" in text
     assert "https://example.com/find/2025-1" in text
+
+
+def test_search_route_groups_normalized_location_matches(sample_db: Path, capture_templates):
+    with app_module.app.test_client() as client:
+        response = client.get("/search?q=Rodman's Hollow")
+
+    assert response.status_code == 200
+    _, context = capture_templates[-1]
+    assert context["result_count"] == 2
+    assert context["grouped_result_count"] == 1
+    assert context["ungrouped_results"] == []
+    assert context["grouped_results"][0]["location_name"] == "Rodman's Hollow"
+    assert context["grouped_results"][0]["report_count"] == 2
+
+    text = response.get_data(as_text=True)
+    assert text.count("Open location guide") == 1
+    assert text.count("Open official report") == 2
+    assert "Show 2 matching reports" in text
 
 
 def test_search_route_hides_official_report_link_when_url_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -366,23 +421,42 @@ def test_location_detail_builds_share_payload_and_meta(sample_db: Path, capture_
     assert response.status_code == 200
     text = response.get_data(as_text=True)
     assert "Share this spot" in text
+    assert "Copy outing card" in text
+    assert "Mini route" in text
     assert 'property="og:description"' in text
+    assert 'property="og:image:alt" content="Archive photo from Rodman&#39;s Hollow"' in text
     assert 'property="og:image" content="https://cdn.example.com/2025-1.jpg"' in text
     assert 'property="og:url"' in text
+    assert 'rel="canonical" href="http://localhost/location/Rodman&#39;s%20Hollow"' in text
 
     _, context = capture_templates[-1]
     assert context["share_payload"] == {
+        "title": "Rodman's Hollow outing card",
         "share_url": "http://localhost/location/Rodman's%20Hollow?ref=share",
-        "share_text": "Rodman's Hollow has 2 reported finds across 2 seasons. Spot brief:",
+        "share_text": (
+            "Rodman's Hollow outing card: steady archive signal with 2 reported finds across 2 seasons. "
+            "Latest dated report: 2025-07-10. Backup stop: Clay Head Trail."
+        ),
+        "copy_text": (
+            "Rodman's Hollow outing card: steady archive signal with 2 reported finds across 2 seasons. "
+            "Latest dated report: 2025-07-10. Backup stop: Clay Head Trail.\n"
+            "http://localhost/location/Rodman's%20Hollow?ref=share\n"
+            "Focused field view: http://localhost/field?focus=Rodman's+Hollow"
+        ),
         "location_name": "Rodman's Hollow",
     }
     assert context["shared_ref"] is False
     assert context["page_meta"]["description"] == (
-        "Rodman's Hollow has 2 reported finds across 2 seasons. Spot brief: "
-        "Latest dated report: 2025-07-10."
+        "Rodman's Hollow outing card: steady archive signal with 2 reported finds across 2 seasons. "
+        "Latest dated report: 2025-07-10. Backup stop: Clay Head Trail."
     )
     assert context["page_meta"]["image"] == "https://cdn.example.com/2025-1.jpg"
+    assert context["page_meta"]["meta_title"] == "Rodman's Hollow outing card"
+    assert context["page_meta"]["image_alt"] == "Archive photo from Rodman's Hollow"
     assert context["page_meta"]["url"] == "http://localhost/location/Rodman's%20Hollow"
+    assert context["outing_card"]["badge_label"] == "Steady archive signal"
+    assert context["outing_card"]["backup_stops"][0]["name"] == "Clay Head Trail"
+    assert context["outing_card"]["field_href"] == "/field?focus=Rodman's+Hollow"
 
 
 def test_location_detail_renders_shared_banner_for_share_ref(sample_db: Path, capture_templates):
@@ -491,6 +565,8 @@ def test_forecast_route_renders_predictions_and_location_detail(
 
     text = response.get_data(as_text=True)
     assert "Where to start today" in text
+    assert "Start with Rodman&#39;s Hollow" in text
+    assert "Open location guide" in text
     assert "Where to go next if you want a backup" in text
     assert text.count("Use this as a starting suggestion, then confirm with access and conditions on the ground.") == 1
     assert "Why this stays a starting suggestion" in text

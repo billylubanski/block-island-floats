@@ -72,10 +72,66 @@
     gap: 1rem;
 }
 
+.field-forecast-strip__heading {
+    margin-bottom: 0;
+}
+
 .field-forecast-strip__meta {
     display: flex;
     gap: 0.6rem;
     flex-wrap: wrap;
+}
+
+.field-forecast-strip__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.field-forecast-strip__lead {
+    display: grid;
+    gap: 1rem;
+}
+
+.field-priority-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 0.85rem;
+}
+
+.field-priority-stat {
+    display: grid;
+    gap: 0.25rem;
+    padding: 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(193, 214, 203, 0.08);
+}
+
+.field-priority-stat strong {
+    font-size: 1.8rem;
+    line-height: 1;
+}
+
+.field-priority-stat span {
+    color: var(--text-2);
+    line-height: 1.5;
+}
+
+.field-focus-strip {
+    display: grid;
+    gap: 1rem;
+}
+
+.field-focus-strip__meta {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.field-focus-strip__meta a {
+    text-decoration: none;
 }
 
 #field-map {
@@ -125,6 +181,14 @@
     margin: 0.4rem 0 0;
 }
 
+.spots-header__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
 .spot-count {
     color: var(--text-2);
     font-size: 0.92rem;
@@ -137,6 +201,17 @@
     gap: 0.9rem;
 }
 
+.field-tier {
+    display: grid;
+    gap: 1rem;
+}
+
+.field-tier__note {
+    margin: 0;
+    color: var(--text-2);
+    line-height: 1.7;
+}
+
 .spot-card {
     display: grid;
     gap: 0.85rem;
@@ -144,6 +219,20 @@
     border-radius: 18px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(193, 214, 203, 0.08);
+}
+
+.spot-card--feature {
+    padding: 1.15rem;
+    background:
+        linear-gradient(180deg, rgba(121, 208, 180, 0.12), rgba(255, 255, 255, 0.03)),
+        rgba(255, 255, 255, 0.03);
+    border-color: rgba(121, 208, 180, 0.18);
+}
+
+.spot-card--focus {
+    background: linear-gradient(180deg, rgba(121, 208, 180, 0.12), rgba(255, 255, 255, 0.04));
+    border-color: rgba(121, 208, 180, 0.28);
+    box-shadow: inset 0 0 0 1px rgba(121, 208, 180, 0.08);
 }
 
 .spot-header {
@@ -158,10 +247,26 @@
     gap: 0.45rem;
 }
 
+.spot-title__meta {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+
 .spot-name {
     margin: 0;
     font-size: 1.05rem;
     line-height: 1.3;
+}
+
+.spot-name__link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.spot-name__link:hover,
+.spot-name__link:focus-visible {
+    text-decoration: underline;
 }
 
 .spot-distance {
@@ -169,6 +274,18 @@
     color: var(--accent-strong);
     font-size: 0.9rem;
     font-weight: 800;
+}
+
+.spot-note {
+    margin: 0;
+    color: var(--text-1);
+    line-height: 1.6;
+}
+
+.spot-tags {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
 }
 
 .spot-stats {
@@ -218,6 +335,39 @@
     margin: 0;
     color: var(--text-3);
     font-size: 0.88rem;
+}
+
+.field-directory__details {
+    display: grid;
+    gap: 1rem;
+}
+
+.field-directory__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    cursor: pointer;
+    list-style: none;
+}
+
+.field-directory__summary::-webkit-details-marker {
+    display: none;
+}
+
+.field-directory__summary-copy {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.field-directory__summary-copy strong {
+    font-size: 1.05rem;
+}
+
+.field-directory__summary-text {
+    color: var(--text-2);
+    line-height: 1.6;
 }
 
 .etiquette-trigger {
@@ -379,11 +529,29 @@ body.field-drawer-open {
     .field-command__meta {
         grid-template-columns: 1fr;
     }
+
+    .field-forecast-strip__grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 760px) {
     #field-map {
         height: 20rem;
+    }
+
+    .spots-header {
+        align-items: stretch;
+    }
+
+    .spots-header__actions {
+        display: grid;
+        width: 100%;
+        justify-items: start;
+    }
+
+    .field-directory__summary {
+        align-items: flex-start;
     }
 
     .etiquette-header {
@@ -395,7 +563,12 @@ body.field-drawer-open {
     }
 
     .etiquette-trigger {
-        left: 1rem;
-        right: 1rem;
+        position: static;
+        left: auto;
+        right: auto;
+        bottom: auto;
+        width: 100%;
+        justify-content: center;
+        box-shadow: none;
     }
 }

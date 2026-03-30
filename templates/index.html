@@ -40,6 +40,55 @@
         gap: 1rem;
     }
 
+    .dashboard-decision {
+        display: grid;
+        gap: 0.9rem;
+        padding: 1.15rem;
+        border-radius: 24px;
+        background:
+            linear-gradient(135deg, rgba(234, 223, 207, 0.14), rgba(121, 208, 180, 0.14)),
+            rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(121, 208, 180, 0.18);
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+    }
+
+    .dashboard-decision__headline {
+        display: grid;
+        gap: 0.35rem;
+    }
+
+    .dashboard-decision__headline strong {
+        font-size: clamp(1.45rem, 4vw, 1.9rem);
+        line-height: 1.05;
+    }
+
+    .dashboard-decision__headline span {
+        color: var(--text-2);
+    }
+
+    .dashboard-decision__summary,
+    .dashboard-decision__support {
+        margin: 0;
+        line-height: 1.6;
+    }
+
+    .dashboard-decision__summary {
+        color: var(--text-1);
+    }
+
+    .dashboard-decision__support {
+        color: var(--text-2);
+        font-size: 0.92rem;
+    }
+
+    .dashboard-decision__meta,
+    .dashboard-decision__actions {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+    }
+
     .dashboard-copy__actions {
         display: flex;
         align-items: center;
@@ -647,6 +696,34 @@
     }
 
     @media (max-width: 760px) {
+        .dashboard-stage__intro {
+            gap: 1rem;
+            padding-top: 0;
+        }
+
+        .dashboard-stage__intro h1 {
+            font-size: clamp(2.3rem, 10vw, 3.2rem);
+        }
+
+        .dashboard-copy {
+            gap: 0.85rem;
+        }
+
+        .dashboard-copy__actions,
+        .dashboard-decision__actions {
+            align-items: stretch;
+        }
+
+        .dashboard-copy__actions .button,
+        .dashboard-decision__actions .button {
+            flex: 1 1 100%;
+        }
+
+        .dashboard-decision,
+        .hero-metric {
+            padding: 1rem;
+        }
+
         .rank-row,
         .season-row,
         .recovery-row {
@@ -719,13 +796,42 @@
         <div class="dashboard-copy">
             <p class="page-kicker">{{ page_meta.kicker }}</p>
             <h1>{{ page_meta.title }}</h1>
+            {% if lead_zone %}
+            <article class="dashboard-decision" aria-label="Today's recommended starting move">
+                <div class="dashboard-decision__headline">
+                    <span class="eyebrow">Start here now</span>
+                    <strong>Begin at {{ lead_zone.label }}</strong>
+                    <span>{{ forecast_briefing.activity_label }} outlook for today&#39;s first stop.</span>
+                </div>
+                <p class="dashboard-decision__summary">
+                    {% if lead_zone.reason_texts %}
+                    {{ lead_zone.reason_texts[0] }}
+                    {% elif lead_zone.reason_tags %}
+                    {{ lead_zone.reason_tags[0] }} is pushing this area ahead of the backups today.
+                    {% else %}
+                    This area has the clearest mix of archive history and today&#39;s live conditions.
+                    {% endif %}
+                </p>
+                <div class="dashboard-decision__meta">
+                    <span class="pill pill--accent">Today&#39;s first stop</span>
+                    <span class="pill">Strength: {{ forecast_briefing.confidence_band|capitalize }}</span>
+                    {% for tag in lead_zone.reason_tags[:2] %}
+                    <span class="pill">{{ tag }}</span>
+                    {% endfor %}
+                </div>
+                <p class="dashboard-decision__support">
+                    {{ lead_zone.dated_support_count }} dated finds across {{ lead_zone.actual_years|length }} seasons keep it in front.
+                </p>
+                <div class="dashboard-decision__actions">
+                    <a class="button button--primary" href="{{ lead_zone.field_href }}">Open field view</a>
+                    <a class="button button--ghost" href="{{ url_for('forecast') }}">See why it leads</a>
+                </div>
+            </article>
+            {% endif %}
             <p class="lead">{{ page_meta.subtitle }}</p>
             <div class="dashboard-copy__actions">
                 <a class="button button--primary" href="{{ page_meta.primary_cta.href }}">
                     {{ page_meta.primary_cta.label }}
-                </a>
-                <a class="button button--ghost" href="{{ url_for('field_mode') }}">
-                    Open field view
                 </a>
             </div>
         </div>
@@ -738,7 +844,11 @@
             </p>
             <p class="hero-note">
                 {% if primary_location %}
+                {% if lead_zone %}
+                Strongest archive area: <strong>{{ primary_location.name }}</strong>.
+                {% else %}
                 Most active starting area: <strong>{{ primary_location.name }}</strong>.
+                {% endif %}
                 {% else %}
                 Use the map to narrow your first loop.
                 {% endif %}

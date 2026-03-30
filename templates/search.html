@@ -110,6 +110,70 @@
         font-weight: 800;
     }
 
+    .report-stack {
+        display: grid;
+        gap: 0.85rem;
+        padding-top: 0.1rem;
+        border-top: 1px solid rgba(193, 214, 203, 0.08);
+    }
+
+    .report-stack summary {
+        cursor: pointer;
+        font-weight: 800;
+        color: var(--text-0);
+    }
+
+    .report-stack summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .report-stack__list {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .report-row {
+        display: grid;
+        gap: 0.75rem;
+        padding: 0.9rem 0.95rem;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid rgba(193, 214, 203, 0.08);
+    }
+
+    .report-row__meta {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .report-row__summary {
+        margin: 0;
+        color: var(--text-1);
+        line-height: 1.6;
+    }
+
+    .report-row__footer {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        color: var(--text-2);
+        font-size: 0.92rem;
+    }
+
+    .report-row__footer a {
+        color: var(--accent-strong);
+        text-decoration: none;
+        font-weight: 800;
+    }
+
+    .results-subsection {
+        margin-top: 1.5rem;
+    }
+
     .result-callout {
         margin: 1rem 0 0;
         padding: 1rem 1.05rem;
@@ -180,51 +244,146 @@
         <div class="section-heading" style="margin-bottom: 0;">
             <span class="eyebrow">Results</span>
             <h2>{{ result_count }} match{{ '' if result_count == 1 else 'es' }} for "{{ query }}"</h2>
-            <p>Open a location page for the full place history, or jump to the original report for the finder story.</p>
+            <p>
+                {% if grouped_results %}
+                Grouped into {{ grouped_result_count }} destination{{ '' if grouped_result_count == 1 else 's' }} first, so each location guide CTA appears once before the underlying reports.
+                {% else %}
+                Open the official report for the original finder story.
+                {% endif %}
+            </p>
         </div>
         <a class="button button--ghost" href="{{ url_for('search') }}">
             Clear search
         </a>
     </div>
 
-    {% if results %}
+    {% if grouped_results or ungrouped_results %}
+    {% if grouped_results %}
     <div class="result-list">
-        {% for row in results %}
+        {% for group in grouped_results %}
         <article class="result-card">
             <div class="result-card__meta">
-                <span class="pill pill--accent">{{ row['year'] }}</span>
+                <span class="pill pill--accent">{{ group['latest_report']['year'] }}</span>
                 <span class="pill">
-                    Float #{{ row['float_number'] if row['float_number'] else 'Unknown' }}
+                    {{ group['report_count'] }} matching report{{ '' if group['report_count'] == 1 else 's' }}
                 </span>
             </div>
 
-            <h3>{{ row['location_name'] }}</h3>
+            <h3>{{ group['location_name'] }}</h3>
             <p class="result-card__summary">
-                <strong>{{ row['finder'] }}</strong> reported a float here. Open the location guide for the broader pattern, or the official report for the original post.
+                <strong>{{ group['report_count'] }}</strong> archive report{{ '' if group['report_count'] == 1 else 's' }} match this search.
+                {% if group['latest_report']['date_found'] %}
+                Latest dated post: <strong>{{ group['latest_report']['date_found'] }}</strong>.
+                {% endif %}
+                {% if group['recent_finders'] %}
+                Recent finder{{ '' if group['recent_finders']|length == 1 else 's' }}:
+                <strong>{{ group['recent_finders']|join(', ') }}</strong>.
+                {% endif %}
             </p>
 
             <div class="result-card__footer">
                 <span>
-                    {% if row['location_raw'] and row['location_raw'] != row['location_name'] %}
-                    Source text: {{ row['location_raw'] }}
-                    {% else %}
-                    Normalized from the reporting archive.
-                    {% endif %}
+                    Open the location guide for the broader place pattern, then drill into the matching report{{ '' if group['report_count'] == 1 else 's' }} only if you need the individual posts.
                 </span>
                 <div class="result-card__actions">
-                    <a href="{{ url_for('location_detail', location_name=row['location_name']) }}">
+                    <a href="{{ url_for('location_detail', location_name=group['location_name']) }}">
                         Open location guide
                     </a>
-                    {% if row['report_url'] %}
-                    <a href="{{ row['report_url'] }}" target="_blank" rel="noreferrer">
+                    {% if group['report_count'] == 1 and group['latest_report']['report_url'] %}
+                    <a href="{{ group['latest_report']['report_url'] }}" target="_blank" rel="noreferrer">
                         Open official report
                     </a>
                     {% endif %}
                 </div>
             </div>
+
+            {% if group['report_count'] > 1 %}
+            <details class="report-stack">
+                <summary>Show {{ group['report_count'] }} matching reports</summary>
+                <div class="report-stack__list">
+                    {% for row in group['reports'] %}
+                    <article class="report-row">
+                        <div class="report-row__meta">
+                            <span class="pill pill--accent">{{ row['year'] }}</span>
+                            <span class="pill">
+                                Float #{{ row['float_number'] if row['float_number'] else 'Unknown' }}
+                            </span>
+                        </div>
+                        <p class="report-row__summary">
+                            <strong>{{ row['finder'] }}</strong>
+                            {% if row['date_found'] %}
+                            reported this float on {{ row['date_found'] }}.
+                            {% else %}
+                            reported this float in {{ row['year'] }}.
+                            {% endif %}
+                        </p>
+                        <div class="report-row__footer">
+                            <span>
+                                {% if row['location_raw'] and row['location_raw'] != row['location_name'] %}
+                                Source text: {{ row['location_raw'] }}
+                                {% else %}
+                                Normalized from the reporting archive.
+                                {% endif %}
+                            </span>
+                            {% if row['report_url'] %}
+                            <a href="{{ row['report_url'] }}" target="_blank" rel="noreferrer">
+                                Open official report
+                            </a>
+                            {% endif %}
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </details>
+            {% endif %}
         </article>
         {% endfor %}
     </div>
+    {% endif %}
+
+    {% if ungrouped_results %}
+    <div class="results-subsection">
+        <div class="section-heading">
+            <span class="eyebrow">Raw reports</span>
+            <h3>Reports without a stable destination group</h3>
+            <p>These still matched your search, but they do not resolve cleanly to a single location guide.</p>
+        </div>
+        <div class="result-list">
+            {% for row in ungrouped_results %}
+            <article class="result-card">
+                <div class="result-card__meta">
+                    <span class="pill pill--accent">{{ row['year'] }}</span>
+                    <span class="pill">
+                        Float #{{ row['float_number'] if row['float_number'] else 'Unknown' }}
+                    </span>
+                </div>
+
+                <h3>{{ row['location_name'] }}</h3>
+                <p class="result-card__summary">
+                    <strong>{{ row['finder'] }}</strong> reported a float that matched your search, but the location text is too loose to collapse into one destination guide.
+                </p>
+
+                <div class="result-card__footer">
+                    <span>
+                        {% if row['location_raw'] %}
+                        Source text: {{ row['location_raw'] }}
+                        {% else %}
+                        No source location text was captured in the archive.
+                        {% endif %}
+                    </span>
+                    <div class="result-card__actions">
+                        {% if row['report_url'] %}
+                        <a href="{{ row['report_url'] }}" target="_blank" rel="noreferrer">
+                            Open official report
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
     <div class="result-callout">
         <p>Found your float? Use <a class="utility-link" href="{{ official_links.register }}" target="_blank" rel="noreferrer">Register Floats</a> to add or update the official story.</p>

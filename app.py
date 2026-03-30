@@ -4,6 +4,7 @@ import datetime
 import json
 import sqlite3
 import os
+import math
 from collections import Counter, defaultdict
 from functools import lru_cache
 from zoneinfo import ZoneInfo
@@ -204,6 +205,9 @@ def build_page_meta(
     description=None,
     url=None,
     image=None,
+    meta_title=None,
+    image_alt=None,
+    meta_type='website',
 ):
     page_meta = {
         'active_nav': active_nav,
@@ -212,6 +216,7 @@ def build_page_meta(
         'title': title,
         'subtitle': subtitle,
         'description': description or subtitle,
+        'meta_type': meta_type,
     }
     if primary_cta:
         page_meta['primary_cta'] = primary_cta
@@ -219,7 +224,107 @@ def build_page_meta(
         page_meta['url'] = url
     if image:
         page_meta['image'] = image
+    if meta_title:
+        page_meta['meta_title'] = meta_title
+    if image_alt:
+        page_meta['image_alt'] = image_alt
     return page_meta
+
+
+def join_label_list(labels):
+    cleaned = [str(label).strip() for label in labels if str(label).strip()]
+    if not cleaned:
+        return ''
+    if len(cleaned) == 1:
+        return cleaned[0]
+    if len(cleaned) == 2:
+        return f'{cleaned[0]} and {cleaned[1]}'
+    return f"{', '.join(cleaned[:-1])}, and {cleaned[-1]}"
+
+
+def calculate_distance_miles(lat1, lon1, lat2, lon2):
+    earth_radius_miles = 3959
+    d_lat = math.radians(lat2 - lat1)
+    d_lon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(d_lat / 2) ** 2
+        + math.cos(math.radians(lat1))
+        * math.cos(math.radians(lat2))
+        * math.sin(d_lon / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return earth_radius_miles * c
+
+
+def format_distance_label(distance_miles):
+    if distance_miles < 0.1:
+        return 'Under 0.1 mi away'
+    return f'{distance_miles:.1f} mi away'
+
+
+def build_archive_signal(total_finds, years_tracked):
+    if total_finds >= 12 or years_tracked >= 5:
+        return {
+            'badge_label': 'Strong archive signal',
+            'share_label': 'strong archive signal',
+            'summary': 'Repeated finds across the archive make this a friend-ready stop to start from.',
+        }
+    if total_finds >= 4 or years_tracked >= 2:
+        return {
+            'badge_label': 'Steady archive signal',
+            'share_label': 'steady archive signal',
+            'summary': 'More than one season has produced finds here, so the history is solid enough to plan around.',
+        }
+    return {
+        'badge_label': 'Light archive signal',
+        'share_label': 'light archive signal',
+        'summary': 'Archive support is thinner here, so it works better as part of a short backup route.',
+    }
+
+
+def build_search_result_groups(rows):
+    grouped_results = {}
+    ungrouped_results = []
+
+    for row in rows:
+        location_name = str(row['location_normalized'] or '').strip() or normalize_location(row['location_raw'])
+        display_row = {
+            'year': row['year'],
+            'float_number': row['float_number'],
+            'finder': row['finder'] or 'Unknown finder',
+            'location_name': location_name,
+            'location_raw': row['location_raw'],
+            'date_found': row['date_found'],
+            'report_url': row['url'],
+        }
+
+        if location_name and location_name != 'Other/Unknown':
+            group = grouped_results.setdefault(
+                location_name,
+                {
+                    'location_name': location_name,
+                    'latest_report': display_row,
+                    'recent_finders': [],
+                    'reports': [],
+                },
+            )
+            group['reports'].append(display_row)
+            if display_row['finder'] not in group['recent_finders']:
+                group['recent_finders'].append(display_row['finder'])
+        else:
+            ungrouped_results.append(display_row)
+
+    display_groups = []
+    for group in grouped_results.values():
+        display_groups.append({
+            'location_name': group['location_name'],
+            'latest_report': group['latest_report'],
+            'recent_finders': group['recent_finders'][:3],
+            'report_count': len(group['reports']),
+            'reports': group['reports'],
+        })
+
+    return display_groups, ungrouped_results
 
 
 def get_metrics_db_connection():
@@ -355,6 +460,269 @@ def build_mapped_spots(loc_counts):
         })
 
     return spots
+
+
+def build_field_priority_tiers(hunting_spots, briefing, focused_route=None):
+    if not hunting_spots:
+        return {
+            'best_bet': None,
+            'closest_worthwhile': [],
+            'more_options': [],
+            'directory_count': 0,
+        }
+
+    spot_lookup = {spot['name']: spot for spot in hunting_spots}
+    zones = briefing.get('zones', []) if briefing else []
+    zone_details_by_spot = {}
+
+    for rank, zone in enumerate(zones, start=1):
+        ordered_names = []
+        primary_name = zone.get('primary_spot') or zone.get('label')
+        if primary_name:
+            ordered_names.append(primary_name)
+        ordered_names.extend(
+            support.get('name')
+            for support in zone.get('supporting_spots', [])
+            if support.get('name')
+        )
+
+        seen_names = set()
+        for support_rank, name in enumerate(ordered_names):
+            if name in seen_names or name not in spot_lookup:
+                continue
+            seen_names.add(name)
+
+            existing = zone_details_by_spot.get(name)
+            if existing and existing['rank'] <= rank:
+                continue
+
+            zone_details_by_spot[name] = {
+                'rank': rank,
+                'support_rank': support_rank,
+                'zone_label': zone.get('label') or name,
+                'signal_label': zone.get('signal_label') or '',
+                'reason_text': next(
+                    (text for text in zone.get('reason_texts', []) if text),
+                    '',
+                ),
+                'reason_tags': [tag for tag in zone.get('reason_tags', []) if tag][:3],
+                'location_href': zone.get('location_href'),
+            }
+
+    def clone_spot(
+        name,
+        *,
+        priority_label='',
+        priority_reason='',
+        priority_tags=None,
+        location_href='',
+        support_summary='',
+        supporting_spots=None,
+    ):
+        base_spot = spot_lookup.get(name)
+        if not base_spot:
+            return None
+
+        cloned = dict(base_spot)
+        cloned['priority_label'] = priority_label
+        cloned['priority_reason'] = priority_reason
+        cloned['priority_tags'] = list(priority_tags or [])
+        cloned['location_href'] = (
+            location_href
+            or base_spot.get('location_href')
+            or url_for('location_detail', location_name=name)
+        )
+        cloned['support_summary'] = support_summary
+        cloned['supporting_spots'] = list(supporting_spots or [])
+        return cloned
+
+    featured_names = set()
+    worthwhile_names = []
+
+    def add_worthwhile(name):
+        if (
+            not name
+            or name in featured_names
+            or name in worthwhile_names
+            or name not in spot_lookup
+        ):
+            return
+        worthwhile_names.append(name)
+
+    best_bet = None
+
+    if focused_route and focused_route.get('name') in spot_lookup:
+        support_names = [
+            stop['name']
+            for stop in focused_route.get('backup_stops', [])
+            if stop.get('name') in spot_lookup and stop.get('name') != focused_route.get('name')
+        ]
+        best_bet = clone_spot(
+            focused_route['name'],
+            priority_label='Shared route start',
+            priority_reason=focused_route.get('summary')
+            or 'Shared from a location page so you can start with a known stop.',
+            support_summary=(
+                f"{len(support_names)} mapped backup stops were carried over from the shared route."
+                if support_names
+                else 'Sort the shortlist below by distance once you are moving.'
+            ),
+            supporting_spots=support_names[:3],
+        )
+        featured_names.add(focused_route['name'])
+        for name in support_names:
+            add_worthwhile(name)
+
+    if not best_bet:
+        lead_zone = zones[0] if zones else None
+        if lead_zone:
+            lead_name = lead_zone.get('primary_spot') or lead_zone.get('label')
+            lead_meta = zone_details_by_spot.get(lead_name, {})
+            support_names = []
+            for support in lead_zone.get('supporting_spots', []):
+                support_name = support.get('name')
+                if (
+                    support_name
+                    and support_name != lead_name
+                    and support_name in spot_lookup
+                    and support_name not in support_names
+                ):
+                    support_names.append(support_name)
+
+            best_bet = clone_spot(
+                lead_name,
+                priority_label='Best bet right now',
+                priority_reason=lead_meta.get('reason_text')
+                or 'Start here first, then widen the search only if this stop is blocked or quiet.',
+                priority_tags=[],
+                location_href=lead_meta.get('location_href'),
+                support_summary=(
+                    f"{len(support_names)} mapped backup stops sit behind the lead recommendation."
+                    if support_names
+                    else 'Use the shortlist below if access, crowds, or conditions change the plan.'
+                ),
+                supporting_spots=support_names[:3],
+            )
+            if best_bet:
+                featured_names.add(lead_name)
+
+        if not best_bet:
+            fallback_name = hunting_spots[0]['name']
+            best_bet = clone_spot(
+                fallback_name,
+                priority_label='Archive leader',
+                priority_reason='Start with the strongest signal in the archive, then widen the search only if needed.',
+                support_summary='Use the shortlist below to keep a few backups ready.',
+            )
+            featured_names.add(fallback_name)
+
+    for zone in zones[:3]:
+        add_worthwhile(zone.get('primary_spot') or zone.get('label'))
+        for support in zone.get('supporting_spots', []):
+            add_worthwhile(support.get('name'))
+
+    for spot in hunting_spots:
+        if len(worthwhile_names) >= 4:
+            break
+        add_worthwhile(spot['name'])
+
+    closest_worthwhile = []
+    for name in worthwhile_names[:4]:
+        zone_meta = zone_details_by_spot.get(name)
+        if zone_meta:
+            if zone_meta['support_rank'] == 0:
+                priority_label = zone_meta['signal_label'] or 'Forecast-backed stop'
+                priority_reason = zone_meta['reason_text'] or f"{zone_meta['zone_label']} stays on the short list."
+            else:
+                priority_label = 'Forecast-backed backup'
+                priority_reason = (
+                    f"Keep this ready if {zone_meta['zone_label']} is crowded, blocked, or not paying off."
+                )
+            priority_tags = zone_meta['reason_tags'][:1]
+            location_href = zone_meta.get('location_href')
+        else:
+            priority_label = 'Archive standout'
+            priority_reason = 'Strong archive signal without dropping straight into the full directory.'
+            priority_tags = []
+            location_href = ''
+
+        worthwhile_spot = clone_spot(
+            name,
+            priority_label=priority_label,
+            priority_reason=priority_reason,
+            priority_tags=priority_tags,
+            location_href=location_href,
+        )
+        if worthwhile_spot:
+            closest_worthwhile.append(worthwhile_spot)
+
+    excluded_names = featured_names.union(worthwhile_names)
+    more_options = []
+    for spot in hunting_spots:
+        if spot['name'] in excluded_names:
+            continue
+
+        zone_meta = zone_details_by_spot.get(spot['name'])
+        if zone_meta:
+            priority_label = f"Forecast zone #{zone_meta['rank']}"
+            priority_reason = f"Additional option tied to {zone_meta['zone_label']}."
+            priority_tags = zone_meta['reason_tags'][:1]
+            location_href = zone_meta.get('location_href')
+        else:
+            priority_label = 'Archive signal'
+            priority_reason = f"{spot['count']} reports in the archive."
+            priority_tags = []
+            location_href = ''
+
+        more_option = clone_spot(
+            spot['name'],
+            priority_label=priority_label,
+            priority_reason=priority_reason,
+            priority_tags=priority_tags,
+            location_href=location_href,
+        )
+        if more_option:
+            more_options.append(more_option)
+        if len(more_options) >= 6:
+            break
+
+    return {
+        'best_bet': best_bet,
+        'closest_worthwhile': closest_worthwhile,
+        'more_options': more_options,
+        'directory_count': len(hunting_spots),
+    }
+
+
+def build_nearby_route_stops(location_name, coords, loc_counts, limit=2):
+    if not coords:
+        return []
+
+    nearby = []
+    for spot in build_mapped_spots(loc_counts):
+        if spot['name'] == location_name:
+            continue
+
+        distance_miles = calculate_distance_miles(
+            coords['lat'],
+            coords['lon'],
+            spot['lat'],
+            spot['lon'],
+        )
+        count = int(spot['count'])
+        count_label = '1 report in the archive' if count == 1 else f'{count} reports in the archive'
+        nearby.append({
+            'name': spot['name'],
+            'count': count,
+            'count_label': count_label,
+            'distance_miles': round(distance_miles, 1),
+            'distance_label': format_distance_label(distance_miles),
+            'location_href': url_for('location_detail', location_name=spot['name']),
+            'maps_href': f'https://maps.google.com/?q={spot["lat"]},{spot["lon"]}',
+        })
+
+    nearby.sort(key=lambda spot: (spot['distance_miles'], -spot['count'], spot['name']))
+    return nearby[:limit]
 
 
 def build_map_clusters(spots):
@@ -598,6 +966,8 @@ def index():
     
     # Get last updated timestamp
     last_updated = get_last_updated()
+    forecast_briefing = build_daily_forecast_briefing()
+    lead_zone = forecast_briefing['zones'][0] if forecast_briefing.get('zones') else None
     primary_location = top_locs[0] if top_locs else None
     best_month = best_months[0] if best_months else None
     best_recovery_year = max(
@@ -616,6 +986,8 @@ def index():
                            still_out_there=still_out_there,
                            last_updated=last_updated,
                            selected_year=selected_year,
+                           forecast_briefing=forecast_briefing,
+                           lead_zone=lead_zone,
                            primary_location=primary_location,
                            best_month=best_month,
                            best_recovery_year=best_recovery_year,
@@ -637,8 +1009,8 @@ def search():
     query = request.args.get('q', '')
     conn = get_db_connection()
     if query:
-        params = [f'%{query}%', f'%{query}%', f'%{query}%']
-        conditions = ['(finder LIKE ? OR location_raw LIKE ? OR float_number LIKE ?)']
+        params = [f'%{query}%', f'%{query}%', f'%{query}%', f'%{query}%']
+        conditions = ['(finder LIKE ? OR location_raw LIKE ? OR float_number LIKE ? OR location_normalized LIKE ?)']
         results = conn.execute(
             (
                 f"SELECT * FROM finds WHERE {' AND '.join(conditions)} "
@@ -648,23 +1020,15 @@ def search():
         ).fetchall()
     else:
         results = []
-    display_results = []
-    for row in results:
-        location_name = normalize_location(row['location_raw'])
-        display_results.append({
-            'year': row['year'],
-            'float_number': row['float_number'],
-            'finder': row['finder'] or 'Unknown finder',
-            'location_name': location_name,
-            'location_raw': row['location_raw'],
-            'report_url': row['url'],
-        })
+    grouped_results, ungrouped_results = build_search_result_groups(results)
     conn.close()
     return render_template(
         'search.html',
-        results=display_results,
+        grouped_results=grouped_results,
+        ungrouped_results=ungrouped_results,
         query=query,
-        result_count=len(display_results),
+        result_count=len(results),
+        grouped_result_count=len(grouped_results),
         page_meta=build_page_meta(
             active_nav='search',
             mode='utility',
@@ -696,23 +1060,61 @@ def about():
 @app.route('/field')
 def field_mode():
     """Mobile-optimized field mode for on-island hunting"""
-    hunting_spots = build_mapped_spots(get_location_counts())
+    location_counts = get_location_counts()
+    hunting_spots = build_mapped_spots(location_counts)
     briefing = build_daily_forecast_briefing()
     forecast_lookup = build_spot_forecast_lookup(briefing)
     for spot in hunting_spots:
+        spot['location_href'] = url_for('location_detail', location_name=spot['name'])
         badge = forecast_lookup.get(spot['name'])
         if badge:
             spot['forecast_rank'] = badge['rank']
             spot['forecast_zone'] = badge['zone_label']
 
+    requested_focus = str(request.args.get('focus') or '').strip()
+    focused_spot_name = normalize_location(requested_focus) if requested_focus else None
+    focused_route = None
+    if focused_spot_name:
+        focused_spot = next((spot for spot in hunting_spots if spot['name'] == focused_spot_name), None)
+        if focused_spot:
+            hunting_spots = [
+                focused_spot,
+                *[spot for spot in hunting_spots if spot['name'] != focused_spot_name],
+            ]
+            focused_backups = build_nearby_route_stops(
+                focused_spot_name,
+                {'lat': focused_spot['lat'], 'lon': focused_spot['lon']},
+                location_counts,
+            )
+            backup_names = join_label_list(stop['name'] for stop in focused_backups)
+            focused_route = {
+                'name': focused_spot_name,
+                'summary': (
+                    f"Shared from a location page. Start at {focused_spot_name}, then keep {backup_names} nearby if the first pass is quiet."
+                    if backup_names
+                    else f'Shared from a location page. Start at {focused_spot_name}, then sort the rest by distance once you are moving.'
+                ),
+                'backup_stops': focused_backups,
+            }
+        else:
+            focused_spot_name = None
+
+    priority_tiers = build_field_priority_tiers(
+        hunting_spots,
+        briefing,
+        focused_route=focused_route,
+    )
     last_updated = get_last_updated()
     weather = get_weather_data()
 
     return render_template('field.html',
-                          hunting_spots=hunting_spots,
-                          last_updated=last_updated,
-                          weather=weather,
-                          forecast_briefing=briefing,
+                           hunting_spots=hunting_spots,
+                           priority_tiers=priority_tiers,
+                           last_updated=last_updated,
+                           weather=weather,
+                           forecast_briefing=briefing,
+                          focused_spot_name=focused_spot_name,
+                          focused_route=focused_route,
                           etiquette=FIELD_ETIQUETTE,
                           page_meta=build_page_meta(
                               active_nav='field',
@@ -744,6 +1146,7 @@ def location_detail(location_name):
         return "Location not found", 404
 
     has_image_url = 'image_url' in finds[0].keys()
+    location_counts = get_location_counts()
     
     # Calculate stats
     total_finds = len(finds)
@@ -791,15 +1194,33 @@ def location_detail(location_name):
     shared_ref = request.args.get('ref') == 'share'
     share_url = url_for('location_detail', location_name=location_name, ref='share', _external=True)
     location_url = url_for('location_detail', location_name=location_name, _external=True)
+    field_share_url = url_for('field_mode', focus=location_name, _external=True) if coords else ''
+    field_href = url_for('field_mode', focus=location_name) if coords else url_for('field_mode')
     season_label = 'season' if years_tracked == 1 else 'seasons'
+    find_label = 'find' if total_finds == 1 else 'finds'
     latest_date = latest_find['date_found'] if latest_find and latest_find['date_found'] else None
-    share_text = (
-        f'{location_name} has {total_finds} reported finds across {years_tracked} {season_label}. '
-        'Spot brief:'
+    archive_signal = build_archive_signal(total_finds, years_tracked)
+    nearby_route_stops = build_nearby_route_stops(location_name, coords, location_counts)
+    backup_names = join_label_list(stop['name'] for stop in nearby_route_stops)
+    share_parts = [
+        f'{location_name} outing card: {archive_signal["share_label"]} with {total_finds} reported {find_label} across {years_tracked} {season_label}.',
+    ]
+    if latest_date:
+        share_parts.append(f'Latest dated report: {latest_date}.')
+    if backup_names:
+        backup_label = 'Backup stop' if len(nearby_route_stops) == 1 else 'Backup stops'
+        share_parts.append(f'{backup_label}: {backup_names}.')
+    share_text = ' '.join(share_parts)
+    share_copy_lines = [share_text, share_url]
+    if field_share_url:
+        share_copy_lines.append(f'Focused field view: {field_share_url}')
+    share_copy_text = '\n'.join(share_copy_lines)
+    route_summary = (
+        f'If the first pass feels quiet, keep {backup_names} nearby as the next move.'
+        if backup_names
+        else 'If the first pass feels quiet, jump into field mode and sort the rest by distance.'
     )
     page_description = share_text
-    if latest_date:
-        page_description = f'{page_description} Latest dated report: {latest_date}.'
     page_image = images[0]['url'] if images else url_for('static', filename='icon-512.png', _external=True)
     
     conn.close()
@@ -819,9 +1240,20 @@ def location_detail(location_name):
                           latest_find=latest_find,
                           recent_finds=recent_finds,
                           older_finds=older_finds,
+                          outing_card={
+                              'badge_label': archive_signal['badge_label'],
+                              'summary': archive_signal['summary'],
+                              'route_summary': route_summary,
+                              'backup_stops': nearby_route_stops,
+                              'field_href': field_href,
+                              'maps_href': f'https://maps.google.com/?q={coords["lat"]},{coords["lon"]}' if coords else None,
+                              'share_preview': share_text,
+                          },
                           share_payload={
+                              'title': f'{location_name} outing card',
                               'share_url': share_url,
                               'share_text': share_text,
+                              'copy_text': share_copy_text,
                               'location_name': location_name,
                           },
                           shared_ref=shared_ref,
@@ -843,6 +1275,8 @@ def location_detail(location_name):
                               description=page_description,
                               url=location_url,
                               image=page_image,
+                              meta_title=f'{location_name} outing card',
+                              image_alt=f'Archive photo from {location_name}' if images else 'Block Island Glass Floats map marker',
                           ))
 
 

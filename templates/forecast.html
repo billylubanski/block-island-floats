@@ -31,16 +31,68 @@
         z-index: 1;
     }
 
+    .forecast-priority {
+        display: grid;
+        gap: 0.9rem;
+        padding: 1.15rem;
+        border-radius: 24px;
+        background:
+            linear-gradient(135deg, rgba(234, 223, 207, 0.14), rgba(121, 208, 180, 0.14)),
+            rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(121, 208, 180, 0.18);
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+    }
+
+    .forecast-priority__row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .forecast-priority__copy {
+        display: grid;
+        gap: 0.35rem;
+    }
+
+    .forecast-priority__copy strong {
+        font-size: clamp(1.45rem, 4vw, 2rem);
+        line-height: 1.05;
+    }
+
+    .forecast-priority__copy span {
+        color: var(--text-2);
+    }
+
+    .forecast-priority__actions,
+    .forecast-priority__meta {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+
+    .forecast-priority__summary {
+        margin: 0;
+        color: var(--text-1);
+        line-height: 1.6;
+    }
+
     .forecast-hero__top {
         display: grid;
-        grid-template-columns: minmax(0, 1.15fr) minmax(19rem, 0.85fr);
-        gap: 1.25rem;
+        grid-template-columns: 1fr;
+        gap: 1rem;
     }
 
     .forecast-scoreboard {
         display: grid;
         gap: 1rem;
         align-content: start;
+        padding: 1.05rem;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(193, 214, 203, 0.08);
     }
 
     .forecast-scoreboard__meta {
@@ -64,6 +116,12 @@
     .forecast-scoreboard__value span {
         color: var(--text-2);
         font-weight: 700;
+    }
+
+    .forecast-scoreboard__summary {
+        margin: 0;
+        color: var(--text-2);
+        line-height: 1.6;
     }
 
     .forecast-lead {
@@ -224,14 +282,70 @@
         .forecast-support-grid {
             grid-template-columns: 1fr;
         }
+
+        .forecast-priority__row {
+            flex-direction: column;
+            align-items: stretch;
+        }
     }
 
     @media (max-width: 720px) {
+        .forecast-priority,
+        .forecast-scoreboard {
+            padding: 1rem;
+        }
+
+        .forecast-priority__actions .button {
+            width: 100%;
+            justify-content: center;
+        }
+
         .forecast-zone {
             grid-template-columns: 1fr;
         }
     }
 </style>
+{% endblock %}
+
+{% block page_intro %}
+<section class="page-intro page-intro--utility">
+    <div class="page-intro__content">
+        <p class="page-kicker">{{ page_meta.kicker }}</p>
+        <h1>{{ page_meta.title }}</h1>
+        {% if lead_zone %}
+        <article class="forecast-priority" aria-label="Top-ranked forecast recommendation">
+            <div class="forecast-priority__row">
+                <div class="forecast-priority__copy">
+                    <span class="eyebrow">Top-ranked area</span>
+                    <strong>Start with {{ lead_zone.label }}</strong>
+                    <span>Best first stop today</span>
+                </div>
+                <div class="forecast-priority__actions">
+                    <a class="button button--primary" href="{{ lead_zone.field_href }}">Open field view</a>
+                    <a class="button button--ghost" href="{{ lead_zone.location_href }}">Open location guide</a>
+                </div>
+            </div>
+            <p class="forecast-priority__summary">
+                {% if lead_zone.reason_texts %}
+                {{ lead_zone.reason_texts[0] }}
+                {% elif lead_zone.reason_tags %}
+                {{ lead_zone.reason_tags[0] }} is the clearest tiebreaker today.
+                {% else %}
+                {{ lead_zone.label }} has the clearest mix of archive history and today&#39;s live conditions.
+                {% endif %}
+            </p>
+            <div class="forecast-priority__meta">
+                <span class="pill pill--accent">#1 today</span>
+                <span class="pill">Strength: {{ briefing.confidence_band|capitalize }}</span>
+                {% for tag in lead_zone.reason_tags %}
+                <span class="pill">{{ tag }}</span>
+                {% endfor %}
+            </div>
+        </article>
+        {% endif %}
+        <p class="page-lead">{{ page_meta.subtitle }}</p>
+    </div>
+</section>
 {% endblock %}
 
 {% block content %}
@@ -254,11 +368,11 @@
     <div class="forecast-hero__top">
         <div class="forecast-scoreboard">
             <div class="section-heading">
-                <span class="eyebrow">Today's recommendation</span>
-                <h2>Where to start first</h2>
+                <span class="eyebrow">Hunt outlook</span>
+                <h2>How strong the island looks overall</h2>
                 <p>
                     {% if lead_zone %}
-                    Start with {{ lead_zone.label }}, then keep the backup areas below in mind if the weather, access, or crowds change your plan.
+                    {{ briefing.lead_change_summary }}
                     {% else %}
                     Today&#39;s recommendation is unavailable, but the live conditions below still give you a useful island read.
                     {% endif %}
@@ -280,38 +394,8 @@
             <div class="progress-track">
                 <div class="progress-fill" style="width: {{ briefing.activity_score * 10 }}%;"></div>
             </div>
+            <p class="forecast-scoreboard__summary">{{ briefing.disclaimer }}</p>
         </div>
-
-        <aside class="forecast-lead">
-            <div class="section-heading" style="margin-bottom: 0;">
-                <span class="eyebrow">Why it leads today</span>
-                <h2>{% if lead_zone %}Why {{ lead_zone.label }} is up front{% else %}Why no area is leading{% endif %}</h2>
-                <p>Use the reasons below as the tiebreaker, not a guarantee.</p>
-            </div>
-
-            {% if lead_zone %}
-            <div class="forecast-lead__row">
-                <div class="forecast-lead__title">
-                    <strong>{{ lead_zone.label }}</strong>
-                    <span>Best first stop today</span>
-                </div>
-                <a class="button button--primary" href="{{ lead_zone.field_href }}">Open field view</a>
-            </div>
-            <div class="forecast-zone__tags">
-                {% for tag in lead_zone.reason_tags %}
-                <span class="pill">{{ tag }}</span>
-                {% endfor %}
-            </div>
-            <p class="forecast-zone__detail">
-                {{ lead_zone.dated_support_count }} dated finds across {{ lead_zone.actual_years|length }} seasons.
-            </p>
-            {% else %}
-            <div class="empty-state">
-                <h3>No starting area available</h3>
-                <p>There is not enough dated history to move one area to the front today.</p>
-            </div>
-            {% endif %}
-        </aside>
     </div>
 
     <div class="forecast-context-grid">

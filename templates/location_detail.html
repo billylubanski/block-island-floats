@@ -61,6 +61,94 @@
         background: rgba(114, 29, 29, 0.34);
     }
 
+    .outing-card {
+        display: grid;
+        gap: 1.25rem;
+    }
+
+    .outing-card__grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(18rem, 0.9fr);
+        gap: 1rem;
+    }
+
+    .outing-card__story,
+    .outing-card__route {
+        display: grid;
+        gap: 0.9rem;
+        padding: 1rem;
+        border-radius: 22px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(193, 214, 203, 0.08);
+    }
+
+    .outing-card__story h3,
+    .outing-card__route h3 {
+        margin: 0;
+    }
+
+    .outing-card__story p,
+    .outing-card__route p {
+        margin: 0;
+        color: var(--text-2);
+        line-height: 1.65;
+    }
+
+    .outing-card__meta,
+    .outing-card__actions {
+        display: flex;
+        gap: 0.7rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .outing-share-preview {
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+        background: rgba(9, 24, 21, 0.72);
+        border: 1px solid rgba(121, 208, 180, 0.14);
+        color: var(--text-1);
+    }
+
+    .outing-route-list {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .outing-stop {
+        display: grid;
+        gap: 0.55rem;
+        padding: 0.9rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(193, 214, 203, 0.08);
+    }
+
+    .outing-stop__header,
+    .outing-stop__actions {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .outing-stop__header strong,
+    .outing-stop__header span,
+    .outing-stop__actions a {
+        text-decoration: none;
+    }
+
+    .outing-stop__header span,
+    .outing-stop__body {
+        color: var(--text-2);
+    }
+
+    .outing-stop__body {
+        margin: 0;
+        line-height: 1.55;
+    }
+
     .stat-strip {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -288,6 +376,10 @@
         .location-hero {
             grid-template-columns: 1fr;
         }
+
+        .outing-card__grid {
+            grid-template-columns: 1fr;
+        }
     }
 
     @media (max-width: 760px) {
@@ -331,7 +423,7 @@
         <div class="utility-rail location-share-banner">
             <div class="utility-rail__group">
                 <span class="pill pill--accent">Shared spot</span>
-                <p>Shared by a hunting partner. Open field mode below if you want this brief in motion.</p>
+                <p>Shared by a hunting partner. The outing card below packages the start stop, backup move, and focused field link.</p>
             </div>
         </div>
         {% endif %}
@@ -342,8 +434,8 @@
                 {{ page_meta.primary_cta.label }}
             </a>
             {% endif %}
-            <a class="button button--ghost" href="{{ url_for('field_mode') }}">
-                Open field view
+            <a class="button button--ghost" href="{{ outing_card.field_href }}">
+                Open focused field view
             </a>
             <button class="button button--subtle" id="share-location-button" type="button">
                 Share this spot
@@ -401,6 +493,66 @@
 {% endblock %}
 
 {% block content %}
+<section class="surface outing-card">
+    <div class="section-heading">
+        <span class="eyebrow">Outing card</span>
+        <h2>Send a friend a ready-made stop</h2>
+        <p>Use this when you want to share more than a raw link and give the next person a clear first move.</p>
+    </div>
+
+    <div class="outing-card__grid">
+        <article class="outing-card__story">
+            <div class="outing-card__meta">
+                <span class="pill pill--accent">{{ outing_card.badge_label }}</span>
+                <span class="pill">{{ total_finds }} reported {% if total_finds == 1 %}find{% else %}finds{% endif %}</span>
+                <span class="pill">{{ years_tracked }} tracked {% if years_tracked == 1 %}season{% else %}seasons{% endif %}</span>
+            </div>
+            <h3>What to tell someone before they go</h3>
+            <p>{{ outing_card.summary }}</p>
+            <p>{{ outing_card.route_summary }}</p>
+            <div class="outing-share-preview">
+                {{ outing_card.share_preview }}
+            </div>
+            <div class="outing-card__actions">
+                <a class="button button--primary" href="{{ outing_card.field_href }}">
+                    Open focused field view
+                </a>
+                {% if outing_card.maps_href %}
+                <a class="button button--ghost" href="{{ outing_card.maps_href }}" target="_blank" rel="noreferrer">
+                    Open start in Maps
+                </a>
+                {% endif %}
+                <button class="button button--subtle" id="copy-outing-card-button" type="button">
+                    Copy outing card
+                </button>
+            </div>
+        </article>
+
+        <aside class="outing-card__route">
+            <h3>Mini route</h3>
+            {% if outing_card.backup_stops %}
+            <div class="outing-route-list">
+                {% for stop in outing_card.backup_stops %}
+                <article class="outing-stop">
+                    <div class="outing-stop__header">
+                        <strong>{{ stop.name }}</strong>
+                        <span>{{ stop.distance_label }}</span>
+                    </div>
+                    <p class="outing-stop__body">{{ stop.count_label }}</p>
+                    <div class="outing-stop__actions">
+                        <a class="utility-link" href="{{ stop.location_href }}">Open location page</a>
+                        <a class="utility-link" href="{{ stop.maps_href }}" target="_blank" rel="noreferrer">Open in Maps</a>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p>No mapped backup stop is available for this page yet. Use the focused field link to sort the broader island list by distance when you are moving.</p>
+            {% endif %}
+        </aside>
+    </div>
+</section>
+
 <section class="surface">
     <div class="section-heading">
         <span class="eyebrow">Photo archive</span>
@@ -526,6 +678,7 @@
     const sharePayloadElement = document.getElementById('location-share-payload');
     const sharePayload = sharePayloadElement ? JSON.parse(sharePayloadElement.textContent) : null;
     const shareButton = document.getElementById('share-location-button');
+    const copyOutingCardButton = document.getElementById('copy-outing-card-button');
     const shareStatus = document.getElementById('share-status');
     const sharedRef = {{ shared_ref|tojson }};
     const galleryButtons = Array.from(document.querySelectorAll('[data-lightbox-index]'));
@@ -637,7 +790,7 @@
         if (navigator.share) {
             try {
                 await navigator.share({
-                    title: document.title,
+                    title: sharePayload.title || document.title,
                     text: sharePayload.share_text,
                     url: sharePayload.share_url,
                 });
@@ -653,8 +806,8 @@
 
         if (navigator.clipboard && navigator.clipboard.writeText) {
             try {
-                await navigator.clipboard.writeText(sharePayload.share_url);
-                setShareStatus('Link copied');
+                await navigator.clipboard.writeText(sharePayload.copy_text || sharePayload.share_url);
+                setShareStatus('Outing card copied');
                 trackShareEvent('share_clicked', 'copy');
                 return;
             } catch (error) {
@@ -667,6 +820,23 @@
     if (shareButton) {
         shareButton.addEventListener('click', () => {
             shareLocation();
+        });
+    }
+
+    if (copyOutingCardButton) {
+        copyOutingCardButton.addEventListener('click', async () => {
+            if (!sharePayload || !navigator.clipboard || !navigator.clipboard.writeText) {
+                setShareStatus('Copy failed', 'error');
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(sharePayload.copy_text || sharePayload.share_url);
+                setShareStatus('Outing card copied');
+                trackShareEvent('share_clicked', 'copy');
+            } catch (error) {
+                setShareStatus('Copy failed', 'error');
+            }
         });
     }
 
