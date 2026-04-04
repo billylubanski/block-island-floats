@@ -306,6 +306,18 @@
         margin-left: auto;
     }
 
+    .map-panel-actions__detail {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+    }
+
+    .map-panel-toggle--mobile {
+        display: none;
+    }
+
     .map-panel-toggle {
         min-height: 1.9rem;
         padding: 0.4rem 0.7rem;
@@ -764,11 +776,31 @@
 
         .map-panel-actions {
             margin-left: 0;
-            justify-content: flex-start;
+            width: 100%;
+            justify-content: space-between;
+            align-items: flex-start;
         }
 
         .map-legend__tools {
             margin-left: 0;
+        }
+
+        .map-panel-actions__detail {
+            justify-content: flex-start;
+        }
+
+        .map-panel-toggle--mobile {
+            display: inline-flex;
+        }
+
+        .map-panel-actions.is-menu-hidden {
+            width: auto;
+        }
+
+        .map-panel-actions.is-menu-hidden .map-panel-actions__detail,
+        .map-legend.is-mobile-hidden,
+        .dashboard-map__dock.is-mobile-hidden {
+            display: none;
         }
 
         .dash-filter-form {
@@ -891,13 +923,18 @@
                             <button class="map-reset" id="map-reset-view" type="button">Reset map</button>
                         </div>
                     </div>
-                    <div class="map-panel-actions">
-                        <button class="map-panel-toggle is-active" id="dashboard-controls-toggle" type="button" aria-controls="map-controls-panel" aria-expanded="true">
-                            Hide controls
+                    <div class="map-panel-actions" id="map-panel-actions">
+                        <button class="map-panel-toggle map-panel-toggle--mobile is-active" id="dashboard-menus-toggle" type="button" aria-controls="map-controls-panel map-hotspots-panel" aria-expanded="true">
+                            Hide menus
                         </button>
-                        <button class="map-panel-toggle" id="dashboard-hotspots-toggle" type="button" aria-controls="map-hotspots-panel" aria-expanded="false">
-                            Show hotspots
-                        </button>
+                        <div class="map-panel-actions__detail">
+                            <button class="map-panel-toggle is-active" id="dashboard-controls-toggle" type="button" aria-controls="map-controls-panel" aria-expanded="true">
+                                Hide controls
+                            </button>
+                            <button class="map-panel-toggle" id="dashboard-hotspots-toggle" type="button" aria-controls="map-hotspots-panel" aria-expanded="false">
+                                Show hotspots
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="dashboard-map__dock is-collapsed" id="map-hotspots-panel">

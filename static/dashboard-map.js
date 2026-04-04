@@ -11,8 +11,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const resetViewBtn = document.getElementById('map-reset-view');
     const controlsPanelEl = document.getElementById('map-controls-panel');
     const hotspotsPanelEl = document.getElementById('map-hotspots-panel');
+    const panelActionsEl = document.getElementById('map-panel-actions');
     const controlsToggleBtn = document.getElementById('dashboard-controls-toggle');
     const hotspotsToggleBtn = document.getElementById('dashboard-hotspots-toggle');
+    const menusToggleBtn = document.getElementById('dashboard-menus-toggle');
 
     if (!mapEl || !dataEl) {
         return;
@@ -90,6 +92,43 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleEl.setAttribute('aria-expanded', String(isExpanded));
         toggleEl.textContent = isExpanded ? labels.hide : labels.show;
     };
+
+    const setMobileMenusState = (isExpanded) => {
+        if (!panelActionsEl || !menusToggleBtn) {
+            return;
+        }
+
+        const shouldHidePanels = window.matchMedia('(max-width: 760px)').matches && !isExpanded;
+        panelActionsEl.classList.toggle('is-menu-hidden', shouldHidePanels);
+        controlsPanelEl?.classList.toggle('is-mobile-hidden', shouldHidePanels);
+        hotspotsPanelEl?.classList.toggle('is-mobile-hidden', shouldHidePanels);
+        menusToggleBtn.classList.toggle('is-active', isExpanded);
+        menusToggleBtn.setAttribute('aria-expanded', String(isExpanded));
+        menusToggleBtn.textContent = isExpanded ? 'Hide menus' : 'Show menus';
+    };
+
+    setMobileMenusState(true);
+
+    controlsToggleBtn?.addEventListener('click', () => {
+        const isExpanded = controlsToggleBtn.getAttribute('aria-expanded') !== 'true';
+        setPanelState(controlsPanelEl, controlsToggleBtn, isExpanded, {
+            show: 'Show controls',
+            hide: 'Hide controls',
+        });
+    });
+
+    hotspotsToggleBtn?.addEventListener('click', () => {
+        const isExpanded = hotspotsToggleBtn.getAttribute('aria-expanded') !== 'true';
+        setPanelState(hotspotsPanelEl, hotspotsToggleBtn, isExpanded, {
+            show: 'Show hotspots',
+            hide: 'Hide hotspots',
+        });
+    });
+
+    menusToggleBtn?.addEventListener('click', () => {
+        const isExpanded = menusToggleBtn.getAttribute('aria-expanded') !== 'true';
+        setMobileMenusState(isExpanded);
+    });
 
     const buildFocusCardMarkup = (cluster, index, options = {}) => {
         const label = options.distance !== undefined
@@ -390,22 +429,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const layerName = button.dataset.layerToggle;
             const nextState = button.getAttribute('aria-pressed') !== 'true';
             setLayerVisible(layerName, nextState);
-        });
-    });
-
-    controlsToggleBtn?.addEventListener('click', () => {
-        const isExpanded = controlsToggleBtn.getAttribute('aria-expanded') !== 'true';
-        setPanelState(controlsPanelEl, controlsToggleBtn, isExpanded, {
-            show: 'Show controls',
-            hide: 'Hide controls',
-        });
-    });
-
-    hotspotsToggleBtn?.addEventListener('click', () => {
-        const isExpanded = hotspotsToggleBtn.getAttribute('aria-expanded') !== 'true';
-        setPanelState(hotspotsPanelEl, hotspotsToggleBtn, isExpanded, {
-            show: 'Show hotspots',
-            hide: 'Hide hotspots',
         });
     });
 

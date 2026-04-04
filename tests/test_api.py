@@ -222,6 +222,7 @@ def test_index_route_renders_dashboard_controls(
     assert 'id="dashboard-map-data"' in text
     assert '/static/dashboard-map.js' in text
     assert "Compare hotspots" in text
+    assert "Hide menus" in text
     assert "Hide controls" in text
     assert "Show hotspots" in text
     assert "Reset map" in text
