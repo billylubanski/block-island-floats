@@ -411,6 +411,31 @@ def test_home_page_mobile_surfaces_recommended_start_above_fold(live_ui_server, 
     assert errors == []
 
 
+def test_home_page_mobile_map_menus_can_be_hidden(live_ui_server, ui_page):
+    page, errors = ui_page
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(live_ui_server, wait_until="domcontentloaded")
+
+    controls_panel = page.locator("#map-controls-panel")
+    hotspots_panel = page.locator("#map-hotspots-panel")
+
+    assert controls_panel.is_visible()
+    page.get_by_role("button", name="Show hotspots").click()
+    hotspots_panel.wait_for(state="visible")
+
+    page.get_by_role("button", name="Hide menus").click()
+    page.get_by_role("button", name="Show menus").wait_for(state="visible")
+    controls_panel.wait_for(state="hidden")
+    hotspots_panel.wait_for(state="hidden")
+
+    page.get_by_role("button", name="Show menus").click()
+    controls_panel.wait_for(state="visible")
+    hotspots_panel.wait_for(state="visible")
+    page.get_by_role("button", name="Hide hotspots").wait_for(state="visible")
+    assert errors == []
+
+
 def test_forecast_page_mobile_surfaces_lead_reason_above_fold(live_ui_server, ui_page):
     page, errors = ui_page
 
