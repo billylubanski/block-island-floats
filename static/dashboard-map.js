@@ -35,6 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const clusters = Array.isArray(mapData?.clusters) ? mapData.clusters : [];
     const maxCount = Math.max(Number(mapData?.max_count || 0), 1);
     const defaultCenter = Array.isArray(mapData?.center) ? mapData.center : [41.17, -71.58];
+    const prefersTouchScroll = window.matchMedia('(pointer: coarse)').matches
+        || window.matchMedia('(hover: none)').matches;
 
     if (!clusters.length || typeof L === 'undefined') {
         if (loadingEl) {
@@ -317,6 +319,13 @@ document.addEventListener('DOMContentLoaded', () => {
             scrollWheelZoom: false,
             zoomControl: false,
         });
+
+        if (prefersTouchScroll) {
+            // Let a one-finger swipe scroll the page instead of fighting with map panning.
+            map.dragging.disable();
+            map.touchZoom.disable();
+            map.doubleClickZoom.disable();
+        }
 
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
