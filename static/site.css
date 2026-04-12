@@ -58,17 +58,6 @@ body {
         linear-gradient(180deg, #081412 0%, #0b1a17 55%, #091614 100%);
 }
 
-body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 28%),
-        radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.03), transparent 30%);
-    opacity: 0.75;
-}
-
 body.nav-open {
     overflow: hidden;
 }
@@ -100,8 +89,7 @@ textarea {
     position: sticky;
     top: 0;
     z-index: 1200;
-    backdrop-filter: blur(18px);
-    background: rgba(7, 20, 18, 0.8);
+    background: rgba(7, 20, 18, 0.92);
     border-bottom: 1px solid rgba(193, 214, 203, 0.08);
 }
 
