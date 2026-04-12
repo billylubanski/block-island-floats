@@ -225,7 +225,7 @@
             </form>
         </div>
         <div class="utility-rail__summary">
-            Showing up to 50 matches from public finder posts.
+            Showing up to 50 matching posts from public finder reports. Open a location guide to see the full archive for that place beyond the search cap.
         </div>
     </div>
 
@@ -246,7 +246,7 @@
             <h2>{{ result_count }} match{{ '' if result_count == 1 else 'es' }} for "{{ query }}"</h2>
             <p>
                 {% if grouped_results %}
-                Grouped into {{ grouped_result_count }} destination{{ '' if grouped_result_count == 1 else 's' }} first, so each location guide CTA appears once before the underlying reports.
+                Grouped into {{ grouped_result_count }} destination{{ '' if grouped_result_count == 1 else 's' }} first, so the matching posts stay here while each location guide opens the full archive for that place.
                 {% else %}
                 Open the official report for the original finder story.
                 {% endif %}
@@ -273,7 +273,7 @@
             <p class="result-card__summary">
                 <strong>{{ group['report_count'] }}</strong> archive report{{ '' if group['report_count'] == 1 else 's' }} match this search.
                 {% if group['latest_report']['date_found'] %}
-                Latest dated post: <strong>{{ group['latest_report']['date_found'] }}</strong>.
+                Latest dated post: <strong>{{ group['latest_report']['date_found']|format_public_date }}</strong>.
                 {% endif %}
                 {% if group['recent_finders'] %}
                 Recent finder{{ '' if group['recent_finders']|length == 1 else 's' }}:
@@ -283,7 +283,7 @@
 
             <div class="result-card__footer">
                 <span>
-                    Open the location guide for the broader place pattern, then drill into the matching report{{ '' if group['report_count'] == 1 else 's' }} only if you need the individual posts.
+                    Matching post{{ '' if group['report_count'] == 1 else 's' }} are shown here. The location guide opens the full archive for {{ group['location_name'] }}, which can include more posts than this search result.
                 </span>
                 <div class="result-card__actions">
                     <a href="{{ url_for('location_detail', location_name=group['location_name']) }}">
@@ -312,7 +312,7 @@
                         <p class="report-row__summary">
                             <strong>{{ row['finder'] }}</strong>
                             {% if row['date_found'] %}
-                            reported this float on {{ row['date_found'] }}.
+                            reported this float on {{ row['date_found']|format_public_date }}.
                             {% else %}
                             reported this float in {{ row['year'] }}.
                             {% endif %}

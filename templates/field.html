@@ -8,8 +8,8 @@
 <script src="/static/field-mode.js" defer></script>
 {% endblock %}
 
-{% macro render_spot_card(spot, extra_class='') %}
-<article class="spot-card {{ extra_class }}" data-lat="{{ spot.lat }}" data-lon="{{ spot.lon }}">
+{% macro render_spot_card(spot, extra_class='', hidden=False) %}
+<article class="spot-card {{ extra_class }}" data-lat="{{ spot.lat }}" data-lon="{{ spot.lon }}"{% if hidden %} hidden{% endif %}>
     <div class="spot-header">
         <div class="spot-title">
             <div class="spot-title__meta">
@@ -26,7 +26,7 @@
                 </a>
             </h3>
         </div>
-        <span class="spot-distance">--</span>
+        <span class="spot-distance" aria-hidden="true">--</span>
     </div>
 
     {% if spot.priority_reason %}
@@ -58,7 +58,7 @@
         <a href="https://maps.google.com/?q={{ spot.lat }},{{ spot.lon }}" class="nav-btn" target="_blank" rel="noreferrer">
             Google Maps
         </a>
-        <a href="maps://?q={{ spot.lat }},{{ spot.lon }}" class="nav-btn">
+        <a href="maps://?q={{ spot.lat }},{{ spot.lon }}" class="nav-btn" data-apple-maps-link hidden>
             Apple Maps
         </a>
     </div>
@@ -117,6 +117,8 @@
                     Find my location
                 </button>
                 <div class="geolocate-status" id="status" role="status" aria-live="polite" aria-atomic="true">Allow location to sort the shortlist and full directory by distance.</div>
+                <p class="geolocate-detail" id="status-detail">If location stays unavailable, you can still use the shortlist and map manually.</p>
+                <p class="geolocate-help" id="status-help" hidden></p>
             </div>
         </div>
 
@@ -231,7 +233,7 @@
             <div class="field-directory__summary-copy">
                 <span class="eyebrow">Full directory</span>
                 <strong>Open every mapped location</strong>
-                <span class="field-directory__summary-text">The complete list stays available, but it no longer sets the default hierarchy.</span>
+                <span class="field-directory__summary-text">The complete list stays available, but it now opens in smaller batches so the route tool stays readable on a phone.</span>
             </div>
             <span class="spot-count" id="spot-count">{{ priority_tiers.directory_count }} mapped locations</span>
         </summary>
@@ -240,8 +242,28 @@
 
         <div id="spots-list" class="spots-list" data-sortable-spots>
             {% for spot in hunting_spots %}
-            {{ render_spot_card(spot) }}
+            {{ render_spot_card(spot, hidden=(loop.index > directory_state.initial_visible_count)) }}
             {% endfor %}
+        </div>
+
+        <div class="field-directory__controls">
+            <p class="field-directory__progress" id="field-directory-progress">
+                {% if directory_state.has_more %}
+                Showing {{ directory_state.initial_visible_count }} of {{ priority_tiers.directory_count }} mapped locations.
+                {% else %}
+                Showing all {{ priority_tiers.directory_count }} mapped locations.
+                {% endif %}
+            </p>
+            {% if directory_state.has_more %}
+            <button
+                class="button button--ghost field-directory__reveal"
+                id="field-directory-reveal"
+                type="button"
+                aria-controls="spots-list"
+                data-batch-size="{{ directory_state.batch_size }}">
+                Show {{ directory_state.remaining_count if directory_state.remaining_count < directory_state.batch_size else directory_state.batch_size }} more locations
+            </button>
+            {% endif %}
         </div>
     </details>
 </section>

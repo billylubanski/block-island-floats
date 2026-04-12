@@ -7,16 +7,91 @@ document.addEventListener('DOMContentLoaded', () => {
     const spotCards = Array.from(document.querySelectorAll('.spot-card'));
     const sortableLists = Array.from(document.querySelectorAll('[data-sortable-spots]'));
     const directoryList = document.getElementById('spots-list');
+    const directoryProgressEl = document.getElementById('field-directory-progress');
+    const directoryRevealBtn = document.getElementById('field-directory-reveal');
     const geolocateBtn = document.getElementById('geolocate-btn');
+    const statusDetailEl = document.getElementById('status-detail');
+    const statusHelpEl = document.getElementById('status-help');
     const drawer = document.getElementById('field-etiquette-drawer');
     const backdrop = document.getElementById('etiquette-backdrop');
     const trigger = document.getElementById('etiquette-trigger');
     const closeBtn = document.getElementById('etiquette-close');
+    const appleMapsLinks = Array.from(document.querySelectorAll('[data-apple-maps-link]'));
 
     let userLat = null;
     let userLon = null;
     let map = null;
     let userLayer = null;
+    let lastFocusedDrawerElement = null;
+    const directoryBatchSize = Number.parseInt(directoryRevealBtn?.dataset.batchSize || '0', 10)
+        || (directoryList ? directoryList.querySelectorAll('.spot-card').length : 0);
+    const defaultLocationLabel = 'Find my location';
+    const loadingLocationLabel = 'Getting location...';
+    const retryLocationLabel = 'Try again';
+    const refreshLocationLabel = 'Refresh location';
+    const fallbackMessage = 'You can still use the shortlist and map manually.';
+
+    const permissionHelpText = () => {
+        const userAgent = navigator.userAgent || '';
+
+        if (/iPhone|iPad|iPod/i.test(userAgent)) {
+            return 'Open Safari website settings, set Location to Allow, then try again.';
+        }
+        if (/Macintosh/i.test(userAgent) && /Safari/i.test(userAgent) && !/Chrome|Chromium|Edg/i.test(userAgent)) {
+            return 'Open Safari Settings for This Website, allow location access, then try again.';
+        }
+        if (/Chrome|Chromium|Edg/i.test(userAgent)) {
+            return 'Use the site settings icon in the address bar, allow location access, then try again.';
+        }
+
+        return 'Check your browser or device location permissions, allow access for this site, then try again.';
+    };
+
+    const supportsAppleMaps = () => {
+        const platform = navigator.userAgentData?.platform || navigator.platform || '';
+        const userAgent = navigator.userAgent || '';
+        return /Mac|iPhone|iPad|iPod/i.test(`${platform} ${userAgent}`);
+    };
+
+    const getFocusableElements = (container) => {
+        if (!container) {
+            return [];
+        }
+
+        return Array.from(
+            container.querySelectorAll(
+                'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            )
+        ).filter((element) => !element.hidden && element.getAttribute('aria-hidden') !== 'true');
+    };
+
+    const setButtonState = ({ disabled = false, label = defaultLocationLabel }) => {
+        if (!geolocateBtn) {
+            return;
+        }
+
+        geolocateBtn.disabled = disabled;
+        geolocateBtn.textContent = label;
+    };
+
+    const setLocationStatus = ({
+        summary,
+        detail = '',
+        help = '',
+        state = 'idle',
+    }) => {
+        if (statusEl) {
+            statusEl.textContent = summary;
+            statusEl.dataset.state = state;
+        }
+        if (statusDetailEl) {
+            statusDetailEl.textContent = detail;
+        }
+        if (statusHelpEl) {
+            statusHelpEl.textContent = help;
+            statusHelpEl.hidden = !help;
+        }
+    };
 
     if (typeof L !== 'undefined') {
         const maxCount = Math.max(...spots.map((spot) => spot.count), 1);
@@ -67,11 +142,25 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        if (isOpen) {
+            lastFocusedDrawerElement = document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : trigger;
+        }
+
         drawer.classList.toggle('is-open', isOpen);
         drawer.setAttribute('aria-hidden', String(!isOpen));
         trigger.setAttribute('aria-expanded', String(isOpen));
         backdrop.hidden = !isOpen;
         document.body.classList.toggle('field-drawer-open', isOpen);
+
+        if (isOpen) {
+            closeBtn?.focus();
+        } else if (lastFocusedDrawerElement instanceof HTMLElement) {
+            lastFocusedDrawerElement.focus();
+        } else {
+            trigger.focus();
+        }
     };
 
     const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -119,13 +208,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const getUserLocation = () => {
-        if (!navigator.geolocation) {
-            statusEl.textContent = 'Geolocation is unavailable on this device.';
+    const updateDirectoryRevealState = () => {
+        const cardsInOrder = directoryList ? Array.from(directoryList.querySelectorAll('.spot-card')) : [];
+        if (!cardsInOrder.length) {
             return;
         }
 
-        statusEl.textContent = 'Getting location...';
+        const hiddenCards = cardsInOrder.filter((card) => card.hidden);
+        const shownCount = cardsInOrder.length - hiddenCards.length;
+
+        if (directoryProgressEl) {
+            directoryProgressEl.textContent = hiddenCards.length
+                ? `Showing ${shownCount} of ${cardsInOrder.length} mapped locations.`
+                : `Showing all ${cardsInOrder.length} mapped locations.`;
+        }
+
+        if (!directoryRevealBtn) {
+            return;
+        }
+
+        if (!hiddenCards.length) {
+            directoryRevealBtn.hidden = true;
+            return;
+        }
+
+        const revealCount = Math.min(directoryBatchSize, hiddenCards.length);
+        directoryRevealBtn.textContent = `Show ${revealCount} more locations`;
+        directoryRevealBtn.hidden = false;
+    };
+
+    const getUserLocation = () => {
+        if (!navigator.geolocation) {
+            setButtonState({ label: retryLocationLabel });
+            setLocationStatus({
+                summary: 'This browser does not support geolocation.',
+                detail: fallbackMessage,
+                help: 'Open this page in a browser with location support, or keep using the shortlist and map manually.',
+                state: 'error',
+            });
+            return;
+        }
+
+        setButtonState({ disabled: true, label: loadingLocationLabel });
+        setLocationStatus({
+            summary: 'Getting location...',
+            detail: 'Allow location access when your browser asks so the shortlist can be sorted by distance.',
+            state: 'loading',
+        });
         loadingEl.classList.add('active');
 
         navigator.geolocation.getCurrentPosition(
@@ -133,7 +262,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 userLat = position.coords.latitude;
                 userLon = position.coords.longitude;
 
-                statusEl.textContent = 'Location found. Shortlist and full directory sorted by distance.';
+                setButtonState({ label: refreshLocationLabel });
+                setLocationStatus({
+                    summary: 'Location found. Shortlist and full directory sorted by distance.',
+                    detail: 'Use Refresh location if you move to a new trailhead or parking area.',
+                    state: 'success',
+                });
 
                 if (map) {
                     if (userLayer) {
@@ -160,13 +294,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 updateDistances();
+                document.body.classList.add('field-distance-ready');
                 sortByDistance();
+                updateDirectoryRevealState();
                 loadingEl.classList.remove('active');
             },
             (error) => {
-                statusEl.textContent = 'Location unavailable.';
+                let summary = 'Location request failed.';
+                let detail = fallbackMessage;
+                let help = 'Check your location settings and try again.';
+
+                if (error && error.code === 1) {
+                    summary = 'Location access was blocked.';
+                    detail = fallbackMessage;
+                    help = permissionHelpText();
+                } else if (error && error.code === 2) {
+                    summary = 'Location could not be determined.';
+                    detail = 'Your device could not return a reliable position. Move to a clearer area or wait for a stronger signal.';
+                    help = 'Keep using the shortlist and map manually, then try again when the device has a better fix.';
+                } else if (error && error.code === 3) {
+                    summary = 'Location request timed out.';
+                    detail = 'The device did not return a position before the request expired.';
+                    help = 'Try again from the same spot, or keep using the shortlist and map manually.';
+                }
+
+                setButtonState({ label: retryLocationLabel });
+                setLocationStatus({
+                    summary,
+                    detail,
+                    help,
+                    state: 'error',
+                });
                 loadingEl.classList.remove('active');
-                console.error('Geolocation error:', error);
+                console.warn('Geolocation unavailable:', error);
             },
             {
                 enableHighAccuracy: true,
@@ -176,13 +336,48 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     geolocateBtn?.addEventListener('click', getUserLocation);
+    directoryRevealBtn?.addEventListener('click', () => {
+        const hiddenCards = directoryList
+            ? Array.from(directoryList.querySelectorAll('.spot-card')).filter((card) => card.hidden)
+            : [];
+        hiddenCards.slice(0, directoryBatchSize).forEach((card) => {
+            card.hidden = false;
+        });
+        updateDirectoryRevealState();
+    });
     trigger?.addEventListener('click', () => setDrawerState(true));
     closeBtn?.addEventListener('click', () => setDrawerState(false));
     backdrop?.addEventListener('click', () => setDrawerState(false));
 
     document.addEventListener('keydown', (event) => {
+        if (drawer?.classList.contains('is-open') && event.key === 'Tab') {
+            const focusable = getFocusableElements(drawer);
+            if (focusable.length) {
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (event.shiftKey && document.activeElement === first) {
+                    event.preventDefault();
+                    last.focus();
+                    return;
+                }
+                if (!event.shiftKey && document.activeElement === last) {
+                    event.preventDefault();
+                    first.focus();
+                    return;
+                }
+            }
+        }
+
         if (event.key === 'Escape') {
             setDrawerState(false);
         }
     });
+
+    if (supportsAppleMaps()) {
+        appleMapsLinks.forEach((link) => {
+            link.hidden = false;
+        });
+    }
+
+    updateDirectoryRevealState();
 });

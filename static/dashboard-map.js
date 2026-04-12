@@ -37,13 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultCenter = Array.isArray(mapData?.center) ? mapData.center : [41.17, -71.58];
     const prefersTouchScroll = window.matchMedia('(pointer: coarse)').matches
         || window.matchMedia('(hover: none)').matches;
-
-    if (!clusters.length || typeof L === 'undefined') {
-        if (loadingEl) {
-            loadingEl.style.display = 'none';
-        }
-        return;
-    }
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reportedDeviceMemory = Number(navigator.deviceMemory || 0);
+    const shouldStartWithHeat = !prefersTouchScroll && !prefersReducedMotion && (!reportedDeviceMemory || reportedDeviceMemory >= 4);
 
     let map = null;
     let heatLayer = null;
@@ -53,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let overviewBounds = null;
     let activeClusterIndex = 0;
     let hasInitialized = false;
+    let heatLayerDisabled = false;
 
     const escapeHtml = (value) => String(value)
         .replaceAll('&', '&amp;')
@@ -132,6 +129,11 @@ document.addEventListener('DOMContentLoaded', () => {
         setMobileMenusState(isExpanded);
     });
 
+    if (!clusters.length || typeof L === 'undefined') {
+        hideLoading();
+        return;
+    }
+
     const buildFocusCardMarkup = (cluster, index, options = {}) => {
         const label = options.distance !== undefined
             ? formatDistance(options.distance)
@@ -208,7 +210,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const setLayerVisible = (layerName, isVisible) => {
-        const layer = layerName === 'heat' ? heatLayer : spotLayer;
+        const layer = layerName === 'heat' ? ensureHeatLayer() : spotLayer;
         setToggleState(layerName, isVisible);
 
         if (!map || !layer) {
@@ -222,6 +224,43 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!isVisible && map.hasLayer(layer)) {
             map.removeLayer(layer);
         }
+    };
+
+    const ensureHeatLayer = () => {
+        if (heatLayerDisabled) {
+            return null;
+        }
+
+        if (heatLayer) {
+            return heatLayer;
+        }
+
+        if (typeof L.heatLayer !== 'function') {
+            heatLayerDisabled = true;
+            setToggleState('heat', false);
+            const heatToggle = toggleButtons.find((button) => button.dataset.layerToggle === 'heat');
+            if (heatToggle) {
+                heatToggle.disabled = true;
+            }
+            return null;
+        }
+
+        heatLayer = L.heatLayer(
+            clusters.map((cluster) => [cluster.lat, cluster.lon, getHeatWeight(cluster.count)]),
+            {
+                radius: 30,
+                blur: 24,
+                maxZoom: 14,
+                max: 1,
+                gradient: {
+                    0.0: '#4f8f90',
+                    0.45: '#79d0b4',
+                    1.0: '#2b6077',
+                },
+            },
+        );
+
+        return heatLayer;
     };
 
     const buildPopupHtml = (cluster) => {
@@ -339,28 +378,14 @@ document.addEventListener('DOMContentLoaded', () => {
         tileLayer.on('tileerror', hideLoading);
         tileLayer.addTo(map);
 
-        if (typeof L.heatLayer === 'function') {
-            heatLayer = L.heatLayer(
-                clusters.map((cluster) => [cluster.lat, cluster.lon, getHeatWeight(cluster.count)]),
-                {
-                    radius: 30,
-                    blur: 24,
-                    maxZoom: 14,
-                    max: 1,
-                    gradient: {
-                        0.0: '#4f8f90',
-                        0.45: '#79d0b4',
-                        1.0: '#2b6077',
-                    },
-                },
-            );
-            heatLayer.addTo(map);
+        if (shouldStartWithHeat) {
+            const initialHeatLayer = ensureHeatLayer();
+            if (initialHeatLayer) {
+                initialHeatLayer.addTo(map);
+                setToggleState('heat', true);
+            }
         } else {
             setToggleState('heat', false);
-            const heatToggle = toggleButtons.find((button) => button.dataset.layerToggle === 'heat');
-            if (heatToggle) {
-                heatToggle.disabled = true;
-            }
         }
 
         markers = clusters.map((cluster, index) => {
