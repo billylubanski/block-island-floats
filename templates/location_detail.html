@@ -415,7 +415,7 @@
         <p class="lead">
             {{ page_meta.subtitle }}
             {% if latest_find and latest_find['date_found'] %}
-            Latest recorded report: {{ latest_find['date_found'] }}.
+            Latest recorded report: {{ latest_find['date_found']|format_public_date }}.
             {% endif %}
         </p>
 
@@ -469,7 +469,7 @@
         <div class="summary-list">
             <div class="summary-list__item">
                 <span>Latest report</span>
-                <strong>{{ latest_find['date_found'] if latest_find and latest_find['date_found'] else 'Undated in the archive' }}</strong>
+                <strong>{{ latest_find['date_found']|format_public_date('Undated in the archive') if latest_find and latest_find['date_found'] else 'Undated in the archive' }}</strong>
             </div>
             <div class="summary-list__item">
                 <span>Strongest season</span>
@@ -517,9 +517,14 @@
                 <a class="button button--primary" href="{{ outing_card.field_href }}">
                     Open focused field view
                 </a>
-                {% if outing_card.maps_href %}
-                <a class="button button--ghost" href="{{ outing_card.maps_href }}" target="_blank" rel="noreferrer">
-                    Open start in Maps
+                {% if outing_card.google_maps_href %}
+                <a class="button button--ghost" href="{{ outing_card.google_maps_href }}" target="_blank" rel="noreferrer">
+                    Google Maps
+                </a>
+                {% endif %}
+                {% if outing_card.apple_maps_href %}
+                <a class="button button--ghost" href="{{ outing_card.apple_maps_href }}" target="_blank" rel="noreferrer" data-apple-maps-link hidden>
+                    Apple Maps
                 </a>
                 {% endif %}
                 <button class="button button--subtle" id="copy-outing-card-button" type="button">
@@ -541,7 +546,8 @@
                     <p class="outing-stop__body">{{ stop.count_label }}</p>
                     <div class="outing-stop__actions">
                         <a class="utility-link" href="{{ stop.location_href }}">Open location page</a>
-                        <a class="utility-link" href="{{ stop.maps_href }}" target="_blank" rel="noreferrer">Open in Maps</a>
+                        <a class="utility-link" href="{{ stop.google_maps_href }}" target="_blank" rel="noreferrer">Google Maps</a>
+                        <a class="utility-link" href="{{ stop.apple_maps_href }}" target="_blank" rel="noreferrer" data-apple-maps-link hidden>Apple Maps</a>
                     </div>
                 </article>
                 {% endfor %}
@@ -606,17 +612,17 @@
     <div class="section-heading">
         <span class="eyebrow">Recent reports</span>
         <h2>Latest finds from this stop</h2>
-        <p>Newest posts first, with links back to the official report.</p>
+        <p>Newest posts first. This page keeps the full archive for {{ location_name }}, not just the matching posts a search result might show.</p>
     </div>
 
-    <p class="official-note">Open the original report below, or use <a class="utility-link" href="{{ official_links.register }}" target="_blank" rel="noreferrer">Register Floats</a> to add or update the official story.</p>
+    <p class="official-note">Open the original report below, or use <a class="utility-link" href="{{ official_links.register }}" target="_blank" rel="noreferrer">Register Floats</a> to add or update the official story. Search can stop at matching posts, but this guide keeps all {{ total_finds }} archived report{{ '' if total_finds == 1 else 's' }} for {{ location_name }} together.</p>
 
     <div class="recent-finds">
         {% for find in recent_finds %}
         <article class="find-card">
             <div class="find-card__meta">
                 <span class="pill pill--accent">{{ find.year }}</span>
-                <span class="pill">{{ find.date_found if find.date_found else 'Undated' }}</span>
+                <span class="pill">{{ find.date_found|format_public_date('Undated') if find.date_found else 'Undated' }}</span>
             </div>
             <h3>Float #{{ find.float_number if find.float_number else 'Unknown' }}</h3>
             <p>{{ find.finder if find.finder else 'Unknown finder' }}</p>
@@ -647,7 +653,7 @@
                         {% for find in finds %}
                         <tr>
                             <td>{{ find.year }}</td>
-                            <td>{{ find.date_found if find.date_found else 'Undated' }}</td>
+                            <td>{{ find.date_found|format_public_date('Undated') if find.date_found else 'Undated' }}</td>
                             <td>#{{ find.float_number if find.float_number else 'Unknown' }}</td>
                             <td>{{ find.finder if find.finder else 'Unknown finder' }}</td>
                         </tr>
@@ -682,6 +688,7 @@
     const shareStatus = document.getElementById('share-status');
     const sharedRef = {{ shared_ref|tojson }};
     const galleryButtons = Array.from(document.querySelectorAll('[data-lightbox-index]'));
+    const appleMapsLinks = Array.from(document.querySelectorAll('[data-apple-maps-link]'));
     const lightbox = document.getElementById('lightbox');
     const lightboxImage = document.getElementById('lightbox-img');
     const lightboxClose = document.getElementById('lightbox-close');
@@ -696,6 +703,23 @@
         }
         const floatLabel = image.float_number ? `Float ${image.float_number}` : 'Float photo';
         return image.year ? `${floatLabel} from ${image.year}` : floatLabel;
+    }
+
+    function supportsAppleMaps() {
+        const platform = navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || '';
+        return /Mac|iPhone|iPad|iPod/i.test(platform);
+    }
+
+    function getFocusableElements(container) {
+        if (!container) {
+            return [];
+        }
+
+        return Array.from(
+            container.querySelectorAll(
+                'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            )
+        ).filter((element) => !element.hidden && element.getAttribute('aria-hidden') !== 'true');
     }
 
     function openLightbox(index, trigger = null) {
@@ -849,6 +873,12 @@
         }
     });
 
+    if (supportsAppleMaps()) {
+        appleMapsLinks.forEach((link) => {
+            link.hidden = false;
+        });
+    }
+
     lightbox?.addEventListener('click', (event) => {
         if (event.target === lightbox) {
             closeLightbox();
@@ -876,6 +906,20 @@
         if (event.key === 'Escape') {
             event.preventDefault();
             closeLightbox();
+        }
+        if (event.key === 'Tab') {
+            const focusable = getFocusableElements(lightbox);
+            if (focusable.length) {
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (event.shiftKey && document.activeElement === first) {
+                    event.preventDefault();
+                    last.focus();
+                } else if (!event.shiftKey && document.activeElement === last) {
+                    event.preventDefault();
+                    first.focus();
+                }
+            }
         }
         if (event.key === 'ArrowLeft') {
             event.preventDefault();

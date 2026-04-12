@@ -67,6 +67,26 @@
     line-height: 1.6;
 }
 
+.geolocate-status[data-state="success"] {
+    color: var(--accent-strong);
+}
+
+.geolocate-status[data-state="error"] {
+    color: #ffd0c0;
+}
+
+.geolocate-detail,
+.geolocate-help {
+    margin: 0;
+    color: var(--text-2);
+    line-height: 1.55;
+    font-size: 0.95rem;
+}
+
+.geolocate-help {
+    color: var(--text-1);
+}
+
 .field-map-panel {
     display: grid;
     gap: 1rem;
@@ -275,10 +295,15 @@
 }
 
 .spot-distance {
+    display: none;
     white-space: nowrap;
     color: var(--accent-strong);
     font-size: 0.9rem;
     font-weight: 800;
+}
+
+body.field-distance-ready .spot-distance {
+    display: inline-block;
 }
 
 .spot-note {
@@ -373,6 +398,21 @@
 .field-directory__summary-text {
     color: var(--text-2);
     line-height: 1.6;
+}
+
+.field-directory__controls {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.field-directory__progress {
+    margin: 0;
+    color: var(--text-2);
+    line-height: 1.55;
+}
+
+.field-directory__reveal {
+    justify-self: start;
 }
 
 .etiquette-trigger {

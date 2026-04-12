@@ -7,6 +7,7 @@ import os
 import math
 from collections import Counter, defaultdict
 from functools import lru_cache
+from urllib.parse import quote_plus
 from zoneinfo import ZoneInfo
 from analyzer import normalize_location, analyze_dates, analyze_unreported_floats, get_year_recovery_stats
 from forecasting import (
@@ -33,6 +34,8 @@ try:
     DISPLAY_TIMEZONE = ZoneInfo(os.getenv('APP_TIMEZONE', 'America/New_York'))
 except Exception:
     DISPLAY_TIMEZONE = datetime.timezone.utc
+FORECAST_ARTIFACT_STALE_HOURS = 48
+FIELD_DIRECTORY_BATCH_SIZE = 12
 ALLOWED_EVENT_NAMES = {'share_clicked', 'shared_location_view'}
 ALLOWED_SHARE_METHODS = {'native', 'copy'}
 OFFICIAL_LINKS = {
@@ -132,32 +135,65 @@ def get_today():
     return datetime.date.today()
 
 
-def format_local_timestamp(value, missing='Unavailable'):
+def get_current_time():
+    return datetime.datetime.now(DISPLAY_TIMEZONE)
+
+
+def parse_datetime_value(value):
     if value in (None, ''):
-        return missing
+        return None
 
     timestamp = value
     if not isinstance(timestamp, datetime.datetime):
         raw_value = str(timestamp).strip()
         if not raw_value:
-            return missing
+            return None
         if raw_value.endswith('Z'):
             raw_value = f'{raw_value[:-1]}+00:00'
         try:
             timestamp = datetime.datetime.fromisoformat(raw_value)
         except ValueError:
-            return str(value)
+            return None
 
     if timestamp.tzinfo is None:
-        localized = timestamp.replace(tzinfo=DISPLAY_TIMEZONE)
-    else:
-        localized = timestamp.astimezone(DISPLAY_TIMEZONE)
+        return timestamp.replace(tzinfo=DISPLAY_TIMEZONE)
+    return timestamp.astimezone(DISPLAY_TIMEZONE)
+
+
+def format_local_timestamp(value, missing='Unavailable'):
+    localized = parse_datetime_value(value)
+    if localized is None:
+        return missing if value in (None, '') else str(value)
 
     time_label = localized.strftime('%I:%M %p').lstrip('0')
     return f"{localized.strftime('%b')} {localized.day}, {localized.year} at {time_label} {localized.tzname()}"
 
 
 app.add_template_filter(format_local_timestamp, 'format_local_timestamp')
+
+
+def format_public_date(value, missing='Unknown'):
+    if value in (None, ''):
+        return missing
+
+    if isinstance(value, datetime.date) and not isinstance(value, datetime.datetime):
+        return f"{value.strftime('%b')} {value.day}, {value.year}"
+
+    localized = parse_datetime_value(value)
+    if localized is not None:
+        return f"{localized.strftime('%b')} {localized.day}, {localized.year}"
+
+    raw_value = str(value).strip()
+    if not raw_value:
+        return missing
+    try:
+        parsed_date = datetime.date.fromisoformat(raw_value)
+    except ValueError:
+        return str(value)
+    return f"{parsed_date.strftime('%b')} {parsed_date.day}, {parsed_date.year}"
+
+
+app.add_template_filter(format_public_date, 'format_public_date')
 
 def get_db_connection():
     conn = sqlite3.connect(DB_NAME)
@@ -258,6 +294,83 @@ def calculate_distance_miles(lat1, lon1, lat2, lon2):
     return earth_radius_miles * c
 
 
+def describe_relative_age(delta):
+    total_hours = max(int(delta.total_seconds() // 3600), 0)
+    if total_hours < 24:
+        display_hours = max(total_hours, 1)
+        return f'{display_hours} hour{"s" if display_hours != 1 else ""}'
+
+    total_days = max(int(delta.total_seconds() // 86400), 1)
+    if total_days < 7:
+        return f'{total_days} day{"s" if total_days != 1 else ""}'
+
+    total_weeks = max(total_days // 7, 1)
+    return f'{total_weeks} week{"s" if total_weeks != 1 else ""}'
+
+
+def build_forecast_freshness(briefing):
+    freshness_data = dict(briefing.get('feature_freshness') or {})
+    artifact_generated_at = parse_datetime_value(freshness_data.get('artifact_generated_at'))
+    artifact_age = None
+    artifact_age_label = ''
+    is_stale = False
+
+    if artifact_generated_at is not None:
+        artifact_age = max(get_current_time() - artifact_generated_at, datetime.timedelta())
+        artifact_age_label = describe_relative_age(artifact_age)
+        is_stale = artifact_age >= datetime.timedelta(hours=FORECAST_ARTIFACT_STALE_HOURS)
+
+    if is_stale and artifact_generated_at is not None:
+        summary = (
+            'Live weather and tide are current, but the ranking model was generated on '
+            f'{format_local_timestamp(artifact_generated_at)} and is about {artifact_age_label} old.'
+        )
+        return {
+            'is_stale': True,
+            'summary': summary,
+            'headline': 'Latest model guidance for today',
+            'subtitle': (
+                'Use live weather and tide as current context, and treat the ranked area as a planning suggestion '
+                'from the latest forecast artifact.'
+            ),
+            'lead_prefix': 'Latest model points to',
+            'lead_suffix': 'Starting suggestion from the latest forecast artifact',
+            'priority_badge': 'Model-based suggestion',
+            'rail_badge': 'Model advisory',
+            'rail_context': 'Live conditions + older model artifact',
+            'zone_lead_summary': 'This area still leads the latest model, but the ranking artifact is no longer same-day fresh.',
+            'zone_backup_summary': 'Keep this reserve area from the latest model if the first stop is crowded, blocked, or quiet on the ground.',
+            'warning_label': f'Model artifact age: {artifact_age_label}',
+        }
+
+    return {
+        'is_stale': False,
+        'summary': 'Live weather, tide, and the latest ranked area are close enough in time to use as a same-day starting guide.',
+        'headline': 'Where to start today',
+        'subtitle': 'Get a simple starting recommendation based on find history, seasonality, tide, and weather.',
+        'lead_prefix': 'Start with',
+        'lead_suffix': 'Best first stop today',
+        'priority_badge': '#1 today',
+        'rail_badge': 'Today',
+        'rail_context': 'History + live conditions',
+        'zone_lead_summary': "This area has the clearest mix of archive history and today's conditions.",
+        'zone_backup_summary': 'Keep this one in reserve if your first stop feels crowded or quiet on the ground.',
+        'warning_label': '',
+    }
+
+
+def build_field_directory_state(hunting_spots, batch_size=FIELD_DIRECTORY_BATCH_SIZE):
+    total = len(hunting_spots)
+    initial_visible_count = min(total, batch_size)
+    remaining_count = max(total - initial_visible_count, 0)
+    return {
+        'batch_size': batch_size,
+        'initial_visible_count': initial_visible_count,
+        'remaining_count': remaining_count,
+        'has_more': remaining_count > 0,
+    }
+
+
 def format_distance_label(distance_miles):
     if distance_miles < 0.1:
         return 'Under 0.1 mi away'
@@ -282,6 +395,97 @@ def build_archive_signal(total_finds, years_tracked):
         'share_label': 'light archive signal',
         'summary': 'Archive support is thinner here, so it works better as part of a short backup route.',
     }
+
+
+def format_archive_report_label(count):
+    return '1 archived report' if count == 1 else f'{count} archived reports'
+
+
+def build_google_maps_href(lat, lon):
+    return f'https://maps.google.com/?q={lat},{lon}'
+
+
+def build_apple_maps_href(lat, lon, label=''):
+    query = str(label).strip() or f'{lat},{lon}'
+    return f'maps://?ll={lat},{lon}&q={quote_plus(query)}'
+
+
+def build_field_reason_text(spot_name, count, zone_meta=None):
+    archive_label = format_archive_report_label(count)
+    archive_verb = 'keeps' if count == 1 else 'keep'
+    reason_tag = ''
+
+    if zone_meta:
+        reason_tag = next((tag for tag in zone_meta.get('reason_tags', []) if tag), '')
+        if zone_meta.get('support_rank', 0) == 0:
+            if zone_meta.get('reason_text'):
+                return zone_meta['reason_text']
+            if reason_tag:
+                return f"{reason_tag} keeps {spot_name} at the front of the shortlist."
+            return f"{archive_label.capitalize()} {archive_verb} {spot_name} near the top of the shortlist."
+
+        if reason_tag:
+            return f"{reason_tag} also points toward {spot_name} as the next move off {zone_meta['zone_label']}."
+        return f"{archive_label.capitalize()} {archive_verb} {spot_name} attached to the {zone_meta['zone_label']} lane."
+
+    if count == 1:
+        return f"Only {archive_label}, so treat {spot_name} as a thinner archive backup."
+    return f"{archive_label.capitalize()} keep {spot_name} on the shortlist even without forecast support."
+
+
+def build_support_summary(support_names, empty_message):
+    names = [str(name).strip() for name in support_names if str(name).strip()]
+    if not names:
+        return empty_message
+    label = join_label_list(names[:3])
+    noun = 'stop' if len(names[:3]) == 1 else 'stops'
+    return f"Keep {label} ready as the next {noun} if the first pass comes up quiet."
+
+
+def build_forecast_zone_cards(zones, freshness):
+    cards = []
+
+    for index, zone in enumerate(zones, start=1):
+        card = dict(zone)
+        primary_name = zone.get('primary_spot') or zone.get('label')
+        support_names = [
+            spot.get('name')
+            for spot in zone.get('supporting_spots', [])
+            if spot.get('name')
+        ]
+        backup_names = [name for name in support_names if name and name != primary_name]
+        season_count = len(zone.get('actual_years', []) or [])
+        dated_support_count = int(zone.get('dated_support_count') or 0)
+        dated_label = '1 dated report' if dated_support_count == 1 else f'{dated_support_count} dated reports'
+        reason_text = next((text for text in zone.get('reason_texts', []) if text), '')
+        reason_tag = next((tag for tag in zone.get('reason_tags', []) if tag), '')
+
+        if reason_text:
+            summary = reason_text
+        elif reason_tag:
+            if index == 1:
+                summary = f"{reason_tag} keeps {zone.get('label') or primary_name} in front."
+            else:
+                summary = f"{reason_tag} keeps {zone.get('label') or primary_name} ready behind the lead area."
+        else:
+            summary = freshness['zone_lead_summary'] if index == 1 else freshness['zone_backup_summary']
+
+        if backup_names:
+            detail = (
+                f"{dated_label.capitalize()} across {season_count} season{'s' if season_count != 1 else ''}, "
+                f"with {join_label_list(backup_names[:3])} on the same run."
+            )
+        else:
+            detail = (
+                f"{dated_label.capitalize()} across {season_count} season{'s' if season_count != 1 else ''} "
+                f"keep this area on the board."
+            )
+
+        card['summary_copy'] = summary
+        card['detail_copy'] = detail
+        cards.append(card)
+
+    return cards
 
 
 def build_search_result_groups(rows):
@@ -508,7 +712,6 @@ def build_field_priority_tiers(hunting_spots, briefing, focused_route=None):
                     '',
                 ),
                 'reason_tags': [tag for tag in zone.get('reason_tags', []) if tag][:3],
-                'location_href': zone.get('location_href'),
             }
 
     def clone_spot(
@@ -517,7 +720,6 @@ def build_field_priority_tiers(hunting_spots, briefing, focused_route=None):
         priority_label='',
         priority_reason='',
         priority_tags=None,
-        location_href='',
         support_summary='',
         supporting_spots=None,
     ):
@@ -530,8 +732,7 @@ def build_field_priority_tiers(hunting_spots, briefing, focused_route=None):
         cloned['priority_reason'] = priority_reason
         cloned['priority_tags'] = list(priority_tags or [])
         cloned['location_href'] = (
-            location_href
-            or base_spot.get('location_href')
+            base_spot.get('location_href')
             or url_for('location_detail', location_name=name)
         )
         cloned['support_summary'] = support_summary
@@ -564,10 +765,9 @@ def build_field_priority_tiers(hunting_spots, briefing, focused_route=None):
             priority_label='Shared route start',
             priority_reason=focused_route.get('summary')
             or 'Shared from a location page so you can start with a known stop.',
-            support_summary=(
-                f"{len(support_names)} mapped backup stops were carried over from the shared route."
-                if support_names
-                else 'Sort the shortlist below by distance once you are moving.'
+            support_summary=build_support_summary(
+                support_names,
+                'Sort the shortlist below by distance once you are moving.',
             ),
             supporting_spots=support_names[:3],
         )
@@ -594,14 +794,15 @@ def build_field_priority_tiers(hunting_spots, briefing, focused_route=None):
             best_bet = clone_spot(
                 lead_name,
                 priority_label='Best bet right now',
-                priority_reason=lead_meta.get('reason_text')
-                or 'Start here first, then widen the search only if this stop is blocked or quiet.',
+                priority_reason=build_field_reason_text(
+                    lead_name,
+                    int(spot_lookup.get(lead_name, {}).get('count') or 0),
+                    lead_meta,
+                ),
                 priority_tags=[],
-                location_href=lead_meta.get('location_href'),
-                support_summary=(
-                    f"{len(support_names)} mapped backup stops sit behind the lead recommendation."
-                    if support_names
-                    else 'Use the shortlist below if access, crowds, or conditions change the plan.'
+                support_summary=build_support_summary(
+                    support_names,
+                    'Use the shortlist below if access, crowds, or conditions change the plan.',
                 ),
                 supporting_spots=support_names[:3],
             )
@@ -613,8 +814,11 @@ def build_field_priority_tiers(hunting_spots, briefing, focused_route=None):
             best_bet = clone_spot(
                 fallback_name,
                 priority_label='Archive leader',
-                priority_reason='Start with the strongest signal in the archive, then widen the search only if needed.',
-                support_summary='Use the shortlist below to keep a few backups ready.',
+                priority_reason=build_field_reason_text(
+                    fallback_name,
+                    int(spot_lookup.get(fallback_name, {}).get('count') or 0),
+                ),
+                support_summary='Use the shortlist below to keep one or two backups ready.',
             )
             featured_names.add(fallback_name)
 
@@ -634,26 +838,22 @@ def build_field_priority_tiers(hunting_spots, briefing, focused_route=None):
         if zone_meta:
             if zone_meta['support_rank'] == 0:
                 priority_label = zone_meta['signal_label'] or 'Forecast-backed stop'
-                priority_reason = zone_meta['reason_text'] or f"{zone_meta['zone_label']} stays on the short list."
             else:
                 priority_label = 'Forecast-backed backup'
-                priority_reason = (
-                    f"Keep this ready if {zone_meta['zone_label']} is crowded, blocked, or not paying off."
-                )
             priority_tags = zone_meta['reason_tags'][:1]
-            location_href = zone_meta.get('location_href')
         else:
             priority_label = 'Archive standout'
-            priority_reason = 'Strong archive signal without dropping straight into the full directory.'
             priority_tags = []
-            location_href = ''
 
         worthwhile_spot = clone_spot(
             name,
             priority_label=priority_label,
-            priority_reason=priority_reason,
+            priority_reason=build_field_reason_text(
+                name,
+                int(spot_lookup.get(name, {}).get('count') or 0),
+                zone_meta,
+            ),
             priority_tags=priority_tags,
-            location_href=location_href,
         )
         if worthwhile_spot:
             closest_worthwhile.append(worthwhile_spot)
@@ -667,21 +867,20 @@ def build_field_priority_tiers(hunting_spots, briefing, focused_route=None):
         zone_meta = zone_details_by_spot.get(spot['name'])
         if zone_meta:
             priority_label = f"Forecast zone #{zone_meta['rank']}"
-            priority_reason = f"Additional option tied to {zone_meta['zone_label']}."
             priority_tags = zone_meta['reason_tags'][:1]
-            location_href = zone_meta.get('location_href')
         else:
             priority_label = 'Archive signal'
-            priority_reason = f"{spot['count']} reports in the archive."
             priority_tags = []
-            location_href = ''
 
         more_option = clone_spot(
             spot['name'],
             priority_label=priority_label,
-            priority_reason=priority_reason,
+            priority_reason=build_field_reason_text(
+                spot['name'],
+                int(spot.get('count') or 0),
+                zone_meta,
+            ),
             priority_tags=priority_tags,
-            location_href=location_href,
         )
         if more_option:
             more_options.append(more_option)
@@ -720,7 +919,8 @@ def build_nearby_route_stops(location_name, coords, loc_counts, limit=2):
             'distance_miles': round(distance_miles, 1),
             'distance_label': format_distance_label(distance_miles),
             'location_href': url_for('location_detail', location_name=spot['name']),
-            'maps_href': f'https://maps.google.com/?q={spot["lat"]},{spot["lon"]}',
+            'google_maps_href': build_google_maps_href(spot['lat'], spot['lon']),
+            'apple_maps_href': build_apple_maps_href(spot['lat'], spot['lon'], spot['name']),
         })
 
     nearby.sort(key=lambda spot: (spot['distance_miles'], -spot['count'], spot['name']))
@@ -1153,6 +1353,7 @@ def field_mode():
         briefing,
         focused_route=focused_route,
     )
+    directory_state = build_field_directory_state(hunting_spots)
     last_updated = get_last_updated()
     weather = normalize_weather_payload(
         briefing.get('conditions', {}).get('weather')
@@ -1161,6 +1362,7 @@ def field_mode():
     return render_template('field.html',
                            hunting_spots=hunting_spots,
                            priority_tiers=priority_tiers,
+                           directory_state=directory_state,
                            last_updated=last_updated,
                            weather=weather,
                            forecast_briefing=briefing,
@@ -1250,14 +1452,15 @@ def location_detail(location_name):
     season_label = 'season' if years_tracked == 1 else 'seasons'
     find_label = 'find' if total_finds == 1 else 'finds'
     latest_date = latest_find['date_found'] if latest_find and latest_find['date_found'] else None
+    latest_date_label = format_public_date(latest_date, missing='Undated in the archive') if latest_date else None
     archive_signal = build_archive_signal(total_finds, years_tracked)
     nearby_route_stops = build_nearby_route_stops(location_name, coords, location_counts)
     backup_names = join_label_list(stop['name'] for stop in nearby_route_stops)
     share_parts = [
         f'{location_name} outing card: {archive_signal["share_label"]} with {total_finds} reported {find_label} across {years_tracked} {season_label}.',
     ]
-    if latest_date:
-        share_parts.append(f'Latest dated report: {latest_date}.')
+    if latest_date_label:
+        share_parts.append(f'Latest dated report: {latest_date_label}.')
     if backup_names:
         backup_label = 'Backup stop' if len(nearby_route_stops) == 1 else 'Backup stops'
         share_parts.append(f'{backup_label}: {backup_names}.')
@@ -1273,6 +1476,8 @@ def location_detail(location_name):
     )
     page_description = share_text
     page_image = images[0]['url'] if images else url_for('static', filename='icon-512.png', _external=True)
+    google_maps_href = build_google_maps_href(coords['lat'], coords['lon']) if coords else None
+    apple_maps_href = build_apple_maps_href(coords['lat'], coords['lon'], location_name) if coords else None
     
     conn.close()
     
@@ -1289,6 +1494,7 @@ def location_detail(location_name):
                           years=sorted(years.items(), reverse=True),
                           years_tracked=years_tracked,
                           latest_find=latest_find,
+                          latest_date_label=latest_date_label,
                           recent_finds=recent_finds,
                           older_finds=older_finds,
                           outing_card={
@@ -1297,7 +1503,8 @@ def location_detail(location_name):
                               'route_summary': route_summary,
                               'backup_stops': nearby_route_stops,
                               'field_href': field_href,
-                              'maps_href': f'https://maps.google.com/?q={coords["lat"]},{coords["lon"]}' if coords else None,
+                              'google_maps_href': google_maps_href,
+                              'apple_maps_href': apple_maps_href,
                               'share_preview': share_text,
                           },
                           share_payload={
@@ -1319,8 +1526,8 @@ def location_detail(location_name):
                                   else f'{location_name} has {total_finds} recorded reports in the archive.'
                               ),
                               primary_cta=build_cta(
-                                  label='Open in Maps',
-                                  href=f'https://maps.google.com/?q={coords["lat"]},{coords["lon"]}',
+                                  label='Open in Google Maps',
+                                  href=google_maps_href,
                                   external=True,
                               ) if coords else None,
                               description=page_description,
@@ -1367,22 +1574,25 @@ def get_seasonality_score():
 def forecast():
     """Show the daily zone briefing."""
     briefing = build_daily_forecast_briefing()
+    freshness = build_forecast_freshness(briefing)
+    briefing['zones'] = build_forecast_zone_cards(briefing.get('zones', []), freshness)
 
     return render_template('forecast.html', 
                           briefing=briefing,
+                          freshness=freshness,
                           lead_zone=briefing['zones'][0] if briefing.get('zones') else None,
                           page_meta=build_page_meta(
                               active_nav='forecast',
                               mode='utility',
-                              kicker='Today',
-                              title='Where to start today',
-                              subtitle="Get a simple starting recommendation based on find history, seasonality, tide, and weather.",
+                              kicker='Today' if not freshness['is_stale'] else 'Advisory',
+                              title=freshness['headline'],
+                              subtitle=freshness['subtitle'],
                               primary_cta=build_cta(
                                   label='Open field view',
                                   href=url_for('field_mode'),
                               ),
-                              description='See today\'s recommended starting area for a Block Island glass float hunt and the live conditions behind it.',
-                           ))
+                              description='See the latest recommended starting area for a Block Island glass float hunt, plus the live conditions and forecast freshness behind it.',
+                            ))
 
 @app.route('/sw.js')
 def service_worker():

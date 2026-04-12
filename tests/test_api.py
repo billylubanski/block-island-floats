@@ -294,6 +294,9 @@ def test_field_route_renders_json_backed_official_guidance(sample_db: Path, monk
     assert "Open every mapped location" in text
     assert 'role="status"' in text
     assert 'aria-live="polite"' in text
+    assert 'href="#main-content"' in text
+    assert 'id="main-content"' in text
+    assert 'data-apple-maps-link hidden' in text
     assert app_module.OFFICIAL_LINKS["register"] in text
     assert f'href="{app_module.OFFICIAL_LINKS["project"]}"' not in text
 
@@ -317,7 +320,7 @@ def test_field_route_renders_focused_share_handoff(
     assert context["focused_route"]["backup_stops"][0]["name"] == "Clay Head Trail"
     assert context["focused_route"]["summary"].startswith("Shared from a location page.")
     assert context["priority_tiers"]["best_bet"]["priority_label"] == "Shared route start"
-    assert context["priority_tiers"]["best_bet"]["support_summary"] == "1 mapped backup stops were carried over from the shared route."
+    assert context["priority_tiers"]["best_bet"]["support_summary"] == "Keep Clay Head Trail ready as the next stop if the first pass comes up quiet."
 
 
 def test_field_route_renders_fallback_guidance_payload(sample_db: Path, monkeypatch: pytest.MonkeyPatch):
@@ -336,16 +339,115 @@ def test_field_route_renders_fallback_guidance_payload(sample_db: Path, monkeypa
     assert "Full directory" in text
 
 
+def test_field_route_limits_initial_directory_batch_for_large_sets(
+    sample_db: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capture_templates,
+):
+    monkeypatch.setattr(app_module, "get_weather_data", lambda: None)
+    monkeypatch.setattr(app_module, "build_daily_forecast_briefing", lambda target_date=None: sample_forecast_briefing())
+    large_counts = {
+        name: index + 1
+        for index, name in enumerate(list(app_module.LOCATIONS.keys())[:15])
+    }
+    monkeypatch.setattr(app_module, "get_location_counts", lambda year_param=None: app_module.Counter(large_counts))
+
+    with app_module.app.test_client() as client:
+        response = client.get("/field")
+
+    assert response.status_code == 200
+    _, context = capture_templates[-1]
+    assert context["directory_state"]["initial_visible_count"] == app_module.FIELD_DIRECTORY_BATCH_SIZE
+    assert context["directory_state"]["remaining_count"] == 3
+
+    text = response.get_data(as_text=True)
+    assert "Showing 12 of 15 mapped locations." in text
+    assert "Show 3 more locations" in text
+
+
+def test_field_priority_tiers_keep_support_card_destinations_attached_to_each_spot():
+    hunting_spots = [
+        {
+            "name": "Enchanted Forest",
+            "count": 12,
+            "lat": 41.1701,
+            "lon": -71.5701,
+            "location_href": "/location/Enchanted%20Forest",
+        },
+        {
+            "name": "Nathan Mott Park",
+            "count": 9,
+            "lat": 41.1802,
+            "lon": -71.5802,
+            "location_href": "/location/Nathan%20Mott%20Park",
+        },
+        {
+            "name": "Martin's Lane/Trail",
+            "count": 7,
+            "lat": 41.1903,
+            "lon": -71.5903,
+            "location_href": "/location/Martin%27s%20Lane%2FTrail",
+        },
+        {
+            "name": "Cooneymus Beach",
+            "count": 5,
+            "lat": 41.1604,
+            "lon": -71.5604,
+            "location_href": "/location/Cooneymus%20Beach",
+        },
+    ]
+    briefing = {
+        "zones": [
+            {
+                "label": "Enchanted Forest",
+                "location_href": "/location/Enchanted%20Forest",
+                "signal_label": "Best signal",
+                "primary_spot": "Enchanted Forest",
+                "supporting_spots": [
+                    {"name": "Enchanted Forest"},
+                    {"name": "Nathan Mott Park"},
+                    {"name": "Martin's Lane/Trail"},
+                ],
+                "reason_texts": ["Recent reports support this zone."],
+                "reason_tags": ["Recent finds nearby"],
+            }
+        ]
+    }
+
+    with app_module.app.test_request_context("/field"):
+        priority_tiers = app_module.build_field_priority_tiers(hunting_spots, briefing)
+
+    worthwhile = {spot["name"]: spot for spot in priority_tiers["closest_worthwhile"]}
+
+    assert worthwhile["Nathan Mott Park"]["location_href"] == "/location/Nathan%20Mott%20Park"
+    assert worthwhile["Nathan Mott Park"]["lat"] == pytest.approx(41.1802)
+    assert worthwhile["Nathan Mott Park"]["lon"] == pytest.approx(-71.5802)
+    assert worthwhile["Nathan Mott Park"]["priority_reason"].startswith("Recent finds nearby also points toward Nathan Mott Park")
+
+    assert worthwhile["Martin's Lane/Trail"]["location_href"] == "/location/Martin%27s%20Lane%2FTrail"
+    assert worthwhile["Martin's Lane/Trail"]["lat"] == pytest.approx(41.1903)
+    assert worthwhile["Martin's Lane/Trail"]["lon"] == pytest.approx(-71.5903)
+    assert worthwhile["Martin's Lane/Trail"]["priority_reason"].startswith("Recent finds nearby also points toward Martin's Lane/Trail")
+    assert worthwhile["Nathan Mott Park"]["location_href"] != briefing["zones"][0]["location_href"]
+    assert worthwhile["Martin's Lane/Trail"]["location_href"] != briefing["zones"][0]["location_href"]
+
+    assert app_module.build_field_reason_text("Cooneymus Beach", 5) == (
+        "5 archived reports keep Cooneymus Beach on the shortlist even without forecast support."
+    )
+
+
 def test_search_route_includes_official_report_links(sample_db: Path):
     with app_module.app.test_client() as client:
         response = client.get("/search?q=Tester")
 
     assert response.status_code == 200
     text = response.get_data(as_text=True)
-    assert text.count("Showing up to 50 matches from public finder posts.") == 1
+    assert text.count("Showing up to 50 matching posts from public finder reports.") == 1
+    assert "Open a location guide to see the full archive for that place beyond the search cap." in text
     assert text.count("Open location guide") == 2
     assert text.count("Open official report") == 3
     assert "Show 2 matching reports" in text
+    assert "Latest dated post: <strong>Jul 10, 2025</strong>." in text
     assert "Register Floats" in text
     assert "https://example.com/find/2025-1" in text
 
@@ -366,6 +468,8 @@ def test_search_route_groups_normalized_location_matches(sample_db: Path, captur
     assert text.count("Open location guide") == 1
     assert text.count("Open official report") == 2
     assert "Show 2 matching reports" in text
+    assert "The location guide opens the full archive for Rodman&#39;s Hollow" in text
+    assert "reported this float on Jul 10, 2025." in text
 
 
 def test_search_route_hides_official_report_link_when_url_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -410,7 +514,11 @@ def test_location_detail_renders_recent_find_official_report_links(sample_db: Pa
     assert 'role="dialog"' in text
     assert 'aria-modal="true"' in text
     assert app_module.OFFICIAL_LINKS["register"] in text
-    assert "Newest posts first, with links back to the official report." in text
+    assert "Newest posts first. This page keeps the full archive for Rodman&#39;s Hollow" in text
+    assert "Latest recorded report: Jul 10, 2025." in text
+    assert "Jul 10, 2025" in text
+    assert "Latest recorded report: 2025-07-10." not in text
+    assert "<td>2025-07-10</td>" not in text
 
 
 def test_location_detail_builds_share_payload_and_meta(sample_db: Path, capture_templates):
@@ -424,6 +532,8 @@ def test_location_detail_builds_share_payload_and_meta(sample_db: Path, capture_
     assert "Share this spot" in text
     assert "Copy outing card" in text
     assert "Mini route" in text
+    assert "Google Maps" in text
+    assert 'data-apple-maps-link hidden' in text
     assert 'property="og:description"' in text
     assert 'property="og:image:alt" content="Archive photo from Rodman&#39;s Hollow"' in text
     assert 'property="og:image" content="https://cdn.example.com/2025-1.jpg"' in text
@@ -436,11 +546,11 @@ def test_location_detail_builds_share_payload_and_meta(sample_db: Path, capture_
         "share_url": "http://localhost/location/Rodman's%20Hollow?ref=share",
         "share_text": (
             "Rodman's Hollow outing card: steady archive signal with 2 reported finds across 2 seasons. "
-            "Latest dated report: 2025-07-10. Backup stop: Clay Head Trail."
+            "Latest dated report: Jul 10, 2025. Backup stop: Clay Head Trail."
         ),
         "copy_text": (
             "Rodman's Hollow outing card: steady archive signal with 2 reported finds across 2 seasons. "
-            "Latest dated report: 2025-07-10. Backup stop: Clay Head Trail.\n"
+            "Latest dated report: Jul 10, 2025. Backup stop: Clay Head Trail.\n"
             "http://localhost/location/Rodman's%20Hollow?ref=share\n"
             "Focused field view: http://localhost/field?focus=Rodman's+Hollow"
         ),
@@ -449,7 +559,7 @@ def test_location_detail_builds_share_payload_and_meta(sample_db: Path, capture_
     assert context["shared_ref"] is False
     assert context["page_meta"]["description"] == (
         "Rodman's Hollow outing card: steady archive signal with 2 reported finds across 2 seasons. "
-        "Latest dated report: 2025-07-10. Backup stop: Clay Head Trail."
+        "Latest dated report: Jul 10, 2025. Backup stop: Clay Head Trail."
     )
     assert context["page_meta"]["image"] == "https://cdn.example.com/2025-1.jpg"
     assert context["page_meta"]["meta_title"] == "Rodman's Hollow outing card"
@@ -458,6 +568,10 @@ def test_location_detail_builds_share_payload_and_meta(sample_db: Path, capture_
     assert context["outing_card"]["badge_label"] == "Steady archive signal"
     assert context["outing_card"]["backup_stops"][0]["name"] == "Clay Head Trail"
     assert context["outing_card"]["field_href"] == "/field?focus=Rodman's+Hollow"
+    assert context["outing_card"]["google_maps_href"] == "https://maps.google.com/?q=41.155,-71.585"
+    assert context["outing_card"]["apple_maps_href"] == "maps://?ll=41.155,-71.585&q=Rodman%27s+Hollow"
+    assert context["outing_card"]["backup_stops"][0]["google_maps_href"] == "https://maps.google.com/?q=41.2187,-71.5587"
+    assert context["outing_card"]["backup_stops"][0]["apple_maps_href"] == "maps://?ll=41.2187,-71.5587&q=Clay+Head+Trail"
 
 
 def test_location_detail_renders_shared_banner_for_share_ref(sample_db: Path, capture_templates):
@@ -575,10 +689,14 @@ def test_forecast_route_renders_predictions_and_location_detail(
     assert "7.2/10" in text
     assert "Partly Cloudy" in text
     assert "9 mph" in text
+    assert "Wednesday, Jul 1, 2026" in text
     assert "Forecast updated: Jul 1, 2026 at 4:00 AM EDT" in text
     assert "Live weather updated: Jul 1, 2026 at 5:30 AM EDT" in text
     assert "Live tide updated: Jul 1, 2026 at 5:15 AM EDT" in text
+    assert "Seasonal support is doing most of the work here." in text
+    assert "9 dated reports across 2 seasons keep this area on the board." in text
     assert "2026-07-01T09:30:00Z" not in text
+    assert "2026-07-01" not in text
     assert "Primary spine" not in text
     assert "% probability" not in text
 
@@ -587,6 +705,12 @@ def test_format_local_timestamp_handles_naive_and_aware_values():
     assert app_module.format_local_timestamp("2026-07-01T09:30:00Z") == "Jul 1, 2026 at 5:30 AM EDT"
     assert app_module.format_local_timestamp("2026-03-29T21:18:22.824388") == "Mar 29, 2026 at 9:18 PM EDT"
     assert app_module.format_local_timestamp("", missing="Unknown") == "Unknown"
+
+
+def test_format_public_date_handles_dates_and_datetimes():
+    assert app_module.format_public_date("2026-07-01") == "Jul 1, 2026"
+    assert app_module.format_public_date("2026-07-01T09:30:00Z") == "Jul 1, 2026"
+    assert app_module.format_public_date("", missing="Undated") == "Undated"
 
 
 def test_forecast_route_handles_empty_predictions(sample_db: Path, monkeypatch: pytest.MonkeyPatch):
@@ -601,6 +725,33 @@ def test_forecast_route_handles_empty_predictions(sample_db: Path, monkeypatch: 
     text = response.get_data(as_text=True)
     assert "Where to start today" in text
     assert "No recommendation available" in text
+
+
+def test_forecast_route_downgrades_headline_when_artifact_is_stale(
+    sample_db: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    briefing = sample_forecast_briefing()
+    briefing["feature_freshness"]["artifact_generated_at"] = "2026-03-24T21:37:00-04:00"
+    monkeypatch.setattr(app_module, "build_daily_forecast_briefing", lambda target_date=None: briefing)
+    monkeypatch.setattr(
+        app_module,
+        "get_current_time",
+        lambda: datetime.datetime(2026, 4, 12, 12, 0, tzinfo=app_module.DISPLAY_TIMEZONE),
+    )
+
+    with app_module.app.test_client() as client:
+        response = client.get("/forecast")
+
+    assert response.status_code == 200
+    text = response.get_data(as_text=True)
+    assert "Latest model guidance for today" in text
+    assert "Latest model points to Rodman&#39;s Hollow" in text
+    assert "Starting suggestion from the latest forecast artifact" in text
+    assert "Model artifact age: 2 weeks" in text
+    assert "Treat the ranked area as advisory because the model artifact is older than the live weather and tide." in text
+    assert "the ranking model was generated on Mar 24, 2026 at 9:37 PM EDT and is about 2 weeks old." in text
+    assert "History + live conditions" not in text
 
 
 def test_forecast_helpers_read_generated_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):

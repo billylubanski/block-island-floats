@@ -371,6 +371,7 @@ def test_forecast_page_smoke_renders_zone_briefing(live_ui_server, ui_page):
         "Rodman's Hollow",
         "Clay Head Trail",
     ]
+    assert page.locator(".forecast-context-card").nth(2).inner_text().count("Jul 1, 2026") == 1
 
     body_text = page.locator("body").inner_text()
     assert "Where to go next if you want a backup" in body_text
@@ -408,6 +409,20 @@ def test_home_page_mobile_surfaces_recommended_start_above_fold(live_ui_server, 
 
     assert fold_metrics["titleTop"] < fold_metrics["viewportHeight"]
     assert fold_metrics["ctaBottom"] <= fold_metrics["viewportHeight"]
+    assert errors == []
+
+
+def test_home_page_exposes_skip_link_and_targets_main_content(live_ui_server, ui_page):
+    page, errors = ui_page
+
+    page.goto(live_ui_server, wait_until="domcontentloaded")
+    page.keyboard.press("Tab")
+
+    skip_link = page.get_by_role("link", name="Skip to main content")
+    assert skip_link.is_visible()
+    skip_link.press("Enter")
+
+    assert page.evaluate("document.activeElement && document.activeElement.id") == "main-content"
     assert errors == []
 
 
@@ -561,8 +576,95 @@ def test_field_page_mobile_hunt_rules_button_stays_clear_of_navigation_actions(l
     page.get_by_role("button", name="Hunt rules").click()
     drawer = page.locator("#field-etiquette-drawer")
     assert drawer.get_attribute("aria-hidden") == "false"
+    assert page.evaluate("document.activeElement && document.activeElement.id") == "etiquette-close"
     page.get_by_role("button", name="Close etiquette panel").click()
     assert drawer.get_attribute("aria-hidden") == "true"
+    assert page.evaluate("document.activeElement && document.activeElement.id") == "etiquette-trigger"
+    assert page.locator('[data-apple-maps-link]:visible').count() == 0
+    assert errors == []
+
+
+def test_field_page_mobile_keeps_directory_collapsed_and_hides_empty_distances(live_ui_server, ui_page):
+    page, errors = ui_page
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(f"{live_ui_server}/field", wait_until="domcontentloaded")
+
+    directory = page.locator(".field-directory__details")
+    assert directory.get_attribute("open") is None
+
+    visible_distance_labels = page.evaluate(
+        """
+        () => Array.from(document.querySelectorAll('.spot-distance'))
+            .filter((element) => {
+                const style = window.getComputedStyle(element);
+                return style.display !== 'none' && element.offsetParent !== null;
+            })
+            .map((element) => element.textContent.trim())
+        """
+    )
+    assert visible_distance_labels == []
+
+    page.locator(".field-directory__summary").click()
+    assert page.locator("#field-directory-progress").inner_text() == "Showing all 3 mapped locations."
+    assert errors == []
+
+
+def test_field_page_reports_denied_geolocation_with_retry_guidance(live_ui_server, ui_page):
+    page, errors = ui_page
+
+    page.add_init_script(
+        """
+        Object.defineProperty(navigator, 'geolocation', {
+            configurable: true,
+            value: {
+                getCurrentPosition: (success, error) => {
+                    error({
+                        code: 1,
+                        message: 'Permission denied',
+                    });
+                }
+            }
+        });
+        """
+    )
+
+    page.goto(f"{live_ui_server}/field", wait_until="domcontentloaded")
+    page.get_by_role("button", name="Find my location").click()
+
+    assert page.locator("#status").inner_text() == "Location access was blocked."
+    assert "allow location access" in page.locator("#status-help").inner_text().lower()
+    assert page.locator("#status-detail").inner_text() == "You can still use the shortlist and map manually."
+    assert page.get_by_role("button", name="Try again").is_visible()
+    assert errors == []
+
+
+def test_field_page_reports_timed_out_geolocation_with_manual_fallback(live_ui_server, ui_page):
+    page, errors = ui_page
+
+    page.add_init_script(
+        """
+        Object.defineProperty(navigator, 'geolocation', {
+            configurable: true,
+            value: {
+                getCurrentPosition: (success, error) => {
+                    error({
+                        code: 3,
+                        message: 'Timed out',
+                    });
+                }
+            }
+        });
+        """
+    )
+
+    page.goto(f"{live_ui_server}/field", wait_until="domcontentloaded")
+    page.get_by_role("button", name="Find my location").click()
+
+    assert page.locator("#status").inner_text() == "Location request timed out."
+    assert page.locator("#status-detail").inner_text() == "The device did not return a position before the request expired."
+    assert "keep using the shortlist and map manually" in page.locator("#status-help").inner_text().lower()
+    assert page.get_by_role("button", name="Try again").is_visible()
     assert errors == []
 
 
@@ -598,10 +700,26 @@ def test_location_page_share_button_uses_native_share(live_ui_server, ui_page):
             "title": "Rodman's Hollow outing card",
             "text": (
                 "Rodman's Hollow outing card: steady archive signal with 2 reported finds across 2 seasons. "
-                "Latest dated report: 2025-07-10. Backup stops: Clay Head Trail and "
+                "Latest dated report: Jul 10, 2025. Backup stops: Clay Head Trail and "
                 "Hodge Family Wildlife Preserve."
             ),
             "url": f"{live_ui_server}/location/Rodman's%20Hollow?ref=share",
         }
     ]
+    assert errors == []
+
+
+def test_location_page_lightbox_restores_focus_after_close(live_ui_server, ui_page):
+    page, errors = ui_page
+    encoded_location = quote("Rodman's Hollow", safe="")
+
+    page.goto(f"{live_ui_server}/location/{encoded_location}", wait_until="domcontentloaded")
+    assert page.get_by_role("link", name="Google Maps").first.is_visible()
+    assert page.locator('[data-apple-maps-link]:visible').count() == 0
+    gallery_button = page.locator('[data-lightbox-index="0"]')
+    gallery_button.click()
+
+    assert page.evaluate("document.activeElement && document.activeElement.id") == "lightbox-close"
+    page.keyboard.press("Escape")
+    assert page.evaluate("document.activeElement && document.activeElement.dataset.lightboxIndex") == "0"
     assert errors == []

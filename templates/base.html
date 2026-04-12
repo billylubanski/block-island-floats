@@ -51,6 +51,7 @@
 </head>
 
 <body class="page-mode--{{ page_meta.mode if page_meta else 'dashboard' }}">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
     <header class="site-header">
         <div class="shell site-header__inner">
             <a class="brand" href="{{ url_for('index') }}">
@@ -119,7 +120,7 @@
         {% endif %}
         {% endblock %}
 
-        <main class="page-main">
+        <main class="page-main" id="main-content" tabindex="-1">
             {% block content %}{% endblock %}
         </main>
     </div>

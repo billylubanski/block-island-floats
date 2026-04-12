@@ -79,6 +79,25 @@
         line-height: 1.6;
     }
 
+    .forecast-priority__notice {
+        display: grid;
+        gap: 0.4rem;
+        padding: 0.85rem 0.95rem;
+        border-radius: 18px;
+        border: 1px solid rgba(234, 223, 207, 0.18);
+        background: rgba(234, 223, 207, 0.08);
+    }
+
+    .forecast-priority__notice strong {
+        font-size: 0.92rem;
+    }
+
+    .forecast-priority__notice p {
+        margin: 0;
+        color: var(--text-2);
+        line-height: 1.55;
+    }
+
     .forecast-hero__top {
         display: grid;
         grid-template-columns: 1fr;
@@ -317,25 +336,31 @@
             <div class="forecast-priority__row">
                 <div class="forecast-priority__copy">
                     <span class="eyebrow">Top-ranked area</span>
-                    <strong>Start with {{ lead_zone.label }}</strong>
-                    <span>Best first stop today</span>
+                    <strong>{{ freshness.lead_prefix }} {{ lead_zone.label }}</strong>
+                    <span>{{ freshness.lead_suffix }}</span>
                 </div>
                 <div class="forecast-priority__actions">
                     <a class="button button--primary" href="{{ lead_zone.field_href }}">Open field view</a>
                     <a class="button button--ghost" href="{{ lead_zone.location_href }}">Open location guide</a>
                 </div>
             </div>
+            {% if freshness.is_stale %}
+            <div class="forecast-priority__notice" aria-label="Forecast freshness warning">
+                <strong>{{ freshness.warning_label }}</strong>
+                <p>{{ freshness.summary }}</p>
+            </div>
+            {% endif %}
             <p class="forecast-priority__summary">
                 {% if lead_zone.reason_texts %}
                 {{ lead_zone.reason_texts[0] }}
                 {% elif lead_zone.reason_tags %}
                 {{ lead_zone.reason_tags[0] }} is the clearest tiebreaker today.
                 {% else %}
-                {{ lead_zone.label }} has the clearest mix of archive history and today&#39;s live conditions.
+                {{ freshness.zone_lead_summary }}
                 {% endif %}
             </p>
             <div class="forecast-priority__meta">
-                <span class="pill pill--accent">#1 today</span>
+                <span class="pill pill--accent">{{ freshness.priority_badge }}</span>
                 <span class="pill">Strength: {{ briefing.confidence_band|capitalize }}</span>
                 {% for tag in lead_zone.reason_tags %}
                 <span class="pill">{{ tag }}</span>
@@ -352,12 +377,14 @@
 <section class="surface forecast-hero">
     <div class="utility-rail">
         <div class="utility-rail__group">
-            <span class="pill pill--accent">Today</span>
+            <span class="pill pill--accent">{{ freshness.rail_badge }}</span>
             <span class="pill">Strength: {{ briefing.confidence_band|capitalize }}</span>
-            <span class="pill">History + live conditions</span>
+            <span class="pill">{{ freshness.rail_context }}</span>
         </div>
         <div class="utility-rail__summary">
-            {% if briefing.confidence_band == 'low' %}
+            {% if freshness.is_stale %}
+            Treat the ranked area as advisory because the model artifact is older than the live weather and tide.
+            {% elif briefing.confidence_band == 'low' %}
             Use this as a starting suggestion, then confirm with access and conditions on the ground.
             {% else %}
             Best first stop based on the latest history and live conditions.
@@ -440,7 +467,7 @@
 
         <article class="forecast-context-card">
             <h3>Calendar</h3>
-            <p>{{ briefing.conditions.calendar.weekday_name }}, {{ briefing.date }}</p>
+            <p>{{ briefing.conditions.calendar.weekday_name }}, {{ briefing.date|format_public_date }}</p>
             <p>Moon: {{ briefing.conditions.calendar.moon_phase.replace('_', ' ') }}.</p>
             {% if briefing.conditions.calendar.is_long_weekend %}
             <p>Long-weekend timing is active.</p>
@@ -468,13 +495,7 @@
             <div class="forecast-zone__body">
                 <div class="forecast-zone__heading">
                     <a href="{{ zone.location_href }}">{{ zone.label }}</a>
-                    <p class="forecast-zone__summary">
-                        {% if loop.first %}
-                        This area has the clearest mix of archive history and today&#39;s conditions.
-                        {% else %}
-                        Keep this one in reserve if your first stop feels crowded or quiet on the ground.
-                        {% endif %}
-                    </p>
+                    <p class="forecast-zone__summary">{{ zone.summary_copy }}</p>
                 </div>
 
                 <div class="forecast-zone__meta">
@@ -495,7 +516,7 @@
                     {% endfor %}
                 </div>
 
-                <p class="forecast-zone__detail">{{ zone.dated_support_count }} dated finds help keep this area in the conversation.</p>
+                <p class="forecast-zone__detail">{{ zone.detail_copy }}</p>
 
                 <a class="button button--ghost forecast-zone__cta" href="{{ zone.field_href }}">Open in field view</a>
             </div>
@@ -517,6 +538,7 @@
             <h2>How current the read is</h2>
         </div>
         <div class="forecast-freshness">
+            <span>{{ freshness.summary }}</span>
             <span>Forecast updated: {{ briefing.feature_freshness.artifact_generated_at|format_local_timestamp('Unknown') }}</span>
             <span>Live weather updated: {{ briefing.feature_freshness.weather_updated_at|format_local_timestamp('Unavailable') }}</span>
             <span>Live tide updated: {{ briefing.feature_freshness.tide_updated_at|format_local_timestamp('Unavailable') }}</span>
