@@ -493,7 +493,9 @@ def build_search_result_groups(rows):
     ungrouped_results = []
 
     for row in rows:
-        location_name = str(row['location_normalized'] or '').strip() or normalize_location(row['location_raw'])
+        location_name = normalize_location(row['location_raw'])
+        if location_name == 'Other/Unknown':
+            location_name = str(row['location_normalized'] or '').strip() or location_name
         display_row = {
             'year': row['year'],
             'float_number': row['float_number'],
@@ -531,6 +533,31 @@ def build_search_result_groups(rows):
         })
 
     return display_groups, ungrouped_results
+
+
+def row_matches_search_query(row, query):
+    query_text = str(query or '').strip()
+    if not query_text:
+        return False
+
+    query_lower = query_text.lower()
+    location_name = normalize_location(row['location_raw'])
+    normalized_query = normalize_location(query_text)
+    searchable_fields = (
+        row['finder'],
+        row['location_raw'],
+        row['float_number'],
+        row['location_normalized'],
+        location_name,
+    )
+
+    if any(query_lower in str(field or '').lower() for field in searchable_fields):
+        return True
+
+    if '#' in query_text:
+        return False
+
+    return normalized_query != 'Other/Unknown' and location_name == normalized_query
 
 
 def get_metrics_db_connection():
@@ -1258,15 +1285,10 @@ def search():
     query = request.args.get('q', '')
     conn = get_db_connection()
     if query:
-        params = [f'%{query}%', f'%{query}%', f'%{query}%', f'%{query}%']
-        conditions = ['(finder LIKE ? OR location_raw LIKE ? OR float_number LIKE ? OR location_normalized LIKE ?)']
-        results = conn.execute(
-            (
-                f"SELECT * FROM finds WHERE {' AND '.join(conditions)} "
-                "ORDER BY year DESC, date_found DESC LIMIT 50"
-            ),
-            params,
+        rows = conn.execute(
+            "SELECT * FROM finds ORDER BY year DESC, date_found DESC"
         ).fetchall()
+        results = [row for row in rows if row_matches_search_query(row, query)][:50]
     else:
         results = []
     grouped_results, ungrouped_results = build_search_result_groups(results)

@@ -66,7 +66,93 @@ def _normalize_location_text(loc):
     for source, target in replacements.items():
         text = text.replace(source, target)
     text = text.lower().strip()
+    text = re.sub(r"\s*-\s*", " ", text)
     return " ".join(text.split())
+
+
+def _contains_any(text, terms):
+    return any(term in text for term in terms)
+
+
+GREENWAY_TOKENS = (
+    "greenway",
+    "green way",
+    "greenaway",
+    "greenways",
+)
+
+# Current official Greenway Guide map order from the Block Island Tourism Council.
+GREENWAY_GUIDE_TRAIL_NUMBER_MAPPINGS = {
+    "1": "Hodge Family Wildlife Preserve",
+    "2": "Long Lot Trail",
+    "3": "Clay Head Trail",
+    "4": "Harrison Trail",
+    "5": "Turnip Farm",
+    "6": "Nathan Mott Park",
+    "7": "Lewis-Dickens Farm",
+    "8": "Win Dodge Preserve",
+    "9": "Rodman's Hollow",
+    "10": "Fresh Pond",
+    "11": "Fresh Swamp Preserve",
+}
+
+GREENWAY_ANCHOR_MAPPINGS = (
+    (("fresh swamp",), "Fresh Swamp Preserve"),
+    (("fresh pond", "fresh water pond", "freshwater pond", "greenway trail fp"), "Fresh Pond"),
+    (("rodman", "rodmans", "rodmin", "hollow"), "Rodman's Hollow"),
+    (("black rock",), "Black Rock Beach"),
+    (("snake hole",), "Snake Hole Road"),
+    (("middle earth",), "Middle Earth"),
+    (("enchanted",), "Enchanted Forest"),
+    (("hodge",), "Hodge Family Wildlife Preserve"),
+    (("long lot", "long lots", "long lott"), "Long Lot Trail"),
+    (("lewis", "dickens", "dicken"), "Lewis-Dickens Farm"),
+    (("win dodge", "wind dodge", "windodge", "win-dodge"), "Win Dodge Preserve"),
+    (("nathan mott", "mott", "motts"), "Nathan Mott Park"),
+    (("turnip",), "Turnip Farm"),
+    (("loffredo", "lofreddo", "leffredo", "laredo"), "Loffredo Loop"),
+    (("harrison",), "Harrison Trail"),
+    (("meadow hill", "high meadow", "meadow greenway"), "Meadow Hill Trail"),
+    (("gaffney", "gafney"), "Gaffney Trail"),
+    (("trim", "trims", "trim's"), "Trim's Pond"),
+    (("beach ave", "beach avenue"), "Beach Avenue Trail"),
+    (("old mill",), "Old Mill Road"),
+    (("beacon hill", "beacan hill"), "Beacon Hill Road"),
+    (("cooneymus", "cooneymas", "cooneynus", "conneymus", "cooneymus rd"), "Cooneymus Road/Beach"),
+    (("payne", "paynes"), "Payne's Farm/Road"),
+    (("lakeside drive", "lakeside dr", "lakeshore drive", "lakeshore dr"), "Lakeshore Drive"),
+    (("west side", "westside", "westshore"), "West Side Road/Beach"),
+    (("ct ave", "connecticut ave"), "Connecticut Ave"),
+    (("center road", "center rd"), "Center Road"),
+    (("airport",), "Block Island Airport"),
+    (("carey", "walsh"), "Carey Lot"),
+    (("salt pond",), "Great Salt Pond"),
+)
+
+
+def _match_greenway_trail_number(loc):
+    match = re.search(r"\bgreen\s*way\s*(?:trail)?\s*#\s*(\d{1,2})\b", loc)
+    if not match:
+        match = re.search(r"\bgreenways?\s*(?:trail)?\s*#\s*(\d{1,2})\b", loc)
+    if not match:
+        return None
+
+    return GREENWAY_GUIDE_TRAIL_NUMBER_MAPPINGS.get(match.group(1))
+
+
+def _match_specific_greenway_location(loc):
+    if not _contains_any(loc, GREENWAY_TOKENS):
+        return None
+
+    numbered_location = _match_greenway_trail_number(loc)
+    if numbered_location:
+        return numbered_location
+
+    for terms, location_name in GREENWAY_ANCHOR_MAPPINGS:
+        if _contains_any(loc, terms):
+            return location_name
+
+    return None
 
 def normalize_location(loc):
     if loc is None:
@@ -76,6 +162,10 @@ def normalize_location(loc):
     loc = _normalize_location_text(loc)
     if not loc:
         return "Other/Unknown"
+
+    greenway_anchor = _match_specific_greenway_location(loc)
+    if greenway_anchor:
+        return greenway_anchor
     
     # Common mappings
     mappings = {
@@ -85,7 +175,7 @@ def normalize_location(loc):
         'clayhead': "Clay Head Trail",
         'maze': "The Maze",
         'fresh pond': "Fresh Pond",
-        'fresh swamp': "Fresh Pond",
+        'fresh swamp': "Fresh Swamp Preserve",
         'greenway': "Greenway Trail",
         'green way': "Greenway Trail",
         'greenaway': "Greenway Trail",
@@ -149,15 +239,18 @@ def normalize_location(loc):
         'atwood': "Atwood Overlook",
         'labyrinth': "The Labyrinth",
         'labrynth': "The Labyrinth",
+        'labrinyth': "The Labyrinth",
         'gaffney': "Gaffney Trail",
         'gafney': "Gaffney Trail",
         'loffredo': "Loffredo Loop",
         'lofreddo': "Loffredo Loop",
         'leffredo': "Loffredo Loop",
         'laredo': "Loffredo Loop",
+        'loeffler': "Loffredo Loop",
         'dinghy': "Dinghy Beach",
         'dingy': "Dinghy Beach",
         'transfer': "Transfer Station",
+        'tranfer': "Transfer Station",
         'dump': "Transfer Station",
         'veteran': "Veterans Park",
         'memorial': "Veterans Park",
@@ -178,8 +271,13 @@ def normalize_location(loc):
         'rat island': "Rat Island",
         'negus': "Negus Park",
         'pilot': "Pilot Hill Road",
+        'ocean view hotel': "Ocean View Hotel",
+        'oceanview hotel': "Ocean View Hotel",
         'ocean view': "Ocean View Pavilion",
+        'oceanview pavillion': "Ocean View Pavilion",
+        'oceanview pavilion': "Ocean View Pavilion",
         'pavilion': "Pavilion (General)",
+        'pavillion': "Pavilion (General)",
         'gazebo': "Gazebo (General)",
         'beacon hill': "Beacon Hill Road",
         'adrian': "Adrian Mitchell Trail",
@@ -216,6 +314,7 @@ def normalize_location(loc):
         'solviken': "Solviken Preserve",
         'solvieken': "Solviken Preserve",
         'solveiken': "Solviken Preserve",
+        'slovekian': "Solviken Preserve",
         'mitchell': "Mitchell Farm",
         'charleston': "Charleston Beach",
         'sunset': "Sunset Beach",
@@ -257,7 +356,6 @@ def normalize_location(loc):
         'kings lot': "King's Lot",
         'mazzur': "Mazzur Trail",
         'peckham': "Peckham Farm",
-        'ocean view hotel': "Ocean View Hotel",
         'narragansett': "The Narragansett Inn",
         'spring house': "Spring House Hotel",
         'atlantic': "Atlantic Inn",
@@ -369,6 +467,7 @@ def normalize_location(loc):
         'logwood': "Longwood Cove",
         'pettit': "Pettit Lot",
         'vale': "The Vale",
+        'dorrey': "Dorry's Cove",
     }
     
     for key, val in mappings.items():

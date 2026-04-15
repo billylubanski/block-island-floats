@@ -55,6 +55,7 @@ FORECAST_PATH = GENERATED_DIR / "forecast_artifact.json"
 FORECAST_EVALUATION_PATH = GENERATED_DIR / "forecast_evaluation.json"
 FORECAST_EVALUATION_SUMMARY_PATH = GENERATED_DIR / "forecast_evaluation_summary.md"
 SITEMAP_STATE_PATH = GENERATED_DIR / "sitemap_state.json"
+REFRESH_STATUS_PATH = GENERATED_DIR / "refresh_status.json"
 CLEANUP_REPORT_PATH = GENERATED_DIR / "data_cleanup_report.json"
 CLEANUP_SUMMARY_PATH = GENERATED_DIR / "data_cleanup_summary.md"
 MANUAL_REVIEW_PATH = GENERATED_DIR / "manual_review_queue.json"
@@ -79,6 +80,156 @@ SITEMAP_STATE_KEYS = (
 
 class SourceAccessDeniedError(RuntimeError):
     """Raised when the upstream site returns a CDN/WAF access denied page."""
+
+
+class RefreshProgress:
+    """Write a machine-readable status file and human-readable progress lines."""
+
+    def __init__(self, path: Path = REFRESH_STATUS_PATH, *, print_every_seconds: float = 10.0) -> None:
+        self.path = path
+        self.print_every_seconds = float(print_every_seconds)
+        self.started_at = time.monotonic()
+        self.run_started_at = iso_now()
+        self.last_printed_at = 0.0
+        self.payload: dict[str, Any] = {
+            "status": "running",
+            "phase": "starting",
+            "phase_label": "Starting refresh",
+            "started_at": self.run_started_at,
+            "updated_at": self.run_started_at,
+            "elapsed_seconds": 0,
+            "completed": 0,
+            "total": 0,
+            "percent": 0,
+            "eta_seconds": None,
+            "eta_label": "unknown",
+            "message": "",
+        }
+        self.update("starting", "Starting refresh", force=True)
+
+    def _elapsed_seconds(self) -> float:
+        return max(time.monotonic() - self.started_at, 0.0)
+
+    @staticmethod
+    def _format_duration(seconds: float | None) -> str:
+        if seconds is None:
+            return "unknown"
+        seconds = max(int(round(seconds)), 0)
+        minutes, remaining_seconds = divmod(seconds, 60)
+        hours, remaining_minutes = divmod(minutes, 60)
+        if hours:
+            return f"{hours}h {remaining_minutes}m"
+        if minutes:
+            return f"{minutes}m {remaining_seconds}s"
+        return f"{remaining_seconds}s"
+
+    def _build_payload(
+        self,
+        phase: str,
+        phase_label: str,
+        *,
+        completed: int | None = None,
+        total: int | None = None,
+        message: str = "",
+        status: str = "running",
+        extra: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        elapsed = self._elapsed_seconds()
+        completed_value = max(int(completed or 0), 0)
+        total_value = max(int(total or 0), 0)
+        percent = round((completed_value / total_value) * 100, 1) if total_value else 0
+        eta_seconds = None
+        if completed_value > 0 and total_value > completed_value:
+            eta_seconds = (elapsed / completed_value) * (total_value - completed_value)
+
+        payload = {
+            "status": status,
+            "phase": phase,
+            "phase_label": phase_label,
+            "started_at": self.run_started_at,
+            "updated_at": iso_now(),
+            "elapsed_seconds": round(elapsed, 1),
+            "elapsed_label": self._format_duration(elapsed),
+            "completed": completed_value,
+            "total": total_value,
+            "remaining": max(total_value - completed_value, 0) if total_value else None,
+            "percent": percent,
+            "eta_seconds": round(eta_seconds, 1) if eta_seconds is not None else None,
+            "eta_label": self._format_duration(eta_seconds),
+            "message": message,
+        }
+        if extra:
+            payload.update(extra)
+        return payload
+
+    def _write(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(json.dumps(self.payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    def _print(self) -> None:
+        total = int(self.payload.get("total") or 0)
+        completed = int(self.payload.get("completed") or 0)
+        progress = (
+            f"{completed}/{total} ({self.payload.get('percent', 0)}%)"
+            if total
+            else self.payload.get("status", "running")
+        )
+        message = str(self.payload.get("message") or "").strip()
+        suffix = f" — {message}" if message else ""
+        print(
+            f"[refresh] {self.payload['phase_label']}: {progress}; "
+            f"elapsed {self.payload.get('elapsed_label', 'unknown')}; "
+            f"ETA {self.payload.get('eta_label', 'unknown')}{suffix}",
+            flush=True,
+        )
+
+    def update(
+        self,
+        phase: str,
+        phase_label: str,
+        *,
+        completed: int | None = None,
+        total: int | None = None,
+        message: str = "",
+        force: bool = False,
+        extra: dict[str, Any] | None = None,
+    ) -> None:
+        self.payload = self._build_payload(
+            phase,
+            phase_label,
+            completed=completed,
+            total=total,
+            message=message,
+            extra=extra,
+        )
+        self._write()
+        now = time.monotonic()
+        is_finished_step = bool(total and completed is not None and completed >= total)
+        if force or is_finished_step or (now - self.last_printed_at) >= self.print_every_seconds:
+            self._print()
+            self.last_printed_at = now
+
+    def complete(self, message: str = "") -> None:
+        self.payload = self._build_payload(
+            "complete",
+            "Refresh complete",
+            completed=1,
+            total=1,
+            message=message,
+            status="complete",
+        )
+        self._write()
+        self._print()
+
+    def fail(self, message: str, *, interrupted: bool = False) -> None:
+        self.payload = self._build_payload(
+            "interrupted" if interrupted else "failed",
+            "Refresh interrupted" if interrupted else "Refresh failed",
+            message=message,
+            status="interrupted" if interrupted else "failed",
+        )
+        self._write()
+        self._print()
 
 
 class PoliteSession:
@@ -1156,6 +1307,7 @@ def apply_sitemap_updates(
     backfill_batch_size: int = HISTORICAL_BACKFILL_BATCH_SIZE,
     full_refresh: bool = False,
     disallowed_count: int = 0,
+    progress: RefreshProgress | None = None,
 ) -> tuple[list[dict[str, str]], dict[str, dict[str, str]], dict[str, Any]]:
     refreshed_at = refreshed_at or iso_now()
     canonical_by_id = {record_id: normalize_record(record) for record_id, record in existing_by_id.items()}
@@ -1187,6 +1339,28 @@ def apply_sitemap_updates(
             "implausible_season_year": 0,
         },
     }
+    fetch_ids = scheduling["fetch_ids"]
+    if progress:
+        progress.update(
+            "detail_fetch",
+            "Fetching detail pages",
+            completed=0,
+            total=len(fetch_ids),
+            message=(
+                f"{len(scheduling['new_ids'])} new, "
+                f"{len(scheduling['changed_ids'])} changed, "
+                f"{len(scheduling['backfill_ids'])} backfill, "
+                f"{len(scheduling['forced_refetch_ids'])} forced"
+            ),
+            force=True,
+            extra={
+                "sitemap_urls_seen": len(sitemap_entries),
+                "new_ids": len(scheduling["new_ids"]),
+                "changed_ids": len(scheduling["changed_ids"]),
+                "backfilled_ids": len(scheduling["backfill_ids"]),
+                "forced_refetch_ids": len(scheduling["forced_refetch_ids"]),
+            },
+        )
 
     for record_id, sitemap_entry in sitemap_entries.items():
         previous_entry = next_state.get(record_id, normalize_sitemap_state_entry(previous_state.get(record_id)))
@@ -1217,9 +1391,19 @@ def apply_sitemap_updates(
             "fetch_status": "missing_from_sitemap",
         }
 
-    fetched_ids = set(scheduling["fetch_ids"])
-    for record_id in scheduling["fetch_ids"]:
+    fetched_ids = set(fetch_ids)
+    total_fetches = len(fetch_ids)
+    for index, record_id in enumerate(fetch_ids, start=1):
         sitemap_entry = sitemap_entries[record_id]
+        if progress:
+            progress.update(
+                "detail_fetch",
+                "Fetching detail pages",
+                completed=index - 1,
+                total=total_fetches,
+                message=f"next id {record_id}",
+                extra={"current_record_id": record_id, "current_url": sitemap_entry["url"]},
+            )
         result = fetch_detail_page(sitemap_entry["url"])
         source_discovery["detail_pages_fetched"] += 1
         next_state[record_id]["last_fetched_at"] = refreshed_at
@@ -1229,10 +1413,28 @@ def apply_sitemap_updates(
         if status_code == 404:
             next_state[record_id]["fetch_status"] = "http_404"
             source_discovery["anomaly_counts"]["detail_404"] += 1
+            if progress:
+                progress.update(
+                    "detail_fetch",
+                    "Fetching detail pages",
+                    completed=index,
+                    total=total_fetches,
+                    message=f"id {record_id} returned 404",
+                    extra={"current_record_id": record_id, "last_status": "http_404"},
+                )
             continue
         if status_code != 200:
             next_state[record_id]["fetch_status"] = f"http_{status_code}" if status_code else "request_error"
             source_discovery["anomaly_counts"]["request_error"] += 1
+            if progress:
+                progress.update(
+                    "detail_fetch",
+                    "Fetching detail pages",
+                    completed=index,
+                    total=total_fetches,
+                    message=f"id {record_id} returned {next_state[record_id]['fetch_status']}",
+                    extra={"current_record_id": record_id, "last_status": next_state[record_id]["fetch_status"]},
+                )
             continue
 
         detail_result = parse_detail_record_result_from_html(body, sitemap_entry["url"])
@@ -1244,6 +1446,15 @@ def apply_sitemap_updates(
             source_discovery["anomaly_counts"][rejection_reason] = (
                 source_discovery["anomaly_counts"].get(rejection_reason, 0) + 1
             )
+            if progress:
+                progress.update(
+                    "detail_fetch",
+                    "Fetching detail pages",
+                    completed=index,
+                    total=total_fetches,
+                    message=f"id {record_id} rejected: {rejection_reason}",
+                    extra={"current_record_id": record_id, "last_status": rejection_reason},
+                )
             continue
 
         canonical_by_id[record_id] = record
@@ -1251,6 +1462,15 @@ def apply_sitemap_updates(
         next_state[record_id]["fetch_status"] = "ok"
         if warning:
             source_discovery["anomaly_counts"][warning] = source_discovery["anomaly_counts"].get(warning, 0) + 1
+        if progress:
+            progress.update(
+                "detail_fetch",
+                "Fetching detail pages",
+                completed=index,
+                total=total_fetches,
+                message=f"id {record_id} ok",
+                extra={"current_record_id": record_id, "last_status": "ok"},
+            )
 
     source_discovery["reused_rows"] = sum(
         1 for record_id in sitemap_entries if record_id in existing_by_id and record_id not in fetched_ids
@@ -2116,13 +2336,24 @@ def validate_outputs(
 
 
 def refresh_data(*, full_refresh: bool = False) -> int:
+    progress = RefreshProgress()
     existing_by_id = load_existing_canonical_records()
     record_overrides = load_record_overrides()
     session = make_session()
     try:
+        progress.update("robots", "Fetching robots policy", force=True)
         fetcher = PoliteSession(session)
         robots_policy = fetch_robots_policy(fetcher)
+        progress.update("sitemap", "Discovering sitemap entries", force=True)
         sitemap_entries, disallowed_count = discover_sitemap_entries(fetcher, robots_policy)
+        progress.update(
+            "sitemap",
+            "Discovering sitemap entries",
+            completed=len(sitemap_entries),
+            total=len(sitemap_entries),
+            message=f"{disallowed_count} disallowed by robots",
+            force=True,
+        )
         previous_sitemap_state = load_sitemap_state()
         canonical_records, sitemap_state, source_discovery = apply_sitemap_updates(
             existing_by_id,
@@ -2133,18 +2364,26 @@ def refresh_data(*, full_refresh: bool = False) -> int:
             backfill_batch_size=HISTORICAL_BACKFILL_BATCH_SIZE,
             full_refresh=full_refresh,
             disallowed_count=disallowed_count,
+            progress=progress,
         )
     except SourceAccessDeniedError as exc:
+        progress.fail(str(exc))
         print(f"ERROR: {exc}")
         return 1
     except RuntimeError as exc:
+        progress.fail(str(exc))
         print(f"ERROR: {exc}")
         return 1
+    except KeyboardInterrupt:
+        progress.fail("Interrupted by user.", interrupted=True)
+        return 130
 
     if not canonical_records:
+        progress.fail("The source site returned zero records. Existing artifacts were left unchanged.")
         print("ERROR: The source site returned zero records. Existing artifacts were left unchanged.")
         return 1
 
+    progress.update("normalize", "Normalizing and merging records", force=True)
     canonical_records = [
         normalize_record(apply_record_override(record, record_overrides.get(record["id"])))
         for record in canonical_records
@@ -2161,15 +2400,21 @@ def refresh_data(*, full_refresh: bool = False) -> int:
     canonical_ids = {record["id"] for record in canonical_records}
     legacy_rows = get_legacy_rows(DB_PATH, canonical_ids)
 
+    progress.update("write", "Writing canonical artifacts", completed=0, total=3, force=True)
     write_json(CANONICAL_JSON_PATH, canonical_records)
+    progress.update("write", "Writing canonical artifacts", completed=1, total=3, message=str(CANONICAL_JSON_PATH))
     write_json(SITEMAP_STATE_PATH, sitemap_state)
+    progress.update("write", "Writing canonical artifacts", completed=2, total=3, message=str(SITEMAP_STATE_PATH))
     write_per_year_snapshots(canonical_records)
+    progress.update("write", "Writing canonical artifacts", completed=3, total=3, message=str(SCRAPED_DATA_DIR), force=True)
+    progress.update("database", "Rebuilding SQLite database", force=True)
     rebuild_database(
         canonical_records,
         DB_PATH,
         sitemap_state=sitemap_state,
         record_overrides=record_overrides,
     )
+    progress.update("validate_records", "Validating rebuilt rows", force=True)
     validation_summary = run_validation_pipeline(
         db_path=DB_PATH,
         report_json_path=VALIDATION_REPORT_JSON,
@@ -2177,6 +2422,7 @@ def refresh_data(*, full_refresh: bool = False) -> int:
         default_source="blockislandinfo.com",
     )
 
+    progress.update("forecast", "Building forecast artifact", force=True)
     valid_dates = [record["date_found"] for record in canonical_records if record["date_found"]]
     forecast_artifact = ml_predictor.build_forecast_artifact(
         db_name=str(DB_PATH),
@@ -2184,10 +2430,15 @@ def refresh_data(*, full_refresh: bool = False) -> int:
         latest_source_date=max(valid_dates) if valid_dates else "",
         generated_at=iso_now(),
     )
+    progress.update("forecast", "Writing forecast artifact", completed=0, total=3, force=True)
     write_json(FORECAST_PATH, forecast_artifact)
+    progress.update("forecast", "Writing forecast artifact", completed=1, total=3, message=str(FORECAST_PATH))
     write_json(FORECAST_EVALUATION_PATH, forecast_artifact.get("evaluation", {}))
+    progress.update("forecast", "Writing forecast artifact", completed=2, total=3, message=str(FORECAST_EVALUATION_PATH))
     write_forecast_evaluation_summary(forecast_artifact.get("evaluation", {}))
+    progress.update("forecast", "Writing forecast artifact", completed=3, total=3, message=str(FORECAST_EVALUATION_SUMMARY_PATH), force=True)
 
+    progress.update("reports", "Writing refresh reports", force=True)
     forecast_summary = build_forecast_summary(forecast_artifact)
     manifest = build_manifest(
         canonical_records,
@@ -2216,12 +2467,17 @@ def refresh_data(*, full_refresh: bool = False) -> int:
     write_json(AUDIT_PATH, audit_payload)
     write_summary(manifest, legacy_rows)
 
+    progress.update("validate_outputs", "Validating final artifacts", force=True)
     errors = validate_outputs(canonical_records)
     if errors:
+        progress.fail(f"{len(errors)} final validation error(s).")
         for error in errors:
             print(f"ERROR: {error}")
         return 1
 
+    progress.complete(
+        f"Rebuilt {len(canonical_records)} records; fetched {source_discovery['detail_pages_fetched']} detail pages."
+    )
     print(
         f"{'Full' if full_refresh else 'Incremental'} refresh rebuilt {len(canonical_records)} records across "
         f"{len(manifest['records_by_year'])} years. "
@@ -2271,6 +2527,29 @@ def validate_records() -> int:
     return 0
 
 
+def show_refresh_status() -> int:
+    status = load_json(REFRESH_STATUS_PATH, {})
+    if not status:
+        print(f"No refresh status found at {REFRESH_STATUS_PATH}.")
+        return 1
+
+    label = status.get("phase_label", status.get("phase", "Unknown"))
+    completed = int(status.get("completed") or 0)
+    total = int(status.get("total") or 0)
+    progress = f"{completed}/{total} ({status.get('percent', 0)}%)" if total else str(status.get("status", "unknown"))
+    message = str(status.get("message") or "").strip()
+    print(f"Status: {status.get('status', 'unknown')}")
+    print(f"Phase: {label}")
+    print(f"Progress: {progress}")
+    print(f"Elapsed: {status.get('elapsed_label', 'unknown')}")
+    print(f"ETA: {status.get('eta_label', 'unknown')}")
+    if message:
+        print(f"Message: {message}")
+    print(f"Updated: {status.get('updated_at', '')}")
+    print(f"File: {REFRESH_STATUS_PATH}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Refresh and validate float tracker data artifacts.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -2285,6 +2564,7 @@ def build_parser() -> argparse.ArgumentParser:
         "validate-records",
         help="Run staged row validation against the current SQLite database.",
     )
+    subparsers.add_parser("status", help="Show the latest refresh progress status.")
     return parser
 
 
@@ -2298,6 +2578,8 @@ def main() -> int:
         return validate_data()
     if args.command == "validate-records":
         return validate_records()
+    if args.command == "status":
+        return show_refresh_status()
     parser.error(f"Unknown command: {args.command}")
     return 2
 

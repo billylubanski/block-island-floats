@@ -9,6 +9,7 @@ from scripts.refresh_data import (
     CANONICAL_KEYS,
     MANIFEST_PATH,
     PoliteSession,
+    RefreshProgress,
     SourceAccessDeniedError,
     SITEMAP_STATE_KEYS,
     build_manifest,
@@ -32,6 +33,7 @@ from scripts.refresh_data import (
     rebuild_database,
     scrape_records,
     select_sitemap_fetch_ids,
+    show_refresh_status,
     apply_sitemap_updates,
     validate_outputs,
     write_json,
@@ -935,6 +937,67 @@ def test_apply_sitemap_updates_keeps_existing_rows_on_404_and_tracks_missing_url
     assert source_discovery["forced_refetch_ids"] == 0
     assert source_discovery["refresh_scope"] == "incremental"
     assert source_discovery["anomaly_counts"]["detail_404"] == 1
+
+
+def test_apply_sitemap_updates_reports_fetch_progress(tmp_path):
+    status_path = tmp_path / "refresh_status.json"
+    progress = RefreshProgress(status_path, print_every_seconds=999)
+    existing_records = {
+        "6000": normalize_record(sample_records()[1]),
+    }
+    sitemap_entries = {
+        "6000": {
+            "url": "https://www.blockislandinfo.com/event/120-kim-l/6000/",
+            "sitemap_lastmod": "2026-03-24T00:00:00Z",
+        },
+        "5741": {
+            "url": "https://www.blockislandinfo.com/event/138-k-frost/5741/",
+            "sitemap_lastmod": "2026-03-24T02:45:48Z",
+        },
+    }
+
+    apply_sitemap_updates(
+        existing_records,
+        sitemap_entries,
+        previous_state={},
+        fetch_detail_page=lambda url: {"status_code": 200, "body": load_fixture("event_detail_embedded_data.html")},
+        refreshed_at="2026-03-24T03:00:00Z",
+        backfill_batch_size=1,
+        progress=progress,
+    )
+
+    status = json.loads(status_path.read_text(encoding="utf-8"))
+    assert status["phase"] == "detail_fetch"
+    assert status["completed"] == 2
+    assert status["total"] == 2
+    assert status["percent"] == 100
+    assert status["eta_label"] == "unknown"
+
+
+def test_show_refresh_status_prints_latest_status(tmp_path, monkeypatch, capsys):
+    status_path = tmp_path / "refresh_status.json"
+    write_json(
+        status_path,
+        {
+            "status": "running",
+            "phase_label": "Fetching detail pages",
+            "completed": 3,
+            "total": 10,
+            "percent": 30,
+            "elapsed_label": "1m 5s",
+            "eta_label": "2m 30s",
+            "message": "next id 6000",
+            "updated_at": "2026-03-24T03:00:00Z",
+        },
+    )
+    monkeypatch.setattr("scripts.refresh_data.REFRESH_STATUS_PATH", status_path)
+
+    assert show_refresh_status() == 0
+    output = capsys.readouterr().out
+    assert "Status: running" in output
+    assert "Phase: Fetching detail pages" in output
+    assert "Progress: 3/10 (30%)" in output
+    assert "ETA: 2m 30s" in output
 
 
 def test_apply_sitemap_updates_full_refresh_reports_forced_refetches():

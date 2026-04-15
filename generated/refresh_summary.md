@@ -1,6 +1,6 @@
 # Data Refresh Summary
 
-- Refreshed at: March 25, 2026 at 01:37 AM UTC
+- Refreshed at: April 15, 2026 at 05:14 PM UTC
 - Total records: 4357
 - Latest source date: 2026-03-12
 - Missing dates: 3607
@@ -31,40 +31,30 @@
 - Invalid rows: 0
 - Suspicious rows: 0
 - Flagged rows: 0
-- Validation report JSON: C:\Users\Billy\Documents\BI Float\generated\validation_report.json
-- Validation report CSV: C:\Users\Billy\Documents\BI Float\generated\validation_report.csv
-- Cleanup report JSON: C:\Users\Billy\Documents\BI Float\generated\data_cleanup_report.json
-- Cleanup summary: C:\Users\Billy\Documents\BI Float\generated\data_cleanup_summary.md
-- Manual review queue: C:\Users\Billy\Documents\BI Float\generated\manual_review_queue.json
-- Manual review summary: C:\Users\Billy\Documents\BI Float\generated\manual_review_summary.md
+- Validation report JSON: /Users/billylubanski/Projects/block-island-floats/generated/validation_report.json
+- Validation report CSV: /Users/billylubanski/Projects/block-island-floats/generated/validation_report.csv
+- Cleanup report JSON: /Users/billylubanski/Projects/block-island-floats/generated/data_cleanup_report.json
+- Cleanup summary: /Users/billylubanski/Projects/block-island-floats/generated/data_cleanup_summary.md
+- Manual review queue: /Users/billylubanski/Projects/block-island-floats/generated/manual_review_queue.json
+- Manual review summary: /Users/billylubanski/Projects/block-island-floats/generated/manual_review_summary.md
 
 ## Forecast Artifact
 
-- Training rows: 731
-- Cluster training rows: 675
+- Training rows: 734
+- Cluster training rows: 682
 - Populated zone days: 366/366
 - Primary model: kernel_seasonal
-- Artifact JSON: C:\Users\Billy\Documents\BI Float\generated\forecast_artifact.json
-- Evaluation JSON: C:\Users\Billy\Documents\BI Float\generated\forecast_evaluation.json
-- Evaluation summary: C:\Users\Billy\Documents\BI Float\generated\forecast_evaluation_summary.md
+- Artifact JSON: /Users/billylubanski/Projects/block-island-floats/generated/forecast_artifact.json
+- Evaluation JSON: /Users/billylubanski/Projects/block-island-floats/generated/forecast_evaluation.json
+- Evaluation summary: /Users/billylubanski/Projects/block-island-floats/generated/forecast_evaluation_summary.md
 
 ## Source Discovery
 
-- Refresh scope: incremental
+- Refresh scope: local-rebuild-after-interrupted-live-scan
 - Sitemap URLs seen: 4383
-- Detail pages fetched: 51
-- Reused rows: 4332
-- New IDs: 26
+- Detail pages fetched: 0
+- Reused rows: 4357
+- New IDs: 0
 - Changed IDs: 0
-- Backfilled IDs: 25
+- Backfilled IDs: 0
 - Forced refetch IDs: 0
-
-## Source Anomalies
-
-- detail_404: 0
-- disallowed_by_robots: 0
-- implausible_season_year: 0
-- missing_from_sitemap: 0
-- non_float_event: 3
-- parse_error: 0
-- request_error: 0

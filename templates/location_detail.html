@@ -626,6 +626,9 @@
             </div>
             <h3>Float #{{ find.float_number if find.float_number else 'Unknown' }}</h3>
             <p>{{ find.finder if find.finder else 'Unknown finder' }}</p>
+            {% if find.location_raw and find.location_raw != location_name %}
+            <p class="find-card__location">Reported place: {{ find.location_raw }}</p>
+            {% endif %}
             {% if find.url %}
             <div class="find-card__actions">
                 <a href="{{ find.url }}" target="_blank" rel="noreferrer">Open official report</a>
@@ -647,6 +650,7 @@
                             <th>Date</th>
                             <th>Float</th>
                             <th>Finder</th>
+                            <th>Reported place</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -656,6 +660,7 @@
                             <td>{{ find.date_found|format_public_date('Undated') if find.date_found else 'Undated' }}</td>
                             <td>#{{ find.float_number if find.float_number else 'Unknown' }}</td>
                             <td>{{ find.finder if find.finder else 'Unknown finder' }}</td>
+                            <td>{{ find.location_raw if find.location_raw else location_name }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
