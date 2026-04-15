@@ -1,8 +1,8 @@
 # Data Refresh Summary
 
-- Refreshed at: April 15, 2026 at 05:14 PM UTC
-- Total records: 4357
-- Latest source date: 2026-03-12
+- Refreshed at: April 15, 2026 at 10:34 PM UTC
+- Total records: 4358
+- Latest source date: 2026-04-13
 - Missing dates: 3607
 - Missing URLs: 0
 - Missing images: 3830
@@ -10,7 +10,7 @@
 
 ## Records by Year
 
-- 2025: 294
+- 2025: 295
 - 2024: 344
 - 2023: 354
 - 2022: 163
@@ -27,7 +27,7 @@
 
 ## Validation Summary
 
-- Valid rows: 4357
+- Valid rows: 4358
 - Invalid rows: 0
 - Suspicious rows: 0
 - Flagged rows: 0
@@ -40,8 +40,8 @@
 
 ## Forecast Artifact
 
-- Training rows: 734
-- Cluster training rows: 682
+- Training rows: 735
+- Cluster training rows: 683
 - Populated zone days: 366/366
 - Primary model: kernel_seasonal
 - Artifact JSON: /Users/billylubanski/Projects/block-island-floats/generated/forecast_artifact.json
@@ -50,11 +50,21 @@
 
 ## Source Discovery
 
-- Refresh scope: local-rebuild-after-interrupted-live-scan
-- Sitemap URLs seen: 4383
-- Detail pages fetched: 0
-- Reused rows: 4357
-- New IDs: 0
-- Changed IDs: 0
+- Refresh scope: incremental
+- Sitemap URLs seen: 4387
+- Detail pages fetched: 4387
+- Reused rows: 0
+- New IDs: 30
+- Changed IDs: 4357
 - Backfilled IDs: 0
 - Forced refetch IDs: 0
+
+## Source Anomalies
+
+- detail_404: 0
+- disallowed_by_robots: 0
+- implausible_season_year: 1
+- missing_from_sitemap: 0
+- non_float_event: 6
+- parse_error: 0
+- request_error: 1

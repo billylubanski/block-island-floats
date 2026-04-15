@@ -1,17 +1,17 @@
 {
-  "generated_at": "2026-04-15T17:14:26+00:00",
+  "generated_at": "2026-04-15T22:34:53+00:00",
   "totals": {
-    "records": 4357,
+    "records": 4358,
     "missing_dates": 3607,
     "blank_images": 3830,
     "placeholder_images": 0,
     "blank_locations": 0,
     "bucketed_unknown_locations": 61,
-    "merged_duplicate_groups": 0
+    "merged_duplicate_groups": 22
   },
   "by_year": {
     "2025": {
-      "total": 294,
+      "total": 295,
       "missing_dates": 0,
       "blank_images": 80,
       "placeholder_images": 0,
@@ -111,10 +111,10 @@
   },
   "validation": {
     "summary": {
-      "run_id": "20260415T171412Z",
-      "generated_at": "2026-04-15T17:14:12+00:00",
-      "total_rows": 4357,
-      "valid_rows": 4357,
+      "run_id": "20260415T223439Z",
+      "generated_at": "2026-04-15T22:34:39+00:00",
+      "total_rows": 4358,
+      "valid_rows": 4358,
       "invalid_rows": 0,
       "suspicious_rows": 0,
       "flagged_rows": 0,
@@ -557,5 +557,226 @@
     ],
     "recent_placeholder_image_rows": []
   },
-  "duplicate_merges": []
+  "duplicate_merges": [
+    {
+      "year": "2025",
+      "float_number": "162",
+      "location_normalized": "Win Dodge Preserve",
+      "kept_id": "5549",
+      "merged_ids": [
+        "5544",
+        "5549"
+      ]
+    },
+    {
+      "year": "2025",
+      "float_number": "469",
+      "location_normalized": "The Labyrinth",
+      "kept_id": "5532",
+      "merged_ids": [
+        "5532",
+        "5539"
+      ]
+    },
+    {
+      "year": "2025",
+      "float_number": "467",
+      "location_normalized": "Clay Head Trail",
+      "kept_id": "5530",
+      "merged_ids": [
+        "5528",
+        "5530"
+      ]
+    },
+    {
+      "year": "2025",
+      "float_number": "238",
+      "location_normalized": "Clay Head Trail",
+      "kept_id": "4471",
+      "merged_ids": [
+        "4468",
+        "4471"
+      ]
+    },
+    {
+      "year": "2025",
+      "float_number": "235",
+      "location_normalized": "Clay Head Trail",
+      "kept_id": "4462",
+      "merged_ids": [
+        "4458",
+        "4462"
+      ]
+    },
+    {
+      "year": "2024",
+      "float_number": "485",
+      "location_normalized": "Payne's Farm/Road",
+      "kept_id": "3858",
+      "merged_ids": [
+        "3858",
+        "4354"
+      ]
+    },
+    {
+      "year": "2024",
+      "float_number": "400",
+      "location_normalized": "Clay Head Trail",
+      "kept_id": "4104",
+      "merged_ids": [
+        "4093",
+        "4104"
+      ]
+    },
+    {
+      "year": "2023",
+      "float_number": "115",
+      "location_normalized": "Crescent Beach",
+      "kept_id": "4289",
+      "merged_ids": [
+        "91",
+        "4289"
+      ]
+    },
+    {
+      "year": "2023",
+      "float_number": "331",
+      "location_normalized": "Rodman's Hollow",
+      "kept_id": "3763",
+      "merged_ids": [
+        "3763",
+        "4137"
+      ]
+    },
+    {
+      "year": "2023",
+      "float_number": "391",
+      "location_normalized": "The Maze",
+      "kept_id": "193",
+      "merged_ids": [
+        "192",
+        "193"
+      ]
+    },
+    {
+      "year": "2022",
+      "float_number": "161",
+      "location_normalized": "The Maze",
+      "kept_id": "366",
+      "merged_ids": [
+        "365",
+        "366"
+      ]
+    },
+    {
+      "year": "2020",
+      "float_number": "332",
+      "location_normalized": "Clay Head Trail",
+      "kept_id": "3931",
+      "merged_ids": [
+        "1039",
+        "3931"
+      ]
+    },
+    {
+      "year": "2020",
+      "float_number": "531",
+      "location_normalized": "Clay Head Trail",
+      "kept_id": "1174",
+      "merged_ids": [
+        "1173",
+        "1174"
+      ]
+    },
+    {
+      "year": "2020",
+      "float_number": "523",
+      "location_normalized": "Trail (General)",
+      "kept_id": "1166",
+      "merged_ids": [
+        "1165",
+        "1166"
+      ]
+    },
+    {
+      "year": "2020",
+      "float_number": "496",
+      "location_normalized": "Mohegan Bluffs",
+      "kept_id": "1149",
+      "merged_ids": [
+        "1148",
+        "1149"
+      ]
+    },
+    {
+      "year": "2020",
+      "float_number": "482",
+      "location_normalized": "Rodman's Hollow",
+      "kept_id": "1135",
+      "merged_ids": [
+        "1134",
+        "1135"
+      ]
+    },
+    {
+      "year": "2020",
+      "float_number": "225",
+      "location_normalized": "Fresh Pond",
+      "kept_id": "959",
+      "merged_ids": [
+        "958",
+        "959"
+      ]
+    },
+    {
+      "year": "2018",
+      "float_number": "123",
+      "location_normalized": "Andy's Way",
+      "kept_id": "3883",
+      "merged_ids": [
+        "1621",
+        "3883"
+      ]
+    },
+    {
+      "year": "2018",
+      "float_number": "384",
+      "location_normalized": "Win Dodge Preserve",
+      "kept_id": "1798",
+      "merged_ids": [
+        "1797",
+        "1798"
+      ]
+    },
+    {
+      "year": "2015",
+      "float_number": "253",
+      "location_normalized": "Clay Head Trail",
+      "kept_id": "2781",
+      "merged_ids": [
+        "2780",
+        "2781"
+      ]
+    },
+    {
+      "year": "2014",
+      "float_number": "367",
+      "location_normalized": "Fresh Pond",
+      "kept_id": "3220",
+      "merged_ids": [
+        "3220",
+        "3221"
+      ]
+    },
+    {
+      "year": "2012",
+      "float_number": "196",
+      "location_normalized": "Clay Head Trail",
+      "kept_id": "3625",
+      "merged_ids": [
+        "3624",
+        "3625"
+      ]
+    }
+  ]
 }
