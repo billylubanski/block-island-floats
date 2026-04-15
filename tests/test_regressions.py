@@ -90,6 +90,77 @@ def test_location_detail_handles_legacy_schema_without_image_url(tmp_path, monke
     assert context['images'] == []
 
 
+def test_search_grouping_prefers_reclassified_raw_location_over_stale_db_bucket():
+    rows = [
+        {
+            'year': 2025,
+            'float_number': '328',
+            'finder': 'Tester',
+            'location_raw': 'Old Mill Greenway steps',
+            'location_normalized': 'Greenway Trail',
+            'date_found': '2025-06-04',
+            'url': 'https://example.com/find/328',
+        },
+    ]
+
+    grouped_results, ungrouped_results = app_module.build_search_result_groups(rows)
+
+    assert ungrouped_results == []
+    assert grouped_results[0]['location_name'] == 'Old Mill Road'
+
+
+def test_search_matches_reclassified_location_names_with_stale_db_bucket(tmp_path, monkeypatch, capture_templates):
+    db_path = tmp_path / 'search.db'
+    create_finds_db(db_path, include_image_url=True)
+    insert_find(
+        db_path,
+        id='1',
+        year='2015',
+        float_number='346',
+        finder='M. Sibley',
+        location_raw='Jett - Greenway Trail #3 in a stump',
+        location_normalized='Greenway Trail',
+        date_found='2015-09-01',
+        url='https://example.com/find/346',
+        image_url='',
+    )
+    insert_find(
+        db_path,
+        id='2',
+        year='2025',
+        float_number='12',
+        finder='Tester',
+        location_raw='Clay Head Trail overlook',
+        location_normalized='Clay Head Trail',
+        date_found='2025-08-01',
+        url='https://example.com/find/12',
+        image_url='',
+    )
+
+    monkeypatch.setattr(app_module, 'DB_NAME', str(db_path))
+
+    with app_module.app.test_client() as client:
+        response = client.get('/search?q=Clay%20Head%20Trail')
+
+    assert response.status_code == 200
+    _, context = capture_templates[-1]
+    assert context['result_count'] == 2
+    assert context['grouped_results'][0]['location_name'] == 'Clay Head Trail'
+    assert any(
+        report['location_raw'] == 'Jett - Greenway Trail #3 in a stump'
+        for report in context['grouped_results'][0]['reports']
+    )
+
+    with app_module.app.test_client() as client:
+        response = client.get('/search?q=Greenway%20Trail%20%233')
+
+    assert response.status_code == 200
+    _, context = capture_templates[-1]
+    assert context['result_count'] == 1
+    assert context['grouped_results'][0]['location_name'] == 'Clay Head Trail'
+    assert context['grouped_results'][0]['reports'][0]['location_raw'] == 'Jett - Greenway Trail #3 in a stump'
+
+
 def test_build_forecast_artifact_ignores_blank_dates_for_seasonality(tmp_path):
     db_path = tmp_path / 'seasonality.db'
     create_finds_db(db_path, include_image_url=True)

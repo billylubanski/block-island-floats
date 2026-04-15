@@ -4,8 +4,10 @@
 LOCATIONS = {
     "Rodman's Hollow": {"lat": 41.155, "lon": -71.585}, # Approx center of hollow
     "Clay Head Trail": {"lat": 41.2187, "lon": -71.5587},
+    "Long Lot Trail": {"lat": 41.2128555, "lon": -71.566943},
     "Greenway Trail": {"lat": 41.175, "lon": -71.580}, # General central area
     "Fresh Pond": {"lat": 41.1609, "lon": -71.5784},
+    "Fresh Swamp Preserve": {"lat": 41.1620077, "lon": -71.5725808},
     "Enchanted Forest": {"lat": 41.165, "lon": -71.575}, # Near Nathan Mott Park
     "Hodge Family Wildlife Preserve": {"lat": 41.2208, "lon": -71.5718},
     "Mohegan Bluffs": {"lat": 41.1518, "lon": -71.5567},

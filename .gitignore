@@ -6,6 +6,7 @@ debug_*.html
 debug_*.txt
 generated/validation_report.csv
 generated/validation_report.json
+generated/refresh_status.json
 output/
 output.txt
 unknowns.txt

@@ -1,17 +1,17 @@
 {
-  "generated_at": "2026-03-25T01:37:49+00:00",
+  "generated_at": "2026-04-15T22:34:53+00:00",
   "totals": {
-    "records": 4357,
+    "records": 4358,
     "missing_dates": 3607,
     "blank_images": 3830,
     "placeholder_images": 0,
     "blank_locations": 0,
-    "bucketed_unknown_locations": 69,
+    "bucketed_unknown_locations": 61,
     "merged_duplicate_groups": 22
   },
   "by_year": {
     "2025": {
-      "total": 294,
+      "total": 295,
       "missing_dates": 0,
       "blank_images": 80,
       "placeholder_images": 0,
@@ -111,10 +111,10 @@
   },
   "validation": {
     "summary": {
-      "run_id": "20260325T013731Z",
-      "generated_at": "2026-03-25T01:37:31+00:00",
-      "total_rows": 4357,
-      "valid_rows": 4357,
+      "run_id": "20260415T223439Z",
+      "generated_at": "2026-04-15T22:34:39+00:00",
+      "total_rows": 4358,
+      "valid_rows": 4358,
       "invalid_rows": 0,
       "suspicious_rows": 0,
       "flagged_rows": 0,
@@ -176,18 +176,6 @@
       ],
       [
         "11932",
-        1
-      ],
-      [
-        "Oceanview Hotel foundation area",
-        1
-      ],
-      [
-        "Labrinyth",
-        1
-      ],
-      [
-        "Slovekian Property by Monument Stone",
         1
       ],
       [
@@ -283,10 +271,6 @@
         1
       ],
       [
-        "Win - Dodge Presrve",
-        1
-      ],
-      [
         "Bingo Prize",
         1
       ],
@@ -295,15 +279,7 @@
         1
       ],
       [
-        "Bench at the Tranfer Station",
-        1
-      ],
-      [
         "Bingo",
-        1
-      ],
-      [
-        "oceanview pavillion",
         1
       ],
       [
@@ -320,6 +296,30 @@
       ],
       [
         "Block Island Club",
+        1
+      ],
+      [
+        "Entrance of Tulip and Avatar",
+        1
+      ],
+      [
+        "Not sure",
+        1
+      ],
+      [
+        "Near farm",
+        1
+      ],
+      [
+        "Re - Hidden on 5/28/16",
+        1
+      ],
+      [
+        "In my backpack!",
+        1
+      ],
+      [
+        "In hole of Mantassean Monumnet",
         1
       ]
     ],
