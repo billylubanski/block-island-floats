@@ -1,4 +1,4 @@
-const CACHE_NAME = 'float-tracker-v5';
+const CACHE_NAME = 'float-tracker-v6';
 const ASSETS_TO_CACHE = [
     '/',
     '/field',

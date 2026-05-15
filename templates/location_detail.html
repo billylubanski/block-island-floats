@@ -418,6 +418,11 @@
             Latest recorded report: {{ latest_find['date_found']|format_public_date }}.
             {% endif %}
         </p>
+        <div class="launch-trust-rail launch-trust-rail--compact">
+            <span class="pill pill--accent">Unofficial archive read</span>
+            <span>Public reports can be incomplete</span>
+            <span>Confirm rules and registration on the official site</span>
+        </div>
 
         {% if shared_ref %}
         <div class="utility-rail location-share-banner">
@@ -642,7 +647,7 @@
     <details class="details-panel" style="margin-top: 1rem;">
         <summary>Open the full chronology ({{ total_finds }} finds)</summary>
         <div class="details-panel__body">
-            <div class="table-shell">
+            <div class="table-shell table-shell--desktop">
                 <table>
                     <thead>
                         <tr>
@@ -665,6 +670,19 @@
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+            <div class="mobile-chronology-list" aria-label="Full chronology">
+                {% for find in finds %}
+                <article class="chronology-card">
+                    <div class="find-card__meta">
+                        <span class="pill pill--accent">{{ find.year }}</span>
+                        <span class="pill">{{ find.date_found|format_public_date('Undated') if find.date_found else 'Undated' }}</span>
+                    </div>
+                    <strong>Float #{{ find.float_number if find.float_number else 'Unknown' }}</strong>
+                    <span>{{ find.finder if find.finder else 'Unknown finder' }}</span>
+                    <span>Reported place: {{ find.location_raw if find.location_raw else location_name }}</span>
+                </article>
+                {% endfor %}
             </div>
         </div>
     </details>

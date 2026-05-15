@@ -98,6 +98,25 @@
         line-height: 1.55;
     }
 
+    .forecast-trust-note {
+        display: grid;
+        gap: 0.35rem;
+        padding: 0.85rem 0.95rem;
+        border-radius: 18px;
+        border: 1px solid rgba(193, 214, 203, 0.1);
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .forecast-trust-note strong {
+        font-size: 0.94rem;
+    }
+
+    .forecast-trust-note p {
+        margin: 0;
+        color: var(--text-2);
+        line-height: 1.55;
+    }
+
     .forecast-hero__top {
         display: grid;
         grid-template-columns: 1fr;
@@ -359,6 +378,13 @@
                 {{ freshness.zone_lead_summary }}
                 {% endif %}
             </p>
+            <div class="forecast-trust-note">
+                <strong>{{ freshness.trust_badge }}</strong>
+                <p>{{ freshness.trust_summary }}</p>
+                {% if freshness.trust_action %}
+                <p>{{ freshness.trust_action }}</p>
+                {% endif %}
+            </div>
             <div class="forecast-priority__meta">
                 <span class="pill pill--accent">{{ freshness.priority_badge }}</span>
                 <span class="pill">Strength: {{ briefing.confidence_band|capitalize }}</span>

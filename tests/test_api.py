@@ -234,6 +234,9 @@ def test_index_route_renders_dashboard_controls(
     assert "Begin at Rodman&#39;s Hollow" in text
     assert "See why it leads" in text
     assert "Plan your Block Island glass float hunt with real find history" in text
+    assert "Unofficial planning companion" in text
+    assert "Built from public finder reports" in text
+    assert "Use official links for rules and registration" in text
     assert 'name="description"' in text
 
     _, context = capture_templates[-1]
@@ -252,6 +255,9 @@ def test_about_route_renders_project_copy():
     text = response.get_data(as_text=True)
     assert "Use public float reports to choose a stronger starting point" in text
     assert "Use this for planning, not as an official hiding map" in text
+    assert "This is not an official hiding map" in text
+    assert "Public reports can be incomplete" in text
+    assert "The official project site remains the source of truth" in text
     assert "A few rules shape the whole season" in text
     assert "Useful pages before and after the hunt" in text
     assert "Open Greenway guide" in text
@@ -292,6 +298,8 @@ def test_field_route_renders_json_backed_official_guidance(sample_db: Path, monk
     assert "Best bet right now" in text
     assert "Closest worthwhile stops" in text
     assert "Open every mapped location" in text
+    assert "Stay on official routes and respect sensitive areas." in text
+    assert "Use the official rules before you head out." in text
     assert 'role="status"' in text
     assert 'aria-live="polite"' in text
     assert 'href="#main-content"' in text
@@ -299,6 +307,30 @@ def test_field_route_renders_json_backed_official_guidance(sample_db: Path, monk
     assert 'data-apple-maps-link hidden' in text
     assert app_module.OFFICIAL_LINKS["register"] in text
     assert f'href="{app_module.OFFICIAL_LINKS["project"]}"' not in text
+
+
+def test_manifest_presents_public_install_surface():
+    with app_module.app.test_client() as client:
+        response = client.get("/static/manifest.json")
+
+    assert response.status_code == 200
+    manifest = response.get_json()
+    assert manifest["name"] == "Block Island Glass Float Planner"
+    assert manifest["short_name"] == "BI Floats"
+    assert "public reports" in manifest["description"]
+    assert "shortcuts" in manifest
+    assert manifest["shortcuts"][0]["url"] == "/field"
+
+
+def test_service_worker_cache_version_tracks_public_launch_assets():
+    with app_module.app.test_client() as client:
+        response = client.get("/sw.js")
+
+    assert response.status_code == 200
+    text = response.get_data(as_text=True)
+    assert "float-tracker-v6" in text
+    assert "/static/site.css" in text
+    assert "/static/manifest.json" in text
 
 
 def test_field_route_renders_focused_share_handoff(
@@ -500,6 +532,20 @@ def test_search_route_hides_official_report_link_when_url_missing(tmp_path: Path
 
 
 def test_location_detail_renders_recent_find_official_report_links(sample_db: Path):
+    for index in range(17):
+        insert_find(
+            sample_db,
+            id=f"2023-extra-{index}",
+            year="2023",
+            float_number=str(100 + index),
+            finder=f"Archive Tester {index}",
+            location_raw="rodman",
+            location_normalized="Rodman's Hollow",
+            date_found="2023-08-01",
+            url=f"https://example.com/find/2023-extra-{index}",
+            image_url="",
+        )
+
     encoded_location = quote("Rodman's Hollow", safe="")
 
     with app_module.app.test_client() as client:
@@ -515,6 +561,9 @@ def test_location_detail_renders_recent_find_official_report_links(sample_db: Pa
     assert 'aria-modal="true"' in text
     assert app_module.OFFICIAL_LINKS["register"] in text
     assert "Newest posts first. This page keeps the full archive for Rodman&#39;s Hollow" in text
+    assert 'class="mobile-chronology-list"' in text
+    assert 'class="chronology-card"' in text
+    assert 'class="table-shell table-shell--desktop"' in text
     assert "Latest recorded report: Jul 10, 2025." in text
     assert "Jul 10, 2025" in text
     assert "Latest recorded report: 2025-07-10." not in text
@@ -539,6 +588,8 @@ def test_location_detail_builds_share_payload_and_meta(sample_db: Path, capture_
     assert 'property="og:image" content="https://cdn.example.com/2025-1.jpg"' in text
     assert 'property="og:url"' in text
     assert 'rel="canonical" href="http://localhost/location/Rodman&#39;s%20Hollow"' in text
+    assert "Unofficial archive read" in text
+    assert "Public reports can be incomplete" in text
 
     _, context = capture_templates[-1]
     assert context["share_payload"] == {
@@ -546,11 +597,13 @@ def test_location_detail_builds_share_payload_and_meta(sample_db: Path, capture_
         "share_url": "http://localhost/location/Rodman's%20Hollow?ref=share",
         "share_text": (
             "Rodman's Hollow outing card: steady archive signal with 2 reported finds across 2 seasons. "
-            "Latest dated report: Jul 10, 2025. Backup stop: Clay Head Trail."
+            "Latest dated report: Jul 10, 2025. Backup stop: Clay Head Trail. "
+            "Use this as a planning card, not a guarantee."
         ),
         "copy_text": (
             "Rodman's Hollow outing card: steady archive signal with 2 reported finds across 2 seasons. "
-            "Latest dated report: Jul 10, 2025. Backup stop: Clay Head Trail.\n"
+            "Latest dated report: Jul 10, 2025. Backup stop: Clay Head Trail. "
+            "Use this as a planning card, not a guarantee.\n"
             "http://localhost/location/Rodman's%20Hollow?ref=share\n"
             "Focused field view: http://localhost/field?focus=Rodman's+Hollow"
         ),
@@ -559,8 +612,10 @@ def test_location_detail_builds_share_payload_and_meta(sample_db: Path, capture_
     assert context["shared_ref"] is False
     assert context["page_meta"]["description"] == (
         "Rodman's Hollow outing card: steady archive signal with 2 reported finds across 2 seasons. "
-        "Latest dated report: Jul 10, 2025. Backup stop: Clay Head Trail."
+        "Latest dated report: Jul 10, 2025. Backup stop: Clay Head Trail. "
+        "Use this as a planning card, not a guarantee."
     )
+    assert context["page_meta"]["description"].endswith("Use this as a planning card, not a guarantee.")
     assert context["page_meta"]["image"] == "https://cdn.example.com/2025-1.jpg"
     assert context["page_meta"]["meta_title"] == "Rodman's Hollow outing card"
     assert context["page_meta"]["image_alt"] == "Archive photo from Rodman's Hollow"
@@ -684,6 +739,7 @@ def test_forecast_route_renders_predictions_and_location_detail(
     assert "Open location guide" in text
     assert "Where to go next if you want a backup" in text
     assert text.count("Use this as a starting suggestion, then confirm with access and conditions on the ground.") == 1
+    assert "Planning suggestion, not a guarantee" in text
     assert "Why this stays a starting suggestion" in text
     assert "Rodman&#39;s Hollow" in text
     assert "7.2/10" in text
@@ -749,6 +805,9 @@ def test_forecast_route_downgrades_headline_when_artifact_is_stale(
     assert "Latest model points to Rodman&#39;s Hollow" in text
     assert "Starting suggestion from the latest forecast artifact" in text
     assert "Model artifact age: 2 weeks" in text
+    assert "Advisory, not a live guarantee" in text
+    assert "Live weather and tide are current context; the ranked area comes from the latest saved model." in text
+    assert "Refresh the model before treating this as a same-day call." in text
     assert "Treat the ranked area as advisory because the model artifact is older than the live weather and tide." in text
     assert "the ranking model was generated on Mar 24, 2026 at 9:37 PM EDT and is about 2 weeks old." in text
     assert "History + live conditions" not in text

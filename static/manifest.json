@@ -1,11 +1,16 @@
 {
-    "name": "Block Island Glass Float Tracker",
-    "short_name": "Float Tracker",
+    "name": "Block Island Glass Float Planner",
+    "short_name": "BI Floats",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#051714",
     "theme_color": "#051714",
-    "description": "Track and analyze glass float finds on Block Island.",
+    "description": "Plan a Block Island glass float hunt with public reports, field tools, official links, and archive context.",
+    "categories": [
+        "travel",
+        "navigation",
+        "lifestyle"
+    ],
     "icons": [
         {
             "src": "/static/icon-192.png",
@@ -16,6 +21,34 @@
             "src": "/static/icon-512.png",
             "sizes": "512x512",
             "type": "image/png"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Field view",
+            "short_name": "Field",
+            "description": "Sort mapped float locations and open directions.",
+            "url": "/field",
+            "icons": [
+                {
+                    "src": "/static/icon-192.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
+        },
+        {
+            "name": "Today",
+            "short_name": "Today",
+            "description": "Open the latest planning guidance.",
+            "url": "/forecast",
+            "icons": [
+                {
+                    "src": "/static/icon-192.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
         }
     ]
 }

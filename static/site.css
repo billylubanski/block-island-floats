@@ -486,6 +486,20 @@ textarea {
     text-decoration: none;
 }
 
+.launch-trust-rail {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    color: var(--text-2);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.launch-trust-rail--compact {
+    margin-top: 0.25rem;
+}
+
 .field-group {
     display: grid;
     gap: 0.5rem;
@@ -568,6 +582,28 @@ select:focus {
     border-radius: var(--radius-md);
     border: 1px solid rgba(193, 214, 203, 0.08);
     background: rgba(255, 255, 255, 0.02);
+}
+
+.mobile-chronology-list {
+    display: none;
+}
+
+.chronology-card {
+    display: grid;
+    gap: 0.65rem;
+    padding: 0.95rem;
+    border-radius: 16px;
+    border: 1px solid rgba(193, 214, 203, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.chronology-card strong {
+    font-size: 1rem;
+}
+
+.chronology-card span {
+    color: var(--text-2);
+    line-height: 1.5;
 }
 
 table {
@@ -812,5 +848,14 @@ tbody tr:hover td {
 
     .weather-meta {
         flex-wrap: wrap;
+    }
+
+    .table-shell--desktop {
+        display: none;
+    }
+
+    .mobile-chronology-list {
+        display: grid;
+        gap: 0.85rem;
     }
 }

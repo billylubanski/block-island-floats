@@ -25,6 +25,13 @@
     letter-spacing: -0.03em;
 }
 
+.field-safety-note {
+    margin: 0;
+    max-width: 38rem;
+    color: var(--text-2);
+    line-height: 1.6;
+}
+
 .field-command__actions {
     display: flex;
     align-items: center;

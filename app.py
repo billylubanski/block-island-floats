@@ -341,6 +341,9 @@ def build_forecast_freshness(briefing):
             'zone_lead_summary': 'This area still leads the latest model, but the ranking artifact is no longer same-day fresh.',
             'zone_backup_summary': 'Keep this reserve area from the latest model if the first stop is crowded, blocked, or quiet on the ground.',
             'warning_label': f'Model artifact age: {artifact_age_label}',
+            'trust_badge': 'Advisory, not a live guarantee',
+            'trust_summary': 'Live weather and tide are current context; the ranked area comes from the latest saved model.',
+            'trust_action': 'Refresh the model before treating this as a same-day call.',
         }
 
     return {
@@ -356,6 +359,9 @@ def build_forecast_freshness(briefing):
         'zone_lead_summary': "This area has the clearest mix of archive history and today's conditions.",
         'zone_backup_summary': 'Keep this one in reserve if your first stop feels crowded or quiet on the ground.',
         'warning_label': '',
+        'trust_badge': 'Planning suggestion, not a guarantee',
+        'trust_summary': 'Use this as a starting order, then confirm access, rules, weather, and what you see on the ground.',
+        'trust_action': '',
     }
 
 
@@ -1272,12 +1278,12 @@ def index():
                                mode='dashboard',
                                kicker='Explore',
                                title='Plan your Block Island glass float hunt with real find history',
-                               subtitle='See which beaches and trails keep producing finds, when finds peak, and where to start today.',
+                               subtitle='Use public finder reports to compare beaches and trails, understand archive patterns, and choose a responsible first stop.',
                                primary_cta=build_cta(
                                    label='Explore hotspots',
                                    href='#explore-map',
                                ),
-                               description='Use public find history to compare hotspots, seasonality, and the best places to start a Block Island glass float hunt.',
+                               description='Unofficial Block Island glass float planning companion built from public finder reports, field tools, and official links.',
                            ))
 
 @app.route('/search')
@@ -1486,6 +1492,7 @@ def location_detail(location_name):
     if backup_names:
         backup_label = 'Backup stop' if len(nearby_route_stops) == 1 else 'Backup stops'
         share_parts.append(f'{backup_label}: {backup_names}.')
+    share_parts.append('Use this as a planning card, not a guarantee.')
     share_text = ' '.join(share_parts)
     share_copy_lines = [share_text, share_url]
     if field_share_url:

@@ -3,7 +3,7 @@
 {% block head %}
 <link rel="preconnect" href="https://unpkg.com" crossorigin />
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<link rel="stylesheet" href="/static/field-mode.css" />
+<link rel="stylesheet" href="/static/field-mode.css?v=public-v6" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 <script src="/static/field-mode.js" defer></script>
 {% endblock %}
@@ -73,6 +73,7 @@
                 <p class="page-kicker">{{ page_meta.kicker }}</p>
                 <h1>{{ page_meta.title }}</h1>
                 <p class="lead">{{ page_meta.subtitle }}</p>
+                <p class="field-safety-note">Stay on official routes and respect sensitive areas. Use the official rules before you head out.</p>
             </div>
 
             <div class="field-command__actions">
