@@ -1165,7 +1165,12 @@ def get_tide_context():
     ):
         return tide_cache['data']
 
-    tide = fetch_live_tide_context(target_time=now, request_get=requests.get)
+    try:
+        tide = fetch_live_tide_context(target_time=now, request_get=requests.get)
+    except Exception as exc:
+        print(f"Error fetching tide context: {exc}")
+        return None
+
     if tide:
         tide_cache['data'] = tide
         tide_cache['timestamp'] = now
