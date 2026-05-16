@@ -755,6 +755,58 @@ def test_select_sitemap_fetch_ids_uses_new_changed_and_capped_backfill():
     }
 
 
+def test_select_sitemap_fetch_ids_new_only_fetches_only_new_records():
+    existing_by_id = {
+        "2": normalize_record(
+            {
+                "id": "2",
+                "year": "2025",
+                "title": "2 Finder",
+                "url": "https://example.com/2",
+                "image": "https://cdn.example.com/2.jpg",
+                "location": "Loc 2",
+                "date_found": "2025-06-02",
+            }
+        ),
+        "1": normalize_record(
+            {
+                "id": "1",
+                "year": "2025",
+                "title": "1 Finder",
+                "url": "https://example.com/1",
+                "image": "",
+                "location": "Loc 1",
+                "date_found": "",
+            }
+        ),
+    }
+    sitemap_entries = {
+        "3": {"url": "https://example.com/3", "sitemap_lastmod": "2026-03-25T00:00:00Z"},
+        "2": {"url": "https://example.com/2", "sitemap_lastmod": "2026-03-24T00:00:00Z"},
+        "1": {"url": "https://example.com/1", "sitemap_lastmod": "2026-03-24T00:00:00Z"},
+    }
+    previous_state = {
+        "2": {"url": "https://example.com/2", "sitemap_lastmod": "2026-03-20T00:00:00Z"},
+        "1": {"url": "https://example.com/1", "sitemap_lastmod": "2026-03-24T00:00:00Z"},
+    }
+
+    scheduling = select_sitemap_fetch_ids(
+        sitemap_entries,
+        existing_by_id,
+        previous_state,
+        backfill_batch_size=2,
+        new_only=True,
+    )
+
+    assert scheduling == {
+        "fetch_ids": ["3"],
+        "new_ids": ["3"],
+        "changed_ids": ["2"],
+        "backfill_ids": [],
+        "forced_refetch_ids": [],
+    }
+
+
 def test_select_sitemap_fetch_ids_treats_bootstrap_state_as_cached():
     existing_by_id = {
         "1": normalize_record(
@@ -937,6 +989,78 @@ def test_apply_sitemap_updates_keeps_existing_rows_on_404_and_tracks_missing_url
     assert source_discovery["forced_refetch_ids"] == 0
     assert source_discovery["refresh_scope"] == "incremental"
     assert source_discovery["anomaly_counts"]["detail_404"] == 1
+
+
+def test_apply_sitemap_updates_new_only_preserves_changed_state_until_fetched():
+    existing_records = {
+        "2": normalize_record(
+            {
+                "id": "2",
+                "year": "2025",
+                "title": "2 Finder",
+                "url": "https://example.com/2",
+                "image": "https://cdn.example.com/2.jpg",
+                "location": "Loc 2",
+                "date_found": "2025-06-02",
+            }
+        ),
+        "1": normalize_record(
+            {
+                "id": "1",
+                "year": "2025",
+                "title": "1 Finder",
+                "url": "https://example.com/1",
+                "image": "",
+                "location": "Loc 1",
+                "date_found": "",
+            }
+        ),
+    }
+    sitemap_entries = {
+        "3": {"url": "https://example.com/3", "sitemap_lastmod": "2026-03-25T00:00:00Z"},
+        "2": {"url": "https://example.com/2", "sitemap_lastmod": "2026-03-24T00:00:00Z"},
+        "1": {"url": "https://example.com/1", "sitemap_lastmod": "2026-03-24T00:00:00Z"},
+    }
+    previous_state = {
+        "2": {
+            "url": "https://example.com/2",
+            "sitemap_lastmod": "2026-03-20T00:00:00Z",
+            "first_seen_at": "2026-03-01T00:00:00Z",
+            "last_seen_at": "2026-03-20T00:00:00Z",
+            "last_fetched_at": "2026-03-20T00:00:00Z",
+            "fetch_status": "ok",
+        },
+        "1": {
+            "url": "https://example.com/1",
+            "sitemap_lastmod": "2026-03-24T00:00:00Z",
+            "first_seen_at": "2026-03-01T00:00:00Z",
+            "last_seen_at": "2026-03-20T00:00:00Z",
+            "last_fetched_at": "",
+            "fetch_status": "ok",
+        },
+    }
+    fetched_urls = []
+
+    records, sitemap_state, source_discovery = apply_sitemap_updates(
+        existing_records,
+        sitemap_entries,
+        previous_state,
+        fetch_detail_page=lambda url: fetched_urls.append(url)
+        or {"status_code": 200, "body": load_fixture("event_detail_embedded_data.html")},
+        refreshed_at="2026-03-26T00:00:00Z",
+        backfill_batch_size=2,
+        new_only=True,
+    )
+
+    assert fetched_urls == ["https://example.com/3"]
+    assert {record["id"] for record in records} == {"5741", "2", "1"}
+    assert sitemap_state["2"]["sitemap_lastmod"] == "2026-03-20T00:00:00Z"
+    assert sitemap_state["2"]["last_seen_at"] == "2026-03-26T00:00:00Z"
+    assert sitemap_state["1"]["sitemap_lastmod"] == "2026-03-24T00:00:00Z"
+    assert source_discovery["refresh_scope"] == "new-only"
+    assert source_discovery["detail_pages_fetched"] == 1
+    assert source_discovery["changed_ids"] == 1
+    assert source_discovery["backfilled_ids"] == 0
 
 
 def test_apply_sitemap_updates_reports_fetch_progress(tmp_path):

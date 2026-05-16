@@ -1,12 +1,12 @@
 # Data Cleanup Summary
 
-- Generated at: 2026-04-15T22:34:53+00:00
-- Records reviewed: 4358
+- Generated at: 2026-05-16T03:32:39+00:00
+- Records reviewed: 4365
 - Missing dates: 3607
-- Blank images: 3830
+- Blank images: 3831
 - Placeholder images (treated as complete/no-photo posts): 0
 - Blank locations: 0
-- Bucketed unknown/off-island locations: 61
+- Bucketed unknown/off-island locations: 62
 - Merged duplicate groups: 22
 
 ## Can Fill
@@ -18,7 +18,7 @@
 
 ## Probably Source Missing
 
-- 2025: dates 0, blank images 80, placeholder images 0
+- 2025: dates 0, blank images 81, placeholder images 0
 - 2024: dates 0, blank images 95, placeholder images 0
 - 2023: dates 292, blank images 321, placeholder images 0
 - 2022: dates 141, blank images 154, placeholder images 0

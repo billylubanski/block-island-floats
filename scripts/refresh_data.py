@@ -1234,6 +1234,7 @@ def select_sitemap_fetch_ids(
     *,
     backfill_batch_size: int = HISTORICAL_BACKFILL_BATCH_SIZE,
     full_refresh: bool = False,
+    new_only: bool = False,
 ) -> dict[str, list[str]]:
     ordered_ids = list(sitemap_entries)
     order_positions = {record_id: position for position, record_id in enumerate(ordered_ids)}
@@ -1265,7 +1266,10 @@ def select_sitemap_fetch_ids(
         key=lambda record_id: backfill_sort_key(record_id, previous_state, order_positions),
     )
     forced_refetch_ids: list[str] = []
-    if full_refresh:
+    if new_only:
+        backfill_ids = []
+        fetch_ids = new_ids
+    elif full_refresh:
         backfill_ids = incomplete_ids
         forced_refetch_ids = [
             record_id
@@ -1306,6 +1310,7 @@ def apply_sitemap_updates(
     refreshed_at: str | None = None,
     backfill_batch_size: int = HISTORICAL_BACKFILL_BATCH_SIZE,
     full_refresh: bool = False,
+    new_only: bool = False,
     disallowed_count: int = 0,
     progress: RefreshProgress | None = None,
 ) -> tuple[list[dict[str, str]], dict[str, dict[str, str]], dict[str, Any]]:
@@ -1318,10 +1323,11 @@ def apply_sitemap_updates(
         previous_state,
         backfill_batch_size=backfill_batch_size,
         full_refresh=full_refresh,
+        new_only=new_only,
     )
 
     source_discovery = {
-        "refresh_scope": "full" if full_refresh else "incremental",
+        "refresh_scope": "new-only" if new_only else "full" if full_refresh else "incremental",
         "sitemap_urls_seen": len(sitemap_entries),
         "detail_pages_fetched": 0,
         "reused_rows": 0,
@@ -1362,14 +1368,20 @@ def apply_sitemap_updates(
             },
         )
 
+    fetched_ids = set(fetch_ids)
     for record_id, sitemap_entry in sitemap_entries.items():
         previous_entry = next_state.get(record_id, normalize_sitemap_state_entry(previous_state.get(record_id)))
         fetch_status = previous_entry.get("fetch_status", "")
         if not fetch_status:
             fetch_status = "bootstrap" if record_id in existing_by_id else "discovered"
+        state_url = sitemap_entry["url"]
+        state_lastmod = sitemap_entry["sitemap_lastmod"]
+        if new_only and record_id in existing_by_id and record_id not in fetched_ids:
+            state_url = previous_entry.get("url", "") or state_url
+            state_lastmod = previous_entry.get("sitemap_lastmod", "")
         next_state[record_id] = {
-            "url": sitemap_entry["url"],
-            "sitemap_lastmod": sitemap_entry["sitemap_lastmod"],
+            "url": state_url,
+            "sitemap_lastmod": state_lastmod,
             "first_seen_at": previous_entry.get("first_seen_at", "") or refreshed_at,
             "last_seen_at": refreshed_at,
             "last_fetched_at": previous_entry.get("last_fetched_at", ""),
@@ -1391,7 +1403,6 @@ def apply_sitemap_updates(
             "fetch_status": "missing_from_sitemap",
         }
 
-    fetched_ids = set(fetch_ids)
     total_fetches = len(fetch_ids)
     for index, record_id in enumerate(fetch_ids, start=1):
         sitemap_entry = sitemap_entries[record_id]
@@ -2335,7 +2346,7 @@ def validate_outputs(
     return errors
 
 
-def refresh_data(*, full_refresh: bool = False) -> int:
+def refresh_data(*, full_refresh: bool = False, new_only: bool = False) -> int:
     progress = RefreshProgress()
     existing_by_id = load_existing_canonical_records()
     record_overrides = load_record_overrides()
@@ -2363,6 +2374,7 @@ def refresh_data(*, full_refresh: bool = False) -> int:
             refreshed_at=iso_now(),
             backfill_batch_size=HISTORICAL_BACKFILL_BATCH_SIZE,
             full_refresh=full_refresh,
+            new_only=new_only,
             disallowed_count=disallowed_count,
             progress=progress,
         )
@@ -2479,7 +2491,7 @@ def refresh_data(*, full_refresh: bool = False) -> int:
         f"Rebuilt {len(canonical_records)} records; fetched {source_discovery['detail_pages_fetched']} detail pages."
     )
     print(
-        f"{'Full' if full_refresh else 'Incremental'} refresh rebuilt {len(canonical_records)} records across "
+        f"{'New-only' if new_only else 'Full' if full_refresh else 'Incremental'} refresh rebuilt {len(canonical_records)} records across "
         f"{len(manifest['records_by_year'])} years. "
         f"Latest source date: {manifest['latest_source_date'] or 'Unknown'}. "
         f"Fetched {source_discovery['detail_pages_fetched']} detail pages. "
@@ -2559,6 +2571,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Refetch every sitemap detail page instead of only new, changed, and capped backfill records.",
     )
+    refresh_parser.add_argument(
+        "--new-only",
+        action="store_true",
+        help="Fetch only sitemap IDs that are not already present in the canonical dataset.",
+    )
     subparsers.add_parser("validate", help="Validate canonical JSON, snapshots, manifest, and SQLite outputs.")
     subparsers.add_parser(
         "validate-records",
@@ -2573,7 +2590,9 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.command == "refresh":
-        return refresh_data(full_refresh=bool(args.full))
+        if args.full and args.new_only:
+            parser.error("refresh --full and --new-only cannot be used together")
+        return refresh_data(full_refresh=bool(args.full), new_only=bool(args.new_only))
     if args.command == "validate":
         return validate_data()
     if args.command == "validate-records":
