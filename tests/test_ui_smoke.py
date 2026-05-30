@@ -701,7 +701,7 @@ def test_location_page_share_button_uses_native_share(live_ui_server, ui_page):
             "text": (
                 "Rodman's Hollow outing card: steady archive signal with 2 reported finds across 2 seasons. "
                 "Latest dated report: Jul 10, 2025. Backup stops: Clay Head Trail and "
-                "Hodge Family Wildlife Preserve."
+                "Hodge Family Wildlife Preserve. Use this as a planning card, not a guarantee."
             ),
             "url": f"{live_ui_server}/location/Rodman's%20Hollow?ref=share",
         }
