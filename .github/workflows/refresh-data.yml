@@ -2,6 +2,22 @@ name: Refresh Float Data
 
 on:
   workflow_dispatch:
+    inputs:
+      refresh-mode:
+        description: "Refresh scope to run"
+        required: true
+        default: "new-only"
+        type: choice
+        options:
+          - new-only
+          - incremental
+          - full
+  schedule:
+    - cron: "17 10 * * 1"
+
+concurrency:
+  group: refresh-float-data
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -33,14 +49,40 @@ jobs:
       - name: Install Chromium
         run: python -m playwright install chromium
 
+      - name: Select refresh mode
+        id: refresh_mode
+        shell: bash
+        run: |
+          mode="${{ github.event.inputs['refresh-mode'] || 'new-only' }}"
+          case "$mode" in
+            new-only)
+              echo "args=--new-only" >> "$GITHUB_OUTPUT"
+              ;;
+            incremental)
+              echo "args=" >> "$GITHUB_OUTPUT"
+              ;;
+            full)
+              echo "args=--full" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Unsupported refresh mode: $mode" >&2
+              exit 1
+              ;;
+          esac
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "Refresh mode: $mode" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Refresh data artifacts
-        run: python scripts/refresh_data.py refresh
+        run: python scripts/refresh_data.py refresh ${{ steps.refresh_mode.outputs.args }}
 
       - name: Run tests
         run: RUN_UI_SMOKE=1 python -m pytest -q
 
       - name: Validate generated data
         run: python scripts/refresh_data.py validate
+
+      - name: Validate staged records
+        run: python scripts/refresh_data.py validate-records
 
       - name: Publish refresh summary
         if: always()
@@ -68,10 +110,19 @@ jobs:
             all_floats_final.json
             floats.db
             scraped_data/floats_*.json
+            generated/data_cleanup_report.json
+            generated/data_cleanup_summary.md
             generated/forecast_artifact.json
+            generated/forecast_evaluation.json
+            generated/forecast_evaluation_summary.md
             generated/refresh_manifest.json
             generated/refresh_summary.md
             generated/legacy_row_audit.json
+            generated/manual_review_queue.json
+            generated/manual_review_summary.md
+            generated/sitemap_state.json
+            generated/validation_report.csv
+            generated/validation_report.json
           if-no-files-found: error
           retention-days: 7
 
@@ -110,7 +161,16 @@ jobs:
             all_floats_final.json
             floats.db
             scraped_data/floats_*.json
+            generated/data_cleanup_report.json
+            generated/data_cleanup_summary.md
             generated/forecast_artifact.json
+            generated/forecast_evaluation.json
+            generated/forecast_evaluation_summary.md
             generated/refresh_manifest.json
             generated/refresh_summary.md
             generated/legacy_row_audit.json
+            generated/manual_review_queue.json
+            generated/manual_review_summary.md
+            generated/sitemap_state.json
+            generated/validation_report.csv
+            generated/validation_report.json
