@@ -5,8 +5,8 @@
 
 ## Cluster Backtests
 
-- global_topk: top-1 0.0726, top-3 0.2467, log loss 3.6945, calibration gap 0.039786
-- month_frequency: top-1 0.0435, top-3 0.1393, log loss 3.992, calibration gap 0.052278
-- kernel_seasonal: top-1 0.0566, top-3 0.1843, log loss 3.816, calibration gap 0.039161
-- current_random_forest: top-1 0.0319, top-3 0.0842, log loss 4.0813, calibration gap 5e-05
-- hybrid_zone: top-1 0.0552, top-3 0.1771, log loss 4.07, calibration gap 0.035802
+- global_topk: top-1 0.0731, top-3 0.245, log loss 3.6892, calibration gap 0.038134
+- month_frequency: top-1 0.043, top-3 0.1361, log loss 3.9883, calibration gap 0.052143
+- kernel_seasonal: top-1 0.0602, top-3 0.1805, log loss 3.8093, calibration gap 0.035506
+- current_random_forest: top-1 0.0272, top-3 0.0845, log loss 4.0824, calibration gap 0.004753
+- hybrid_zone: top-1 0.0501, top-3 0.1748, log loss 4.0702, calibration gap 0.030797

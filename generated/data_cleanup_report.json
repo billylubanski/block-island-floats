@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-05-16T03:32:39+00:00",
+  "generated_at": "2026-05-30T23:10:08+00:00",
   "totals": {
-    "records": 4365,
+    "records": 4374,
     "missing_dates": 3607,
-    "blank_images": 3831,
+    "blank_images": 3836,
     "placeholder_images": 0,
     "blank_locations": 0,
     "bucketed_unknown_locations": 62,
@@ -11,16 +11,16 @@
   },
   "by_year": {
     "2025": {
-      "total": 301,
+      "total": 304,
       "missing_dates": 0,
-      "blank_images": 81,
+      "blank_images": 82,
       "placeholder_images": 0,
       "blank_locations": 0
     },
     "2024": {
-      "total": 344,
+      "total": 348,
       "missing_dates": 0,
-      "blank_images": 95,
+      "blank_images": 97,
       "placeholder_images": 0,
       "blank_locations": 0
     },
@@ -39,9 +39,9 @@
       "blank_locations": 0
     },
     "2021": {
-      "total": 341,
+      "total": 343,
       "missing_dates": 338,
-      "blank_images": 339,
+      "blank_images": 341,
       "placeholder_images": 0,
       "blank_locations": 0
     },
@@ -111,10 +111,10 @@
   },
   "validation": {
     "summary": {
-      "run_id": "20260516T033224Z",
-      "generated_at": "2026-05-16T03:32:24+00:00",
-      "total_rows": 4365,
-      "valid_rows": 4365,
+      "run_id": "20260530T230948Z",
+      "generated_at": "2026-05-30T23:09:48+00:00",
+      "total_rows": 4374,
+      "valid_rows": 4374,
       "invalid_rows": 0,
       "suspicious_rows": 0,
       "flagged_rows": 0,
@@ -330,6 +330,15 @@
     "recent_blank_location_rows": [],
     "recent_blank_image_rows": [
       {
+        "id": "5797",
+        "year": "2025",
+        "title": "70",
+        "url": "https://www.blockislandinfo.com/event/70/5797/",
+        "image": "",
+        "location": "Greenway",
+        "date_found": "2026-05-23"
+      },
+      {
         "id": "5771",
         "year": "2025",
         "title": "116 Jake DeCaro",
@@ -543,15 +552,6 @@
         "url": "https://www.blockislandinfo.com/event/%2367-denise-souza/5657/",
         "image": "",
         "location": "Fresh pond trail",
-        "date_found": "2025-10-09"
-      },
-      {
-        "id": "5653",
-        "year": "2025",
-        "title": "550! D Ciok",
-        "url": "https://www.blockislandinfo.com/event/550!-d-ciok/5653/",
-        "image": "",
-        "location": "Old mill near Magellan's tree",
         "date_found": "2025-10-09"
       }
     ],
