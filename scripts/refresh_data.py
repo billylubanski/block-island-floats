@@ -605,7 +605,7 @@ def extract_attr_value(tag: Any) -> str:
     href = tag.get("href", "")
     if href:
         parsed = parse_qs(urlparse(href).query)
-        for key in ("categories", "category"):
+        for key in ("filter_categories[0]", "categories", "category"):
             values = parsed.get(key, [])
             if values and values[0].isdigit():
                 return values[0]
@@ -617,7 +617,7 @@ def discover_year_filters_from_html(html: str) -> dict[str, str]:
     soup = BeautifulSoup(html, "html.parser")
     year_filters: dict[str, str] = {}
 
-    for label in soup.find_all("label"):
+    for label in soup.find_all(["label", "a"]):
         text = label.get_text(" ", strip=True)
         year_match = re.search(r"\b(20\d{2})\b", text)
         if not year_match:
@@ -879,6 +879,7 @@ def scrape_year_records(session: requests.Session, year: str, category_id: str) 
 
     while next_skip is not None:
         params = {
+            "filter_categories[0]": category_id,
             "categories": category_id,
             "skip": next_skip,
             "bounds": "false",

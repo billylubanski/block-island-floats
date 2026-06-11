@@ -1,9 +1,9 @@
 # Data Cleanup Summary
 
-- Generated at: 2026-05-16T03:32:39+00:00
-- Records reviewed: 4365
+- Generated at: 2026-06-11T14:27:46+00:00
+- Records reviewed: 4401
 - Missing dates: 3607
-- Blank images: 3831
+- Blank images: 3845
 - Placeholder images (treated as complete/no-photo posts): 0
 - Blank locations: 0
 - Bucketed unknown/off-island locations: 62
@@ -18,11 +18,12 @@
 
 ## Probably Source Missing
 
-- 2025: dates 0, blank images 81, placeholder images 0
-- 2024: dates 0, blank images 95, placeholder images 0
+- 2026: dates 0, blank images 4, placeholder images 0
+- 2025: dates 0, blank images 87, placeholder images 0
+- 2024: dates 0, blank images 97, placeholder images 0
 - 2023: dates 292, blank images 321, placeholder images 0
 - 2022: dates 141, blank images 154, placeholder images 0
-- 2021: dates 338, blank images 339, placeholder images 0
+- 2021: dates 338, blank images 341, placeholder images 0
 - 2020: dates 405, blank images 405, placeholder images 0
 - 2019: dates 334, blank images 334, placeholder images 0
 - 2018: dates 383, blank images 384, placeholder images 0

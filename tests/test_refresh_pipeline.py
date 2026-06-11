@@ -31,6 +31,7 @@ from scripts.refresh_data import (
     parse_sitemap_xml,
     parse_title,
     rebuild_database,
+    scrape_year_records,
     scrape_records,
     select_sitemap_fetch_ids,
     show_refresh_status,
@@ -134,7 +135,7 @@ def sample_sitemap_state(records: list[dict[str, str]]) -> dict[str, dict[str, s
 
 def test_discover_year_filters_from_html():
     filters = discover_year_filters_from_html(load_fixture("found_floats_page.html"))
-    assert filters == {"2026": "31", "2025": "24"}
+    assert filters == {"2026": "25", "2025": "24"}
 
 
 def test_discover_year_filters_from_script_payload():
@@ -145,6 +146,45 @@ def test_discover_year_filters_from_script_payload():
     """
     filters = discover_year_filters_from_html(html)
     assert filters == {"2025": "24", "2024": "23"}
+
+
+def test_discover_year_filters_from_filter_category_links():
+    html = """
+    <div class="filterPane">
+      <a href="/glass-float-project/found-floats/?filter_categories%5B0%5D=25">2026 (5)</a>
+      <a href="/glass-float-project/found-floats/?filter_categories%5B0%5D=24">2025 (301)</a>
+    </div>
+    """
+
+    filters = discover_year_filters_from_html(html)
+    assert filters == {"2026": "25", "2025": "24"}
+
+
+def test_scrape_year_records_uses_current_filter_category_param():
+    class FakeResponse:
+        status_code = 200
+
+        def __init__(self, text: str):
+            self.text = text
+
+        def raise_for_status(self):
+            return None
+
+    class FakeSession:
+        def __init__(self):
+            self.requests = []
+
+        def get(self, url, params=None, timeout=None):
+            self.requests.append({"url": url, "params": params, "timeout": timeout})
+            return FakeResponse(load_fixture("found_floats_page.html"))
+
+    session = FakeSession()
+
+    records = scrape_year_records(session, "2026", "25")
+
+    assert [record["id"] for record in records] == ["6001", "6000"]
+    assert session.requests[0]["params"]["filter_categories[0]"] == "25"
+    assert session.requests[0]["params"]["categories"] == "25"
 
 
 def test_is_access_denied_html_detects_edgesuite_block_page():
