@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-06-11T14:27:46+00:00",
+  "generated_at": "2026-06-29T14:24:31+00:00",
   "totals": {
-    "records": 4401,
+    "records": 4424,
     "missing_dates": 3607,
-    "blank_images": 3845,
+    "blank_images": 3852,
     "placeholder_images": 0,
     "blank_locations": 0,
     "bucketed_unknown_locations": 62,
@@ -11,21 +11,21 @@
   },
   "by_year": {
     "2026": {
-      "total": 11,
+      "total": 28,
       "missing_dates": 0,
-      "blank_images": 4,
+      "blank_images": 7,
       "placeholder_images": 0,
       "blank_locations": 0
     },
     "2025": {
-      "total": 319,
+      "total": 323,
       "missing_dates": 0,
-      "blank_images": 87,
+      "blank_images": 90,
       "placeholder_images": 0,
       "blank_locations": 0
     },
     "2024": {
-      "total": 348,
+      "total": 349,
       "missing_dates": 0,
       "blank_images": 97,
       "placeholder_images": 0,
@@ -39,9 +39,9 @@
       "blank_locations": 0
     },
     "2022": {
-      "total": 164,
+      "total": 165,
       "missing_dates": 141,
-      "blank_images": 154,
+      "blank_images": 155,
       "placeholder_images": 0,
       "blank_locations": 0
     },
@@ -118,10 +118,10 @@
   },
   "validation": {
     "summary": {
-      "run_id": "20260611T142723Z",
-      "generated_at": "2026-06-11T14:27:23+00:00",
-      "total_rows": 4401,
-      "valid_rows": 4401,
+      "run_id": "20260629T142410Z",
+      "generated_at": "2026-06-29T14:24:10+00:00",
+      "total_rows": 4424,
+      "valid_rows": 4424,
       "invalid_rows": 0,
       "suspicious_rows": 0,
       "flagged_rows": 0,
@@ -337,6 +337,33 @@
     "recent_blank_location_rows": [],
     "recent_blank_image_rows": [
       {
+        "id": "5872",
+        "year": "2026",
+        "title": "67 Diane Ballek",
+        "url": "https://www.blockislandinfo.com/event/67-diane-ballek/5872/",
+        "image": "",
+        "location": "Beach Avenue Trail",
+        "date_found": "2026-06-26"
+      },
+      {
+        "id": "5844",
+        "year": "2026",
+        "title": "63 - Greagori",
+        "url": "https://www.blockislandinfo.com/event/63-greagori/5844/",
+        "image": "",
+        "location": "Hodge family wildlife preserve",
+        "date_found": "2026-06-14"
+      },
+      {
+        "id": "5843",
+        "year": "2026",
+        "title": "#58 C. Delaney",
+        "url": "https://www.blockislandinfo.com/event/%2358-c-delaney/5843/",
+        "image": "",
+        "location": "Harrison Trail!",
+        "date_found": "2026-06-14"
+      },
+      {
         "id": "5836",
         "year": "2026",
         "title": "362- Jodi Richmond",
@@ -371,6 +398,33 @@
         "image": "",
         "location": "Clayhead",
         "date_found": "2026-06-06"
+      },
+      {
+        "id": "5861",
+        "year": "2025",
+        "title": "28 Xander",
+        "url": "https://www.blockislandinfo.com/event/28-xander/5861/",
+        "image": "",
+        "location": "Rodman’s Hollow",
+        "date_found": "2026-06-23"
+      },
+      {
+        "id": "5859",
+        "year": "2025",
+        "title": "392 - Beth Coords",
+        "url": "https://www.blockislandinfo.com/event/392-beth-coords/5859/",
+        "image": "",
+        "location": "Mosquito Beach",
+        "date_found": "2026-06-23"
+      },
+      {
+        "id": "5857",
+        "year": "2025",
+        "title": "528 Christine J.",
+        "url": "https://www.blockislandinfo.com/event/528-christine-j/5857/",
+        "image": "",
+        "location": "Nathan Mott park",
+        "date_found": "2026-06-22"
       },
       {
         "id": "5839",
@@ -506,60 +560,6 @@
         "image": "",
         "location": "Fresh swamp preserve",
         "date_found": "2025-11-23"
-      },
-      {
-        "id": "5721",
-        "year": "2025",
-        "title": "305",
-        "url": "https://www.blockislandinfo.com/event/305/5721/",
-        "image": "",
-        "location": "Greenway Trail, Fresh Swamp Preserve",
-        "date_found": "2025-11-23"
-      },
-      {
-        "id": "5712",
-        "year": "2025",
-        "title": "538 Kyle N.",
-        "url": "https://www.blockislandinfo.com/event/538-kyle-n/5712/",
-        "image": "",
-        "location": "Hodge Family Preserve",
-        "date_found": "2025-11-05"
-      },
-      {
-        "id": "5711",
-        "year": "2025",
-        "title": "91 Kyle N.",
-        "url": "https://www.blockislandinfo.com/event/91-kyle-n/5711/",
-        "image": "",
-        "location": "Hodge Family Preserve",
-        "date_found": "2025-11-05"
-      },
-      {
-        "id": "5703",
-        "year": "2025",
-        "title": "376 - John Ellis",
-        "url": "https://www.blockislandinfo.com/event/376-john-ellis/5703/",
-        "image": "",
-        "location": "Turnip Farm Trail",
-        "date_found": "2025-10-30"
-      },
-      {
-        "id": "5697",
-        "year": "2025",
-        "title": "524 Shannon D.",
-        "url": "https://www.blockislandinfo.com/event/524-shannon-d/5697/",
-        "image": "",
-        "location": "Dodge cemetery/ turnip farm",
-        "date_found": "2025-10-26"
-      },
-      {
-        "id": "5695",
-        "year": "2025",
-        "title": "513 joe",
-        "url": "https://www.blockislandinfo.com/event/513-joe/5695/",
-        "image": "",
-        "location": "Beach ave trail",
-        "date_found": "2025-10-25"
       }
     ],
     "recent_placeholder_image_rows": []
